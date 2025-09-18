@@ -19,6 +19,12 @@ with open("biblatex-examples.bib", "r+") as file:
         for char in line:
             if char == "@":
                 if token_type == Token.DATA:
+                    ref_type = ref_type.lower()
+                    if ref_type == "preamble" or ref_type == "comment":
+                        print("Skipping ", ref_type, "entry")
+                        token = ""
+                        token_type = Token.REF_TYPE
+                        continue
                     token = token.strip()[:-1]
                     references[(ref_type, key)] = token
                     token = ""

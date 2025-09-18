@@ -42,6 +42,8 @@ with open("biblatex-examples.bib", "r+") as file:
                     token = ""
                     token_type = Token.DATA
                     continue
+            if char == "#":
+                print("String concatenation not yet supported!")
             if char != "\n":
                 token += char
 

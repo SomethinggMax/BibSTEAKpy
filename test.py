@@ -19,22 +19,25 @@ def parse_tags(data):
     curly_bracket_level = 0
     for line in data:
         for char in line:
-            if char == "=" and curly_bracket_level == 0:
-                field_type = token.strip()
-                token = ""
-                continue
-            if char == "," and curly_bracket_level == 0:
-                dictionary[field_type] = token.strip()
-                token = ""
-                continue
-            if char == "{":
-                curly_bracket_level += 1
-                if curly_bracket_level == 1:
-                    continue
-            if char == "}":
-                curly_bracket_level -= 1
-                if curly_bracket_level == 0:
-                    continue
+            match char:
+                case "=":
+                    if curly_bracket_level == 0:
+                        field_type = token.strip()
+                        token = ""
+                        continue
+                case ",":
+                    if curly_bracket_level == 0:
+                        dictionary[field_type] = token.strip()
+                        token = ""
+                        continue
+                case "{":
+                    curly_bracket_level += 1
+                    if curly_bracket_level == 1:
+                        continue
+                case "}":
+                    curly_bracket_level -= 1
+                    if curly_bracket_level == 0:
+                        continue
             token += char
     return dictionary
 
@@ -49,38 +52,40 @@ def parse_bib(file_name):
         token_type = Token.REF_TYPE
         for line in file:
             for char in line:
-                if char == "@":
-                    if token_type == Token.DATA:
-                        ref_type = ref_type.lower()
-                        if ref_type == "preamble" or ref_type == "comment":
-                            print("Skipping ", ref_type, "entry")
+                match char:
+                    case "@":
+                        if token_type == Token.DATA:
+                            ref_type = ref_type.lower()
+                            if ref_type == "preamble" or ref_type == "comment":
+                                print("Skipping ", ref_type, "entry")
+                                token = ""
+                                token_type = Token.REF_TYPE
+                                continue
+                            token = token.strip()[:-1]
+                            if ref_type == "string":
+                                references[(ref_type, key)] = parse_string(token)
+                            else:
+                                references[(ref_type, key)] = parse_tags(token)
                             token = ""
                             token_type = Token.REF_TYPE
+                        continue
+                    case "{":
+                        if token_type == Token.REF_TYPE:
+                            ref_type = token
+                            token = ""
+                            token_type = Token.KEY
                             continue
-                        token = token.strip()[:-1]
-                        if ref_type == "string":
-                            references[(ref_type, key)] = parse_string(token)
-                        else:
-                            references[(ref_type, key)] = parse_tags(token)
-                        token = ""
-                        token_type = Token.REF_TYPE
-                    continue
-                if char == "{":
-                    if token_type == Token.REF_TYPE:
-                        ref_type = token
-                        token = ""
-                        token_type = Token.KEY
+                    case "," | "=":
+                        if token_type == Token.KEY:
+                            key = token.strip()
+                            token = ""
+                            token_type = Token.DATA
+                            continue
+                    case "#":
+                        print("String concatenation not yet supported!")
+                    case "\n":
                         continue
-                if char == "," or char == "=":
-                    if token_type == Token.KEY:
-                        key = token.strip()
-                        token = ""
-                        token_type = Token.DATA
-                        continue
-                if char == "#":
-                    print("String concatenation not yet supported!")
-                if char != "\n":
-                    token += char
+                token += char
     return references
 
 

@@ -17,23 +17,32 @@ def parse_tags(data):
     field_type = ""
     token = ""
     curly_bracket_level = 0
+    double_quotation_level = 0
     for line in data:
         for char in line:
             match char:
                 case "=":
-                    if curly_bracket_level == 0:
+                    if curly_bracket_level == 0 and double_quotation_level == 0:
                         field_type = token.strip()
                         token = ""
                         continue
                 case ",":
-                    if curly_bracket_level == 0:
+                    if curly_bracket_level == 0 and double_quotation_level == 0:
                         dictionary[field_type] = token.strip()
                         token = ""
                         continue
+                case "\"":
+                    if curly_bracket_level == 0:
+                        if double_quotation_level == 0:
+                            double_quotation_level += 1
+                        else:
+                            double_quotation_level -= 1
                 case "{":
                     curly_bracket_level += 1
                 case "}":
                     curly_bracket_level -= 1
+                case "#":
+                    print("String concatenation not yet supported!")
             token += char
     return dictionary
 
@@ -45,31 +54,33 @@ def parse_bib(file_name):
         token = ""
         ref_type = ""
         key = ""
+        curly_bracket_level = 0
         token_type = Token.REF_TYPE
         for line in file:
             for char in line:
                 match char:
-                    case "@":
-                        if token_type == Token.DATA:
-                            ref_type = ref_type.lower()
+                    case "{":
+                        curly_bracket_level += 1
+                        if token_type == Token.REF_TYPE:
+                            ref_type = token.lower()
+                            token = ""
+                            token_type = Token.KEY
+                            continue
+                    case "}":
+                        curly_bracket_level -= 1
+                        if curly_bracket_level == 0:
                             if ref_type == "preamble" or ref_type == "comment":
                                 print("Skipping ", ref_type, "entry")
                                 token = ""
                                 token_type = Token.REF_TYPE
                                 continue
-                            token = token.strip()[:-1]
+                            token = token.strip()
                             if ref_type == "string":
                                 references[(ref_type, key)] = parse_string(token)
                             else:
                                 references[(ref_type, key)] = parse_tags(token)
                             token = ""
                             token_type = Token.REF_TYPE
-                        continue
-                    case "{":
-                        if token_type == Token.REF_TYPE:
-                            ref_type = token
-                            token = ""
-                            token_type = Token.KEY
                             continue
                     case "," | "=":
                         if token_type == Token.KEY:
@@ -77,8 +88,6 @@ def parse_bib(file_name):
                             token = ""
                             token_type = Token.DATA
                             continue
-                    case "#":
-                        print("String concatenation not yet supported!")
                     case "\n":
                         continue
                 token += char

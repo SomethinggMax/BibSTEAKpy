@@ -95,7 +95,12 @@ def parse_bib(file_name):
 
 
 result = parse_bib("biblatex-examples.bib")
-
-# print(result[("book", "augustine")]["author"])
+test = parse_bib("bibtests.bib")
 
 pprint.pprint(result)
+print(test)
+
+# Some examples on how to access information from the dictionary.
+# print(result[("book", "augustine")]["author"])
+# print(result[("book", "cicero")]["annotation"])
+

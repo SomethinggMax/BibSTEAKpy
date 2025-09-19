@@ -44,6 +44,8 @@ def parse_tags(data):
                 case "#":
                     print("String concatenation not yet supported!")
             token += char
+    if token != "":
+        dictionary[field_type] = token.strip()
     return dictionary
 
 

@@ -32,12 +32,8 @@ def parse_tags(data):
                         continue
                 case "{":
                     curly_bracket_level += 1
-                    if curly_bracket_level == 1:
-                        continue
                 case "}":
                     curly_bracket_level -= 1
-                    if curly_bracket_level == 0:
-                        continue
             token += char
     return dictionary
 
@@ -90,5 +86,7 @@ def parse_bib(file_name):
 
 
 result = parse_bib("biblatex-examples.bib")
+
+# print(result[("book", "augustine")]["author"])
 
 pprint.pprint(result)

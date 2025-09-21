@@ -12,8 +12,8 @@ def parse_string(data):
     return data[1:-1]
 
 
-def parse_tags(data, remove_whitespace_in_fields):
-    dictionary = {}
+def parse_fields(data, remove_whitespace_in_fields):
+    fields = {}
     field_type = ""
     token = ""
     remove_whitespace = False
@@ -29,7 +29,7 @@ def parse_tags(data, remove_whitespace_in_fields):
                         continue
                 case ",":
                     if curly_bracket_level == 0 and double_quotation_level == 0:
-                        dictionary[field_type] = token.strip()
+                        fields[field_type] = token.strip()
                         token = ""
                         continue
                 case "\"":
@@ -56,8 +56,8 @@ def parse_tags(data, remove_whitespace_in_fields):
                 token += " "
             token += char
     if token != "":
-        dictionary[field_type] = token.strip()
-    return dictionary
+        fields[field_type] = token.strip()
+    return fields
 
 
 def parse_bib(file_name, remove_whitespace_in_fields):
@@ -97,7 +97,7 @@ def parse_bib(file_name, remove_whitespace_in_fields):
                                 if ref_type == "string":
                                     references[(ref_type, key)] = parse_string(token)
                                 else:
-                                    references[(ref_type, key)] = parse_tags(token, remove_whitespace_in_fields)
+                                    references[(ref_type, key)] = parse_fields(token, remove_whitespace_in_fields)
                                 token = ""
                                 token_type = Token.EXTRA
                                 continue

@@ -2,8 +2,8 @@ import pprint
 import file_parser
 
 
-result = file_parser.parse_bib("biblatex-examples.bib")
-test = file_parser.parse_bib("bibtests.bib")
+result = file_parser.parse_bib("biblatex-examples.bib", True)
+test = file_parser.parse_bib("bibtests.bib", True)
 
 pprint.pprint(result)
 print(test)

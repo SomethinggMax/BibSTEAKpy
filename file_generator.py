@@ -9,7 +9,7 @@ def generate_bib(file_name, references, align_fields_position):
                 reference_string +=  string_start + " " * padding_size + "= {" + fields + "}}"
             else:
                 reference_string += "\n@" + ref_type + "{" + key + ",\n"
-                for (field_type, data) in fields.items():
+                for field_type, data in fields.items():
                     field_start = "  " + field_type
                     position_minus_length = align_fields_position - len(field_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0

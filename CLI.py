@@ -2,16 +2,23 @@ import cmd
 import os
 import shutil
 import json
+import file_parser
+import batch_editor
+import file_generator
+from pprint import pprint
 
 CONFIG_FILE = "config.json"
 
 COMMANDS = [("help", "Display the current menu"),
             ("load", "Load a particular file into the working directory"),
-            ("set_directory", "Configure a working directory"),
+            ("set_directory <absolte/path/to/wd>", "Configure a working directory"),
             ("storage", "See all the bib files in the working directory"),
             ("wd", "Get current working directory"),
             ("abbreviations", "Display all abbreviations"),
+            ("view <filename>", "View the content of a certain bib file"),
             ("quit", "Close the BibSteak CLI"),
+            ("batch_replace <filename> <fields> <old string> <new string>", "Display all abbreviations"),
+
             ]
 
 def get_working_directory_path():
@@ -63,12 +70,11 @@ def set_directory(absolute_working_directory_path):
         
     
 def display_help_commands():
-    print(f"{'-'*30} All COMMANDS {'-'*30}")
-    
     for command in COMMANDS:
-        print(command[0], (15 - len(command[0]))*" ", command[1])
+        print(command[0], (60 - len(command[0]))*" ", command[1])
         
-    print(f"{'-'*30}{'-'*len(' All COMMANDS ')}{'-'*30}")
+    print("")
+        
     
     
 def display_storage_files():
@@ -129,6 +135,39 @@ class CLI(cmd.Cmd):
     def do_quit(self, arg):
         print("Bye! - Shell closed")
         return True  # returning True exits the loop
+    
+    def do_view(self, arg):
+        path = os.path.join(get_working_directory_path(), arg)
+        with open(path, "r") as f:
+            for line in f:
+                print("|>  ", line, end="")
+                
+        print("\n")
+                
+            
+    
+    def do_batch_replace(self, args):
+        filename, fields, old_string, new_string = args.split()  
+        print(filename, fields, old_string, new_string)
+        
+        # working_direcory = 
+        path = os.path.join(get_working_directory_path(), filename)
+        print(path)
+        
+        reference_entries = file_parser.parse_bib(path, False)
+        batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
+        file_generator.generate_bib(path, reference_entries, 15)
+        
+        
+        # pprint(reference_entries)
+        # print("\n")
+        # path = os.path.join(get_working_directory_path(), arg)
+        # with open(path, "r") as f:
+        #     for line in f:
+        #         print("|>  ", line, end="")
+                
+        # print("\n\n")
+        
 
 if __name__ == "__main__":
     CLI().cmdloop()

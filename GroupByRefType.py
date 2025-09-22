@@ -20,11 +20,14 @@ def groupByRefType(refs, GroupingType):
             refsArray.append(((reftype, key), fields))
 
     #sort by tuple (alphabetically for now)
+    strings_only_arr = [('string', allrefs.get("string"))]
+    allrefs.pop("string")
     allrefs = sorted(allrefs.items(), reverse=GroupingType.value) #TODO: different types of sorting
 
     #get the refs from the [ref1, ref2, ref3, etc] array and put them in a dict to return
     result = {}
-    for (key, refs) in allrefs:
+
+    for (key, refs) in strings_only_arr + allrefs:
         for (key, value) in refs:
             result.update({key:value})
 

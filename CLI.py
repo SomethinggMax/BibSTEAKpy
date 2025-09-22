@@ -7,6 +7,11 @@ import batch_editor
 import file_generator
 from pprint import pprint
 from GroupByRefType import groupByRefType
+import abbreviations_exec
+import tkinter as tk
+from tkinter.filedialog import askopenfilename
+import tkinter as tk
+from tkinter import filedialog
 
 GREEN = "\033[92m"
 RESET = "\033[0m"
@@ -25,15 +30,16 @@ CONFIG_FILE = "config.json"
 
 COMMANDS = [("help", "Display the current menu"),
             ("load", "Load a particular file into the working directory"),
-            ("set_directory <absolte/path/to/wd>", "Configure a working directory"),
+            ("set_directory <absolte/path/to/wd>", "Choose the ABSOLUTE path to a working directory"),
             ("list", "See all the bib files in the working directory"),
             ("wd", "Get current working directory"),
             ("abbreviations", "Display all abbreviations"),
-            ("view <filename>", "View the content of a certain bib file"),
+            ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
             ("quit", "Close the BibSteak CLI"),
             ("refgroup <filename> <order>" , "Group and order based on entry type"),
+            ("expand <filename>" , "Expand all abbreviations in the file"),
+            ("collapse <filename>" , "Collapse all abbreviations in the file"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Display all abbreviations"),
-
             ]
 
 def get_working_directory_path():
@@ -66,22 +72,8 @@ def load_file_to_storage(source_path):
         print(f"Unexpected error: {e}")
         return None
     
-    
-def set_directory(absolute_working_directory_path):
-    try:
-        with open("config.json", "r") as f:
-            config = json.load(f)
-            
-        config["working_directory"] = absolute_working_directory_path
-            
-        with open("config.json", "w") as f:
-            json.dump(config, f, indent=2)
-            
-        print_in_green(f"Directory successfuly set to {absolute_working_directory_path}")
-        
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
+
+
         
     
 def display_help_commands():
@@ -90,33 +82,15 @@ def display_help_commands():
         
     print("")
         
-    
-    
-def list():
-    try:
-        folder_path = get_working_directory_path()
-        
-        if os.listdir(folder_path):
-            index = 1
-            print(f"Bib files in {folder_path}")
-            for filename in os.listdir(folder_path):
-                full_path = os.path.join(folder_path, filename)
-                if os.path.isfile(full_path):   # ignore subfolders
-                    print(f"{BLUE}[{index}] {RESET}", filename)
-                index += 1
-        else:
-            print("The working directory is empty!")
-                
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
+
+
     
     
 def display_abbreviations():
     with open("abbreviations.json", "r") as f:
         abreviations = json.load(f)
         for key, value in abreviations.items():
-            print(f"{key} {(15-len(key))*' '} {value}")
+            print(f"{key} {(15-len(key))*' '} {value[0]}")
         
 
 class CLI(cmd.Cmd):
@@ -142,14 +116,47 @@ class CLI(cmd.Cmd):
         load_file_to_storage(arg)
         
     def do_list(self, arg):
-        list()
+        try:
+            folder_path = get_working_directory_path()
+            
+            if os.listdir(folder_path):
+                index = 1
+                print(f"Bib files in {folder_path}")
+                for filename in os.listdir(folder_path):
+                    full_path = os.path.join(folder_path, filename)
+                    if os.path.isfile(full_path):   # ignore subfolders
+                        print(f"{BLUE}[{index}] {RESET}", filename)
+                    index += 1
+            else:
+                print("The working directory is empty!")
+                    
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
         
     def do_wd(self, arg):
         print(f"{BLUE}Current working directory: {get_working_directory_path()}{RESET}")
         
-    def do_set_directory(self, arg):
-        set_directory(arg)
+    def do_set_directory(self, wd_path): 
         
+        try:
+            if os.path.exists(wd_path) == False:
+                raise Exception(f"Path not found: {wd_path}")
+            
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                
+            config["working_directory"] = wd_path
+                
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=2)
+                
+            print_in_green(f"Directory successfuly set to {wd_path}")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
     def do_help(self, arg):
         display_help_commands()
 
@@ -161,26 +168,33 @@ class CLI(cmd.Cmd):
         return True  # returning True exits the loop
     
     def do_view(self, arg):
-        path = os.path.join(get_working_directory_path(), arg)
-        with open(path, "r") as f:
-            for line in f:
-                print(f"{YELLOW}|>  {RESET}", line, end="")
-                
-        print("\n")
+        try:
+            path = os.path.join(get_working_directory_path(), arg)
+            with open(path, "r") as f:
+                for line in f:
+                    print(f"{YELLOW}|>  {RESET}", line, end="")
+                    
+            print("\n")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
                 
     def do_batch_replace(self, args):
-        filename, fields, old_string, new_string = args.split()  
-        print(filename, fields, old_string, new_string)
-        
-        # working_direcory =
-        path = os.path.join(get_working_directory_path(), filename)
-        reference_entries = file_parser.parse_bib(path, False)
-        
-        batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
-        file_generator.generate_bib(path, reference_entries, 15)
-        
-        print_in_green("Batch replace done successfuly!")
-        
+        try:
+            filename, fields, old_string, new_string = args.split()  
+            print(filename, fields, old_string, new_string)
+            
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            reference_entries = file_parser.parse_bib(path, False)
+            
+            batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
+            file_generator.generate_bib(path, reference_entries, 15)
+            
+            print_in_green("Batch replace has been done successfuly!")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
         
     def do_refgroup(self, args):
         try:
@@ -196,10 +210,34 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
         
+    def do_expand(self, arg):
+        try:
+            filename = arg
+            path = os.path.join(get_working_directory_path(), filename)
+            reference_entries = file_parser.parse_bib(path, False)
+            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
+            file_generator.generate_bib(path, examples_edited, 15)
+            
+            print_in_green("Expanding abbreviations has been done successfuly!")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
         
+    def do_collapse(self, arg):
+        try:
+            filename = arg
+            path = os.path.join(get_working_directory_path(), filename)
+            reference_entries = file_parser.parse_bib(path, False)
+            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
+            file_generator.generate_bib(path, examples_edited, 15)
+            
+            print_in_green("Collapsing abbreviations has been done successfuly!")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
         
-        
-        
-
+    
 if __name__ == "__main__":
     CLI().cmdloop()

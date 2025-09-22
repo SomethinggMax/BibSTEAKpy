@@ -7,7 +7,7 @@ def execute_abbreviations(references, minimize, max_abbreviations):
     with open('abbreviations.json') as abbreviations_data:
         data = json.load(abbreviations_data)
         abbreviations_data.close()
-        pprint.pprint(data)
+        # pprint.pprint(data)
 
     for abbreviation, list in data.items():
         references = batch_editor.batch_replace(references, list[1], abbreviation, list[0])

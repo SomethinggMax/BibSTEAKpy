@@ -108,6 +108,7 @@ class CLI(cmd.Cmd):
     and add the absolute path as an argument.
     """   
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
+    completekey = "tab"
     
 
         

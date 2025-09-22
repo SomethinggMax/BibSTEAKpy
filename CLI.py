@@ -72,19 +72,11 @@ def load_file_to_storage(source_path):
         print(f"Unexpected error: {e}")
         return None
     
-
-
-        
-    
 def display_help_commands():
     for command in COMMANDS:
         print(command[0], (60 - len(command[0]))*" ", command[1])
         
     print("")
-        
-
-
-    
     
 def display_abbreviations():
     with open("abbreviations.json", "r") as f:
@@ -239,6 +231,5 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
         
-    
 if __name__ == "__main__":
     CLI().cmdloop()

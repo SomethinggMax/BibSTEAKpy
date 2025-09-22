@@ -1,6 +1,7 @@
 import pprint
 import difflib
-import batch_editor
+
+import abbreviations_exec
 import file_generator
 import file_parser
 
@@ -38,9 +39,7 @@ def print_differences(from_file, to_file):
 
 print_differences(bib_examples_original, bib_examples_generated)
 
-examples_edited = batch_editor.batch_replace(
-    examples, ["publisher"],
-    "pup", "Princeton University Press")
+examples_edited = abbreviations_exec.execute_abbreviations(examples, False, 1000)
 file_generator.generate_bib(bib_examples_edited, examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)

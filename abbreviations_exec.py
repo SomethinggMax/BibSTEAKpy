@@ -1,6 +1,8 @@
 import json
 import pprint
 import batch_editor
+
+
 def execute_abbreviations(references, minimize, max_abbreviations):
     with open('abbreviations.json') as abbreviations_data:
         data = json.load(abbreviations_data)

@@ -9,40 +9,36 @@ bib_examples_generated = "biblatex-examples-generated.bib"
 bib_examples_edited = "biblatex-examples-edited.bib"
 bib_tests = "bibtests.bib"
 
-
 examples = file_parser.parse_bib(bib_examples_original, False)
 test = file_parser.parse_bib(bib_tests, True)
 
-# pprint.pprint(examples)
-# print(test)
+pprint.pprint(examples)
+print(test)
 
 # Some examples on how to access information from the dictionary.
-print(examples[("book", "augustine")]["author"])
-print(examples[("book", "cicero")]["annotation"])
+# print(result[("book", "augustine")]["author"])
+# print(result[("book", "cicero")]["annotation"])
 
 # Generate file from the dictionary:
 file_generator.generate_bib(bib_examples_generated, examples, 15)
 
-# Print the differences between the original file and the generated file:
-# with open(bib_examples_original) as original:
-#     original_string = original.readlines()
-# with open(bib_examples_generated) as generated:
-#     generated_string = generated.readlines()
-# for line in difflib.unified_diff(
-#         original_string, generated_string,
-#         fromfile=bib_examples_original, tofile=bib_examples_generated,
-#         lineterm=''):
-#     print(line)
 
-# examples_edited = batch_editor.batch_replace(
-#     examples, ["publisher"],
-#     "pup", "Princeton University Press")
-# file_generator.generate_bib(bib_examples_edited, examples_edited, 15)
-# with open(bib_examples_edited) as edited:
-#     edited_string = edited.readlines()
-# for line in difflib.unified_diff(
-#         generated_string, edited_string,
-#         fromfile=bib_examples_generated, tofile=bib_examples_edited,
-#         lineterm=''):
-#     print(line)
+# Print the differences between two files.:
+def print_differences(from_file, to_file):
+    with open(from_file) as first:
+        first_string = first.readlines()
+    with open(to_file) as second:
+        second_string = second.readlines()
+    for line in difflib.unified_diff(
+            first_string, second_string,
+            fromfile=from_file, tofile=to_file,
+            lineterm=''):
+        print(line)
 
+
+print_differences(bib_examples_original, bib_examples_generated)
+
+examples_edited = abbreviations_exec.execute_abbreviations(examples, False, 1000)
+file_generator.generate_bib(bib_examples_edited, examples_edited, 15)
+
+print_differences(bib_examples_generated, bib_examples_edited)

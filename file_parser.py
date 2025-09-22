@@ -1,13 +1,16 @@
 from enum import Enum
 
+
 class Token(Enum):
     REF_TYPE = 1
     KEY = 2
     DATA = 3
     EXTRA = 4
 
+
 def parse_string(data):
     return data[1:-1]
+
 
 def parse_fields(data, remove_whitespace_in_fields):
     fields = {}

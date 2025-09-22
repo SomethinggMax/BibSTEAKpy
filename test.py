@@ -1,6 +1,6 @@
 import pprint
 import difflib
-import batch_editor
+import abbreviations_exec
 import file_generator
 import file_parser
 

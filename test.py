@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import pprint
 import difflib
 import batch_editor
@@ -48,4 +46,3 @@ file_generator.generate_bib(bib_examples_generated, examples, 15)
 #         lineterm=''):
 #     print(line)
 
->>>>>>> Stashed changes

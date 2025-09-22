@@ -6,13 +6,27 @@ import file_parser
 import batch_editor
 import file_generator
 from pprint import pprint
+from GroupByRefType import groupByRefType
+
+GREEN = "\033[92m"
+RESET = "\033[0m"
+RED         = "\033[31m"
+GREEN       = "\033[32m"
+YELLOW      = "\033[33m"
+BLUE        = "\033[34m"
+MAGENTA     = "\033[35m"
+CYAN        = "\033[36m"
+WHITE       = "\033[37m"
+
+def print_in_green(arg):
+    print(f"{GREEN}{arg}{RESET}")
 
 CONFIG_FILE = "config.json"
 
 COMMANDS = [("help", "Display the current menu"),
             ("load", "Load a particular file into the working directory"),
             ("set_directory <absolte/path/to/wd>", "Configure a working directory"),
-            ("storage", "See all the bib files in the working directory"),
+            ("list", "See all the bib files in the working directory"),
             ("wd", "Get current working directory"),
             ("abbreviations", "Display all abbreviations"),
             ("view <filename>", "View the content of a certain bib file"),
@@ -62,7 +76,7 @@ def set_directory(absolute_working_directory_path):
         with open("config.json", "w") as f:
             json.dump(config, f, indent=2)
             
-        print(f"Directory successfuly set to {absolute_working_directory_path}")
+        print_in_green(f"Directory successfuly set to {absolute_working_directory_path}")
         
     except Exception as e:
         print(f"Unexpected error: {e}")
@@ -77,13 +91,20 @@ def display_help_commands():
         
     
     
-def display_storage_files():
+def list():
     try:
-        folder = get_working_directory_path()
-        for filename in os.listdir(folder):
-            full_path = os.path.join(folder, filename)
-            if os.path.isfile(full_path):   # ignore subfolders
-                print(filename)
+        folder_path = get_working_directory_path()
+        
+        if os.listdir(folder_path):
+            index = 1
+            print(f"Bib files in {folder_path}")
+            for filename in os.listdir(folder_path):
+                full_path = os.path.join(folder_path, filename)
+                if os.path.isfile(full_path):   # ignore subfolders
+                    print(f"{BLUE}[{index}] {RESET}", filename)
+                index += 1
+        else:
+            print("The working directory is empty!")
                 
     except Exception as e:
         print(f"Unexpected error: {e}")
@@ -98,30 +119,32 @@ def display_abbreviations():
         
 
 class CLI(cmd.Cmd):
-    intro = f"""
+    intro = f"""{MAGENTA}
     _____  ___     _____ _______ ______         __  __       _____ __     ______ 
     |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
     | |_) |_| |__| (___    | |  | |__     /  \  | ' /      | |    | |      | |  
     |  _ <| | '_ \___ \    | |  |  __|   / /\ \ |  <       | |    | |      | |  
     | |_) | | |_) |___) |  | |  | |____ / ____ \| . \      | |____| |____ _| |_ 
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
-                                                                                                                                                                                                                         
+    {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is {get_working_directory_path()}
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """   
-    prompt = "BibSTEAK CLI >: "
+    prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     
+
+        
     # commands  
     def do_load(self, arg):
         load_file_to_storage(arg)
         
-    def do_storage(self, arg):
-        display_storage_files()
+    def do_list(self, arg):
+        list()
         
     def do_wd(self, arg):
-        print(f"Current working directory: {get_working_directory_path()}")
+        print(f"{BLUE}Current working directory: {get_working_directory_path()}{RESET}")
         
     def do_set_directory(self, arg):
         set_directory(arg)
@@ -140,33 +163,37 @@ class CLI(cmd.Cmd):
         path = os.path.join(get_working_directory_path(), arg)
         with open(path, "r") as f:
             for line in f:
-                print("|>  ", line, end="")
+                print(f"{YELLOW}|>  {RESET}", line, end="")
                 
         print("\n")
                 
-            
-    
     def do_batch_replace(self, args):
         filename, fields, old_string, new_string = args.split()  
         print(filename, fields, old_string, new_string)
         
-        # working_direcory = 
+        # working_direcory =
         path = os.path.join(get_working_directory_path(), filename)
-        print(path)
-        
         reference_entries = file_parser.parse_bib(path, False)
+        
         batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
         file_generator.generate_bib(path, reference_entries, 15)
         
         
-        # pprint(reference_entries)
-        # print("\n")
-        # path = os.path.join(get_working_directory_path(), arg)
-        # with open(path, "r") as f:
-        #     for line in f:
-        #         print("|>  ", line, end="")
-                
-        # print("\n\n")
+    def do_refgroup(self, args):
+        try:
+            filename, order = args.split()
+            path = os.path.join(get_working_directory_path(), filename)
+            reference_entries = file_parser.parse_bib(path, False)
+            result = groupByRefType(reference_entries, order)
+            file_generator.generate_bib(path, result, 15)
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+        
+        
+        
+        
         
 
 if __name__ == "__main__":

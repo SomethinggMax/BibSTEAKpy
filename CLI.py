@@ -157,7 +157,7 @@ class CLI(cmd.Cmd):
         display_abbreviations()
         
     def do_quit(self, arg):
-        print("Bye! - Shell closed")
+        print(f"{GREEN}Bye! - Shell closed{RESET}")
         return True  # returning True exits the loop
     
     def do_view(self, arg):
@@ -179,6 +179,8 @@ class CLI(cmd.Cmd):
         batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
         file_generator.generate_bib(path, reference_entries, 15)
         
+        print_in_green("Batch replace done successfuly!")
+        
         
     def do_refgroup(self, args):
         try:
@@ -187,6 +189,8 @@ class CLI(cmd.Cmd):
             reference_entries = file_parser.parse_bib(path, False)
             result = groupByRefType(reference_entries, order)
             file_generator.generate_bib(path, result, 15)
+            
+            print_in_green("Grouping by reference done successfuly!")
             
         except Exception as e:
             print(f"Unexpected error: {e}")

@@ -50,7 +50,8 @@ def parse_fields(data, remove_whitespace_in_fields):
                     if remove_whitespace:
                         continue
                 case "#":
-                    print("String concatenation not yet supported!")
+                    # print("String concatenation not yet supported!")
+                    pass
             if remove_whitespace:
                 remove_whitespace = False
                 token += " "

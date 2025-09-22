@@ -101,6 +101,10 @@ class CLI(cmd.Cmd):
     """   
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
+    doc_header   = "Available commands:"
+    undoc_header = "Other commands:"
+    misc_header  = "Topics:"
+    ruler        = "-"
     
 
         
@@ -230,6 +234,12 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def default(self, line):
+        print('Command not found!')
+        
+    def emptyline(self):
+        pass
         
 if __name__ == "__main__":
     CLI().cmdloop()

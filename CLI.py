@@ -31,6 +31,7 @@ COMMANDS = [("help", "Display the current menu"),
             ("abbreviations", "Display all abbreviations"),
             ("view <filename>", "View the content of a certain bib file"),
             ("quit", "Close the BibSteak CLI"),
+            ("refgroup <filename> <order>" , "Group and order based on entry type"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Display all abbreviations"),
 
             ]

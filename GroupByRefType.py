@@ -6,6 +6,7 @@ class GroupingType(Enum):
     ZTOA = 1
 
 def groupByRefType(refs, order):
+    order = int(order)
     # if GroupingType == 0:
     #     print("0")
     # else:

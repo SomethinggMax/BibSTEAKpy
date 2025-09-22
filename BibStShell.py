@@ -10,7 +10,6 @@ COMMANDS = [("help", "Display the current menu"),
             ("storage", "See all the files which are curently in the storage"),
             ]
 
-
 def load_file_to_storage(source_path):
     """
     Copy a file from source_path into the storage folder.

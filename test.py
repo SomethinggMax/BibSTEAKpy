@@ -25,7 +25,7 @@ test = file_parser.parse_bib(bib_tests, True)
 # Generate file from the dictionary:
 # file_generator.generate_bib(bib_examples_generated, examples, 15)
 
-groupedExamples = GroupByRefType.groupByRefType(examples)
+groupedExamples = GroupByRefType.groupByRefType(examples, GroupByRefType.GroupingType.ZTOA)
 
 file_generator.generate_bib(bib_examples_grouped, groupedExamples, 15)
 

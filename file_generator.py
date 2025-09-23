@@ -1,4 +1,10 @@
-def generate_bib(file_name, references, align_fields_position):
+
+from objects import File, Reference
+
+"""
+You're old implementation - Now it will be used as a helpter function by generate_bib()
+"""
+def generate_bib_helper(file_name, references, align_fields_position):
     with open(file_name, "w") as file:
         reference_string = ""
         for (ref_type, key), fields in references.items():
@@ -18,3 +24,17 @@ def generate_bib(file_name, references, align_fields_position):
             reference_string += "\n"
 
         file.write(reference_string)
+        
+
+def generate_bib(file_name, align_fields_position, file: File):
+    references = {}
+    for reference_obj in file.references:
+        key = reference_obj.get_key()
+        attribute_maps = reference_obj.get_non_none_fields()
+        del attribute_maps["entry_type"]
+        del attribute_maps["citekey"] # I should find a better way to handle this
+        references[key] = attribute_maps
+    
+    generate_bib_helper(file_name, references, align_fields_position)
+    
+    

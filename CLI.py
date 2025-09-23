@@ -211,9 +211,9 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
-            file_generator.generate_bib(path, examples_edited, 15)
+            file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Expanding abbreviations has been done successfuly!")
             
@@ -225,9 +225,9 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
-            file_generator.generate_bib(path, examples_edited, 15)
+            file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Collapsing abbreviations has been done successfuly!")
             

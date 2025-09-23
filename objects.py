@@ -1,4 +1,3 @@
-
 from typing import List, Union, Set
 
 class File(object):

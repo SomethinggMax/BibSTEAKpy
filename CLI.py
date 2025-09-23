@@ -2,19 +2,21 @@ import cmd
 import os
 import shutil
 import json
-import file_parser
-import batch_editor
-import file_generator
+import utils.batch_editor as batch_editor
+import utils.file_generator as file_generator
 from pprint import pprint
-from GroupByRefType import groupByRefType
-import abbreviations_exec
-import tkinter as tk
-from tkinter.filedialog import askopenfilename
-import tkinter as tk
-from tkinter import filedialog
-from sub_bib import sub_bib
-import ast
-from order_by_field import order_by_field
+from utils.GroupByRefType import groupByRefType
+import utils.abbreviations_exec as abbreviations_exec
+import utils
+from utils.order_by_field import *
+from utils.sub_bib import *
+from utils.file_parser import *
+from utils.file_generator import *
+from utils.GroupByRefType import *
+from utils.order_by_field import *
+from utils.batch_editor import *
+from utils.abbreviations_exec import *
+
 
 GREEN = "\033[92m"
 RESET = "\033[0m"
@@ -186,10 +188,10 @@ class CLI(cmd.Cmd):
             
             # working_direcory =
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib(path, False)
             
             batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
-            file_generator.generate_bib(path, reference_entries, 15)
+            utils.file_generator.generate_bib(path, reference_entries, 15)
             
             print_in_green("Batch replace has been done successfuly!")
             
@@ -200,9 +202,9 @@ class CLI(cmd.Cmd):
         try:
             filename, order = args.split()
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib(path, False)
             result = groupByRefType(reference_entries, order)
-            file_generator.generate_bib(path, result, 15)
+            utils.file_generator.generate_bib(path, result, 15)
             
             print_in_green("Grouping by reference done successfuly!")
             
@@ -214,9 +216,9 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib_helper(path, False)
+            reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
-            file_generator.generate_bib_helper(path, examples_edited, 15)
+            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Expanding abbreviations has been done successfuly!")
             
@@ -228,9 +230,9 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib_helper(path, False)
+            reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
-            file_generator.generate_bib_helper(path, examples_edited, 15)
+            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Collapsing abbreviations has been done successfuly!")
             
@@ -244,14 +246,14 @@ class CLI(cmd.Cmd):
             entry_types_list = ast.literal_eval(entry_types)
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
-            file = file_parser.parse_bib(path, True)
+            file = utils.file_parser.parse_bib(path, True)
             sub_file = sub_bib(file, entry_types_list)
             # sub_file = sub_bib(file, ['article'])
             # print(sub_file)
             new_path = os.path.join(get_working_directory_path(), new_filename)
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            file_generator.generate_bib(new_path, sub_file, 15)  
+            utils.file_generator.generate_bib(new_path, sub_file, 15)  
                   
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -267,9 +269,9 @@ class CLI(cmd.Cmd):
             
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
-            file = file_parser.parse_bib(path, True)
+            file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
-            file_generator.generate_bib(path, file, 15)
+            utils.file_generator.generate_bib(path, file, 15)
             
         except Exception as e:
             print(f"Unexpected error: {e}")

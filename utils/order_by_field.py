@@ -1,6 +1,6 @@
 from objects import File, Reference
-import file_parser
-import file_generator
+import utils.file_parser as file_parser
+import utils.file_generator as file_generator
 
 # Account for the fact that all Reference objects should have the field on which you want to sort on in the future
 

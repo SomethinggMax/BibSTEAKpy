@@ -1,5 +1,5 @@
-import file_generator
-import file_parser
+import utils.file_generator as file_generator
+import utils.file_parser as file_parser
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"

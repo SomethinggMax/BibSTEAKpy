@@ -1,5 +1,5 @@
-import file_parser
-import file_generator
+import utils.file_parser as file_parser
+import utils.file_generator as file_generator
 
 from objects import File, Reference
 

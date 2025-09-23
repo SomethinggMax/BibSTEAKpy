@@ -15,7 +15,8 @@ def sub_bib(file: File, entry_types: list) -> File:
                 new_file.append_reference(reference)
         
     return new_file
-        
+ 
+# JUST FOR TESTING       
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("bibtests.bib", True)
     sub_file = sub_bib(test_file, ["article"])

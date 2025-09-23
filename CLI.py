@@ -45,6 +45,9 @@ COMMANDS = [("help", "Display the current menu"),
             ("expand <filename>" , "Expand all abbreviations in the file"),
             ("collapse <filename>" , "Collapse all abbreviations in the file"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
+            ("order <filename> <fields> <old string> <new string>", "TBA"),
+            ("sub <filename> <fields> <old string> <new string>", "TBA"),
+            
             ]
 
 def get_working_directory_path():

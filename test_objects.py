@@ -6,6 +6,7 @@ bib_examples_generated = "biblatex-examples-generated.bib"
 bib_tests = "bibtests.bib"
 
 example_file = file_parser.parse_bib(bib_examples_original, True)
+
 # You can access Reference objects this way:
 reference_objects = example_file.references
 file_generator.generate_bib(bib_examples_generated, example_file, 15)

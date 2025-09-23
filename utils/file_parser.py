@@ -116,6 +116,10 @@ def parse_bib_helper(file_name, remove_whitespace_in_fields):
 
 
 def parse_bib(file_name, remove_whitespace_in_fields) -> File:
+    """ 
+    Reading the content of the file, parsing it, and encapsulating it
+    as reference objects in a File object. This File object will be returned
+    """
     file = File(file_name)
     dict_references = parse_bib_helper(file_name, remove_whitespace_in_fields)
     

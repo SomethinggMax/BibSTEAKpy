@@ -3,8 +3,8 @@
   "cup": ["Cambridge University Press",["publisher"]],
   "dtv": ["Deutscher Taschenbuch-Verlag",["publisher"]],
   "hup": ["Harvard University Press",["publisher"]],
-  "jams": ["J.~Amer. Math. Soc.",["publisher"]],
-  "jchph": ["J.~Chem. Phys.",["publisher"]],
-  "jomch": ["J.~Organomet. Chem.",["publisher"]],
+  "jams": ["J.~Amer. Math. Soc.",["journaltitle"]],
+  "jchph": ["J.~Chem. Phys.",["journaltitle"]],
+  "jomch": ["J.~Organomet. Chem.",["journaltitle"]],
   "anch-ie": ["Angew.~Chem. Int.~Ed.",["journaltitle"]]
 }

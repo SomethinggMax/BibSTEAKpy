@@ -39,7 +39,7 @@ COMMANDS = [("help", "Display the current menu"),
             ("refgroup <filename> <order>" , "Group and order based on entry type"),
             ("expand <filename>" , "Expand all abbreviations in the file"),
             ("collapse <filename>" , "Collapse all abbreviations in the file"),
-            ("batch_replace <filename> <fields> <old string> <new string>", "Display all abbreviations"),
+            ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
             ]
 
 def get_working_directory_path():

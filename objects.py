@@ -6,7 +6,7 @@ class File(object):
         self.references = list()
         self.filename = filename
         
-    def get_number(self):
+    def get_filename(self):
         return self.filename
     
     def append_reference(self, reference):
@@ -30,6 +30,9 @@ class Reference(object):
         
     def get_key(self):
         return (self.entry_type, self.citekey)
+    
+    def get_entry_type(self):
+        return self.entry_type
     
     def __str__(self):
         return f"[Reference: {self.get_key()} author:{self.author}]"

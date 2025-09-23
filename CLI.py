@@ -12,6 +12,9 @@ import tkinter as tk
 from tkinter.filedialog import askopenfilename
 import tkinter as tk
 from tkinter import filedialog
+from sub_bib import sub_bib
+import ast
+from order_by_field import order_by_field
 
 GREEN = "\033[92m"
 RESET = "\033[0m"
@@ -230,6 +233,43 @@ class CLI(cmd.Cmd):
             file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Collapsing abbreviations has been done successfuly!")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+        
+    def do_sub(self, args):
+        try:
+            filename, new_filename, entry_types = args.split()
+            entry_types_list = ast.literal_eval(entry_types)
+            # print(type(entry_types))
+            path = os.path.join(get_working_directory_path(), filename)
+            file = file_parser.parse_bib(path, True)
+            sub_file = sub_bib(file, entry_types_list)
+            # sub_file = sub_bib(file, ['article'])
+            # print(sub_file)
+            new_path = os.path.join(get_working_directory_path(), new_filename)
+            # print(new_path)
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            file_generator.generate_bib(new_path, sub_file, 15)  
+                  
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+                
+    def do_order(self, args):
+        try:
+            def str_to_bool(s: str) -> bool:
+                return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
+            
+            filename, field, descending = args.split()
+            descending = str_to_bool(descending)
+            
+            # print(type(entry_types))
+            path = os.path.join(get_working_directory_path(), filename)
+            file = file_parser.parse_bib(path, True)
+            order_by_field(file, field, descending)
+            file_generator.generate_bib(path, file, 15)
             
         except Exception as e:
             print(f"Unexpected error: {e}")

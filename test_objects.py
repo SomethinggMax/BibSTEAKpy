@@ -8,7 +8,7 @@ bib_tests = "bibtests.bib"
 example_file = file_parser.parse_bib(bib_examples_original, True)
 # You can access Reference objects this way:
 reference_objects = example_file.references
-file_generator.generate_bib(bib_examples_generated, 15, example_file)
+file_generator.generate_bib(bib_examples_generated, example_file, 15)
 
 test_file = file_parser.parse_bib(bib_tests, True)
-file_generator.generate_bib(bib_examples_generated, 15, test_file)
+file_generator.generate_bib(bib_examples_generated, test_file, 15)

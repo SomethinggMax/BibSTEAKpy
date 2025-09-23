@@ -26,7 +26,7 @@ def generate_bib_helper(file_name, references, align_fields_position):
         file.write(reference_string)
         
 
-def generate_bib(file_name, align_fields_position, file: File):
+def generate_bib(file_name, file: File, align_fields_position):
     references = {}
     for reference_obj in file.references:
         key = reference_obj.get_key()

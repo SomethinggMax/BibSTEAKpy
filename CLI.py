@@ -2,16 +2,22 @@ import cmd
 import os
 import shutil
 import json
-import file_parser
-import batch_editor
-import file_generator
+import utils.batch_editor as batch_editor
+import utils.file_generator as file_generator
 from pprint import pprint
-from GroupByRefType import groupByRefType
-import abbreviations_exec
-import tkinter as tk
-from tkinter.filedialog import askopenfilename
-import tkinter as tk
-from tkinter import filedialog
+from utils.GroupByRefType import groupByRefType
+import utils.abbreviations_exec as abbreviations_exec
+import utils
+from utils.order_by_field import *
+from utils.sub_bib import *
+from utils.file_parser import *
+from utils.file_generator import *
+from utils.GroupByRefType import *
+from utils.order_by_field import *
+from utils.batch_editor import *
+from utils.abbreviations_exec import *
+import ast
+
 
 GREEN = "\033[92m"
 RESET = "\033[0m"
@@ -40,6 +46,9 @@ COMMANDS = [("help", "Display the current menu"),
             ("expand <filename>" , "Expand all abbreviations in the file"),
             ("collapse <filename>" , "Collapse all abbreviations in the file"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
+            ("order <filename> <field> [descending=False]", "Sorts the references by a given field. By default is ASC"),
+            ("sub <filename> <fields> <old string> <new string>", "TBA"),
+            
             ]
 
 def get_working_directory_path():
@@ -105,9 +114,7 @@ class CLI(cmd.Cmd):
     undoc_header = "Other commands:"
     misc_header  = "Topics:"
     ruler        = "-"
-    
 
-        
     # commands  
     def do_load(self, arg):
         load_file_to_storage(arg)
@@ -183,10 +190,10 @@ class CLI(cmd.Cmd):
             
             # working_direcory =
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib(path, False)
             
             batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
-            file_generator.generate_bib(path, reference_entries, 15)
+            utils.file_generator.generate_bib(path, reference_entries, 15)
             
             print_in_green("Batch replace has been done successfuly!")
             
@@ -197,9 +204,9 @@ class CLI(cmd.Cmd):
         try:
             filename, order = args.split()
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib(path, False)
             result = groupByRefType(reference_entries, order)
-            file_generator.generate_bib(path, result, 15)
+            utils.file_generator.generate_bib(path, result, 15)
             
             print_in_green("Grouping by reference done successfuly!")
             
@@ -211,9 +218,9 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
-            file_generator.generate_bib(path, examples_edited, 15)
+            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Expanding abbreviations has been done successfuly!")
             
@@ -225,11 +232,63 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = file_parser.parse_bib(path, False)
+            reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
-            file_generator.generate_bib(path, examples_edited, 15)
+            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Collapsing abbreviations has been done successfuly!")
+            
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+        
+    def do_sub(self, args):
+        try:
+            filename, new_filename, entry_types = args.split()
+            entry_types_list = ast.literal_eval(entry_types)
+            # print(type(entry_types))
+            path = os.path.join(get_working_directory_path(), filename)
+            file = utils.file_parser.parse_bib(path, True)
+            sub_file = sub_bib(file, entry_types_list)
+            # sub_file = sub_bib(file, ['article'])
+            # print(sub_file)
+            new_path = os.path.join(get_working_directory_path(), new_filename)
+            # print(new_path)
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            utils.file_generator.generate_bib(new_path, sub_file, 15)  
+            
+            print_in_green("Sub operation done successfuly!")
+                  
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+                
+    def do_order(self, args):
+        try:
+            def str_to_bool(s: str) -> bool:
+                return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
+            
+            args_split = args.split()
+            filename = args_split[0]
+            field = args_split[1]
+            if len(args_split) == 3:
+                descending = str_to_bool(args_split[2])
+            else:
+                descending = False
+
+            
+            # print(type(entry_types))
+            path = os.path.join(get_working_directory_path(), filename)
+            file = utils.file_parser.parse_bib(path, True)
+            order_by_field(file, field, descending)
+            utils.file_generator.generate_bib(path, file, 15)
+            
+            if descending == False:
+                print_in_green(f"Ascending order by '{field}' field done successfuly!")
+            else:
+                print_in_green(f"Descending order by '{field}' field done successfuly!")
+                
+            
             
         except Exception as e:
             print(f"Unexpected error: {e}")

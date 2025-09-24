@@ -32,7 +32,7 @@ def generate_bib(file_name, file: File, align_fields_position):
         key = reference_obj.get_key()
         attribute_maps = reference_obj.get_non_none_fields()
         del attribute_maps["entry_type"]
-        del attribute_maps["citekey"] # I should find a better way to handle this
+        del attribute_maps["citekey"] # I should find a better way to handle this - I want to take only the fild values of the object
         references[key] = attribute_maps
     
     generate_bib_helper(file_name, references, align_fields_position)

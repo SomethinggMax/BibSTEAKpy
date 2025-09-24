@@ -1,15 +1,15 @@
-import utils.file_generator as file_generator
-import utils.file_parser as file_parser
+from utils import file_generator 
+from utils import file_parser 
 
-bib_examples_original = "biblatex-examples.bib"
-bib_examples_generated = "biblatex-examples-generated.bib"
-bib_tests = "bibtests.bib"
+bib_examples_original_path = "biblatex-examples.bib"
+bib_examples_generated_path = "biblatex-examples-generated.bib"
+bib_tests_path = "bibtests.bib"
 
-example_file = file_parser.parse_bib(bib_examples_original, True)
+example_file = file_parser.parse_bib(bib_examples_original_path, True)
+test_file = file_parser.parse_bib(bib_tests_path, True)
 
-# You can access Reference objects this way:
-reference_objects = example_file.references
-file_generator.generate_bib(bib_examples_generated, example_file, 15)
+reference_objects = example_file.references # You can access Reference objects this way:
 
-test_file = file_parser.parse_bib(bib_tests, True)
-file_generator.generate_bib(bib_examples_generated, test_file, 15)
+file_generator.generate_bib(bib_examples_generated_path, test_file, 15)
+
+

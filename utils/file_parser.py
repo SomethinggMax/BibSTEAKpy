@@ -127,7 +127,8 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> File:
     for (entry_type, cite_key), field_maps in dict_references.items():
         reference = Reference(entry_type, cite_key)
         
-        if isinstance(field_maps, dict): # Is this always the case? We should discuss
+        if isinstance(field_maps, dict): # <== Is this always the case? We should discuss based 
+                                             # on your implementation, when we have @strings this doesn't hold!
             for field, field_value in field_maps.items():
                 setattr(reference, (field.lower()), field_value)
             file.append_reference(reference)

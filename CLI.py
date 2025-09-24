@@ -16,6 +16,7 @@ from utils.GroupByRefType import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
+import ast
 
 
 GREEN = "\033[92m"
@@ -45,7 +46,7 @@ COMMANDS = [("help", "Display the current menu"),
             ("expand <filename>" , "Expand all abbreviations in the file"),
             ("collapse <filename>" , "Collapse all abbreviations in the file"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
-            ("order <filename> <fields> <old string> <new string>", "TBA"),
+            ("order <filename> <field> [descending=False]", "Sorts the references by a given field. By default is ASC"),
             ("sub <filename> <fields> <old string> <new string>", "TBA"),
             
             ]
@@ -113,9 +114,7 @@ class CLI(cmd.Cmd):
     undoc_header = "Other commands:"
     misc_header  = "Topics:"
     ruler        = "-"
-    
 
-        
     # commands  
     def do_load(self, arg):
         load_file_to_storage(arg)
@@ -257,6 +256,8 @@ class CLI(cmd.Cmd):
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(new_path, sub_file, 15)  
+            
+            print_in_green("Sub operation done successfuly!")
                   
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -267,14 +268,27 @@ class CLI(cmd.Cmd):
             def str_to_bool(s: str) -> bool:
                 return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
             
-            filename, field, descending = args.split()
-            descending = str_to_bool(descending)
+            args_split = args.split()
+            filename = args_split[0]
+            field = args_split[1]
+            if len(args_split) == 3:
+                descending = str_to_bool(args_split[2])
+            else:
+                descending = False
+
             
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
             utils.file_generator.generate_bib(path, file, 15)
+            
+            if descending == False:
+                print_in_green(f"Ascending order by '{field}' field done successfuly!")
+            else:
+                print_in_green(f"Descending order by '{field}' field done successfuly!")
+                
+            
             
         except Exception as e:
             print(f"Unexpected error: {e}")

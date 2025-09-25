@@ -2,6 +2,7 @@ import cmd
 import os
 import shutil
 import json
+import readline
 import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
 from pprint import pprint
@@ -51,12 +52,28 @@ COMMANDS = [("help", "Display the current menu"),
             
             ]
 
+def completer(text, state):
+    line = readline.get_line_buffer()
+    split_line = line.strip().split()
+    if len(split_line) <= 1:
+        options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
+    else:
+        try:
+            wd = get_working_directory_path()
+            files = [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
+            options = files
+        except Exception:
+            options = []
+    if state < len(options):
+        return options[state]
+    else:
+        return None
+
 def get_working_directory_path():
     with open("config.json", "r") as f:
         config = json.load(f)
         working_directory_path = config["working_directory"]
         return working_directory_path
-
 
 def load_file_to_storage(source_path):
     """
@@ -330,7 +347,7 @@ class CLI(cmd.Cmd):
             else:
                 print_in_green(f"Descending order by '{field}' field done successfuly!")
                 
-            
+
             
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -341,6 +358,39 @@ class CLI(cmd.Cmd):
         
     def emptyline(self):
         pass
-        
+
+    def filename_completions(self, text):
+        wd = get_working_directory_path()
+        try:
+            return [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
+        except Exception:
+            return []
+
+    def complete_view(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_expand(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_refgroup(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_batch_replace(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_order(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_sub(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_collapse(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+
+    # Add similar methods for other commands that take filenames as arguments
+     
 if __name__ == "__main__":
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
     CLI().cmdloop()

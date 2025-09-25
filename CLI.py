@@ -73,10 +73,25 @@ def load_file_to_storage(source_path):
         if extension == ".bib":
             shutil.copy(source_path, destination_path)
 
-            print(f"File '{filename}' loaded into the storage successfuly!")
+            print(f"{GREEN}File '{filename}' loaded into the storage successfuly!")
         else:
-            raise ValueError(f"Invalid file extension: '{extension}'. Only .bib files are allowed.")
+            if extension == "":
+                raise ValueError("File has no extension. Only .bib files are allowed.")
+            else:
+                raise ValueError(f"Invalid file extension: '{extension}'. Only .bib files are allowed.")
             
+    except ValueError as e:
+        print(f"File Type Error: {e}")
+        return None
+    except FileNotFoundError as e:
+        print(f"File Not Found Error: {e.filename} not found.")
+        return None
+    except PermissionError as e:
+        print(f"Permission Error: Permission to access '{e.filename}' was denied.")
+        return None
+    except shutil.SameFileError as e:
+        print(f"File Error: Source and destination represents the same file.")
+        return None
     except Exception as e:
         print(f"Unexpected error: {e}")
         return None
@@ -125,12 +140,19 @@ class CLI(cmd.Cmd):
             
             if os.listdir(folder_path):
                 index = 1
-                print(f"Bib files in {folder_path}")
+                files = []
                 for filename in os.listdir(folder_path):
                     full_path = os.path.join(folder_path, filename)
-                    if os.path.isfile(full_path):   # ignore subfolders
-                        print(f"{BLUE}[{index}] {RESET}", filename)
-                    index += 1
+                    _, extension = os.path.splitext(filename)
+                    if os.path.isfile(full_path) and extension == '.bib':
+                        files.append((filename, index))   # ignore subfolders
+                        index += 1
+                if files != []:
+                    print(f"Bib files in {folder_path}")
+                    for file, index in files:
+                        print(f"{BLUE}[{index}] {RESET}", file)
+                else:
+                    print("No .bib files found in the working directory!")
             else:
                 print("The working directory is empty!")
                     
@@ -144,8 +166,12 @@ class CLI(cmd.Cmd):
     def do_set_directory(self, wd_path): 
         
         try:
-            if os.path.exists(wd_path) == False:
-                raise Exception(f"Path not found: {wd_path}")
+            if wd_path == "":
+                raise ValueError("No path provided. Please provide an absolute path.")
+            if not os.path.exists(wd_path):
+                raise FileNotFoundError(f"Path not found: {wd_path}")
+            if not os.path.isdir(wd_path):
+                raise TypeError(f"The provided path is not a directory: {wd_path}")
             
             with open("config.json", "r") as f:
                 config = json.load(f)
@@ -158,7 +184,7 @@ class CLI(cmd.Cmd):
             print_in_green(f"Directory successfuly set to {wd_path}")
             
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print(f"Path Error: {e}")
             return None
 
     def do_help(self, arg):
@@ -217,6 +243,8 @@ class CLI(cmd.Cmd):
     def do_expand(self, arg):
         try:
             filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
             path = os.path.join(get_working_directory_path(), filename)
             reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
@@ -224,6 +252,12 @@ class CLI(cmd.Cmd):
             
             print_in_green("Expanding abbreviations has been done successfuly!")
             
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
@@ -231,13 +265,21 @@ class CLI(cmd.Cmd):
     def do_collapse(self, arg):
         try:
             filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
             path = os.path.join(get_working_directory_path(), filename)
             reference_entries = utils.file_parser.parse_bib_helper(path, False)
             examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
             utils.file_generator.generate_bib_helper(path, examples_edited, 15)
             
             print_in_green("Collapsing abbreviations has been done successfuly!")
-            
+
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None    
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None

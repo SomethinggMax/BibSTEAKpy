@@ -1,5 +1,5 @@
 from enum import Enum
-from objects import File, Reference
+from objects import BibFile, Reference
 
 
 class Token(Enum):
@@ -61,9 +61,7 @@ def parse_fields(data, remove_whitespace_in_fields):
         fields[field_type] = token.strip()
     return fields
 
-"""
-Your old implementation - Now it will be used as a helper function by parse_bib()
-"""
+
 def parse_bib_helper(file_name, remove_whitespace_in_fields):
     references = {}
 
@@ -115,22 +113,22 @@ def parse_bib_helper(file_name, remove_whitespace_in_fields):
     return references
 
 
-def parse_bib(file_name, remove_whitespace_in_fields) -> File:
+def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
     """ 
     Reading the content of the file, parsing it, and encapsulating it
     as reference objects in a File object. This File object will be returned
     """
-    file = File(file_name)
+    file = BibFile(file_name)
     dict_references = parse_bib_helper(file_name, remove_whitespace_in_fields)
-    
+
     # Picking one reference
     for (entry_type, cite_key), field_maps in dict_references.items():
         reference = Reference(entry_type, cite_key)
-        
-        if isinstance(field_maps, dict): # <== Is this always the case? We should discuss based 
-                                             # on your implementation, when we have @strings this doesn't hold!
+
+        if isinstance(field_maps, dict):  # <== Is this always the case? We should discuss based
+            # on your implementation, when we have @strings this doesn't hold!
             for field, field_value in field_maps.items():
                 setattr(reference, (field.lower()), field_value)
             file.append_reference(reference)
-    
+
     return file

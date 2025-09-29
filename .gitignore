@@ -1,4 +1,10 @@
+.pycache
+biblatex-examples-edited.bib
+biblatex-examples-generated.bib
+/.idea
+/.vs
+my_tests.py
 __pycache__
 tempCodeRunnerFile.py
-process.py
-process2.py
+sandbox.py
+permissionstest.bib

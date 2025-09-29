@@ -9,11 +9,14 @@ def sub_bib(file: BibFile, entry_types: list) -> BibFile:
     Returns a grouped File object which contains References
     which have entry types in the passed entry_types list
     """
-    new_file = BibFile(file.get_filename())
+    new_file = BibFile(file.file_name)
     for entry_type in entry_types:
-        for reference in file.references:
-            if reference.entry_type == entry_type:
-                new_file.append_reference(reference)
+        for entry in file.content:
+            if entry is Reference:
+                if entry.entry_type == entry_type:
+                    new_file.content.append(entry)
+            else:
+                new_file.content.append(entry)
 
     return new_file
 

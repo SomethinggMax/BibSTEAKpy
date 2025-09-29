@@ -138,7 +138,8 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is {get_working_directory_path()}
+    The current/last working directory is: '{
+        get_working_directory_path() if get_working_directory_path() is not "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """   

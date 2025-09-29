@@ -207,7 +207,7 @@ class CLI(cmd.Cmd):
             with open("config.json", "w") as f:
                 json.dump(config, f, indent=2)
 
-            print_in_green(f"Directory successfuly set to {wd_path}")
+            print_in_green(f"Directory successfully set to {wd_path}")
 
         except Exception as e:
             print(f"Path Error: {e}")
@@ -242,12 +242,12 @@ class CLI(cmd.Cmd):
 
             # working_direcory =
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path, False)
 
-            batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
-            utils.file_generator.generate_bib(path, reference_entries, 15)
+            batch_editor.batch_replace(bib_file, fields, old_string, new_string)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
-            print_in_green("Batch replace has been done successfuly!")
+            print_in_green("Batch replace has been done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -255,12 +255,14 @@ class CLI(cmd.Cmd):
     def do_refgroup(self, args):
         try:
             filename, order = args.split()
-            path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib(path, False)
-            result = groupByRefType(reference_entries, order)
-            utils.file_generator.generate_bib(path, result, 15)
 
-            print_in_green("Grouping by reference done successfuly!")
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            groupByRefType(bib_file, order)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Grouping by reference done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -271,12 +273,15 @@ class CLI(cmd.Cmd):
             filename = arg
             if filename == "":
                 raise ValueError("No filename provided. Please provide a filename.")
-            path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib_helper(path, False)
-            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
-            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
 
-            print_in_green("Expanding abbreviations has been done successfuly!")
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Expanding abbreviations has been done successfully!")
 
         except ValueError as e:
             print(f"Argument error: {e}")
@@ -293,12 +298,15 @@ class CLI(cmd.Cmd):
             filename = arg
             if filename == "":
                 raise ValueError("No filename provided. Please provide a filename.")
-            path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib_helper(path, False)
-            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
-            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
 
-            print_in_green("Collapsing abbreviations has been done successfuly!")
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Collapsing abbreviations has been done successfully!")
 
         except ValueError as e:
             print(f"Argument error: {e}")
@@ -323,9 +331,9 @@ class CLI(cmd.Cmd):
             new_path = os.path.join(get_working_directory_path(), new_filename)
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            utils.file_generator.generate_bib(new_path, sub_file, 15)
+            utils.file_generator.generate_bib(sub_file, new_path, 15)
 
-            print_in_green("Sub operation done successfuly!")
+            print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -351,9 +359,9 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(path, file, 15)
 
             if descending == False:
-                print_in_green(f"Ascending order by '{field}' field done successfuly!")
+                print_in_green(f"Ascending order by '{field}' field done successfully!")
             else:
-                print_in_green(f"Descending order by '{field}' field done successfuly!")
+                print_in_green(f"Descending order by '{field}' field done successfully!")
 
 
 

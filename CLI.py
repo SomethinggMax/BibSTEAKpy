@@ -3,6 +3,8 @@ import os
 import shutil
 import json
 import readline
+if os.name == 'nt' and not hasattr(readline, 'backend'):
+    readline.backend = 'unsupported'
 import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
 from pprint import pprint

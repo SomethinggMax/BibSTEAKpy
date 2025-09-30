@@ -1,39 +1,37 @@
 from enum import Enum
-from pprint import pprint
+from objects import Reference, BibFile, String
+from utils import file_generator, file_parser
 
 class GroupingType(Enum):
     ATOZ = 0
     ZTOA = 1
 
-def groupByRefType(refs, order):
-    order = int(order)
-    # create dict to store {reftype: [ref1, ref2, ref3, etc]}
-    allrefs = {}
-    for (reftype, key), fields in refs.items():
-        if reftype not in allrefs.keys():
-            #create new entry
-            newRefsArray = []
-            entry = ((reftype, key), fields)
-            newRefsArray.append(entry)
-            allrefs.update({reftype: newRefsArray})
-        else:
-            refsArray = allrefs.get(reftype)
-            refsArray.append(((reftype, key), fields))
-            
-    # sort by tuple (alphabetically for now)
-    if allrefs.get("string"):
-        strings_only_arr = [('string', allrefs.get("string"))]
-        allrefs.pop("string")
-    else:
-        strings_only_arr = []
-
-    allrefs = sorted(allrefs.items(), reverse=order)
-
-    # get the refs from the [ref1, ref2, ref3, etc] array and put them in a dict to return
-    result = {}
+def groupByRefType(bibfileObj: BibFile, enum: GroupingType):
+    #get all references from the bib obj
+    allRefs = [ref for ref in bibfileObj.content if type(ref) is Reference]
+    allStrings = [ref for ref in bibfileObj.content if type(ref) is String]
     
-    for (reftype, refs) in strings_only_arr + allrefs:
-        for (key, value) in refs:
-            result[key] = value
+    #define dict with structure: {reftype: [refobj1,refobj2,refobj3]}
+    refsByTypeDict = {}
+    for ref in allRefs:
+        fieldsDict = ref.get_fields()
+        entryType = fieldsDict["entry_type"]
 
-    return result
+        if (entryType) not in refsByTypeDict.keys():
+            refsByTypeDict[entryType] = [ref]
+        else:
+            refArray = refsByTypeDict.get(entryType)
+            refArray.append(ref)
+        
+    print(enum.value)
+    refsByTypeDict = sorted(refsByTypeDict.items(), reverse= enum.value)
+
+    #takes out all the references in order from the dict
+    allRefsOrdered = [x for sublist in (y for (x,y) in refsByTypeDict) for x in sublist]
+
+    newFile = BibFile("newfile")
+    newFile.content = allStrings + allRefsOrdered
+
+    bibfileObj.content = allStrings + allRefsOrdered
+
+

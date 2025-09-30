@@ -10,11 +10,11 @@ def merge_reference(reference_1, reference_2) -> Reference:
         if field_type in reference_2_fields:
             if data != reference_2_fields[field_type]:
                 print("Duplicate fields do not have the same contents!")
-        merged_reference.field_type = data  # add field from reference 1 to merged reference
+        setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
     for field_type, data in reference_2_fields.items():
         if field_type not in merged_reference.get_fields():
-            merged_reference.field_type = data  # add field from reference 2 to merged reference
+            setattr(merged_reference, field_type, data)  # add field from reference 2 to merged reference
 
     return merged_reference
 

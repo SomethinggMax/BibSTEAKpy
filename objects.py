@@ -2,34 +2,35 @@ from typing import List, Union, Set
 
 
 class BibFile(object):
-    def __init__(self, filename):
-        self.references = list()
-        self.filename = filename
-
-    def get_filename(self):
-        return self.filename
-
-    def get_references(self):
-        return self.references
-
-    def append_reference(self, reference):
-        self.references.append(reference)
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.content = list()
 
     def __str__(self):
-        return f"[File: {self.filename} - refs: {self.references}]"
+        return f"[File: {self.file_name} - content: {self.content}]"
 
     def __repr__(self):
         return self.__str__()
+
+
+class Comment(object):
+    def __init__(self, comment):
+        self.comment = comment
+
+
+class String(object):
+    def __init__(self, abbreviation, long_form):
+        self.abbreviation = abbreviation
+        self.long_form = long_form
 
 
 class Reference(object):
     def __init__(self, entry_type, citekey):
         self.entry_type = entry_type
         self.citekey = citekey
-        self.author = None
 
     def get_key(self):
-        return (self.entry_type, self.citekey)
+        return self.entry_type, self.citekey
 
     def get_entry_type(self):
         return self.entry_type
@@ -38,7 +39,7 @@ class Reference(object):
         return {k: v for k, v in self.__dict__.items() if v is not None}
 
     def __str__(self):
-        return f"[Reference: {self.get_key()} author:{self.author}]"
+        return f"[Reference: {self.get_key()}]"
 
     def __repr__(self):
         return self.__str__()
@@ -59,14 +60,14 @@ class BibLaTexReference(Reference):
 
 # JUST FOR TESTING PURPOSES
 if __name__ == "__main__":
-    object = BibFile("random_file.bib")
-    reference = Reference("article", "au32")
-    reference.author = "George"
+    random_file = BibFile("random_file.bib")
+    example_reference = Reference("article", "au32")
+    example_reference.author = "George"
 
     # You can add custom attributes to the object dynamically
     # even thought the object has already been instantiated
-    reference.year = 2004
-    reference.custom_attribute = "custom value"
-    print(reference.custom_attribute)
-    object.append_reference(reference)
-    print(object.get_references())
+    example_reference.year = 2004
+    example_reference.custom_attribute = "custom value"
+    print(example_reference.custom_attribute)
+    random_file.content.append(example_reference)
+    print(random_file.content)

@@ -390,6 +390,8 @@ class CLI(cmd.Cmd):
     def complete_col(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
+    def complete_load(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments
      

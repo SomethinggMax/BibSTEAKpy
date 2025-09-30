@@ -29,8 +29,8 @@ class Reference(object):
         self.entry_type = entry_type
         self.cite_key = cite_key
 
-    def get_non_none_fields(self):
-        return {k: v for k, v in self.__dict__.items() if v is not None}
+    def get_fields(self):
+        return vars(self)
 
     def __str__(self):
         return f"[Reference: {self.cite_key}]"
@@ -63,5 +63,8 @@ if __name__ == "__main__":
     example_reference.year = 2004
     example_reference.custom_attribute = "custom value"
     print(example_reference.custom_attribute)
+
+    print(example_reference.get_fields())
+
     random_file.content.append(example_reference)
     print(random_file.content)

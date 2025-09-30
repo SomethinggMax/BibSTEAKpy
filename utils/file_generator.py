@@ -16,10 +16,10 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                     reference_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
                 case Reference():
                     reference_string += "\n@" + entry.entry_type + "{" + entry.cite_key + ",\n"
-                    attribute_maps = entry.get_non_none_fields()
-                    del attribute_maps["entry_type"]
-                    del attribute_maps["cite_key"]  # I should find a better way to handle this - I want to take only the fild values of the object
+                    attribute_maps = entry.get_fields()
                     for field_type, data in attribute_maps.items():
+                        if field_type == "entry_type" or field_type == "cite_key":
+                            continue
                         field_start = "  " + field_type
                         position_minus_length = align_fields_position - len(field_start)
                         padding_size = position_minus_length if position_minus_length > 0 else 0

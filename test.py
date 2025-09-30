@@ -1,8 +1,7 @@
-import pprint
 import difflib
-import utils.abbreviations_exec as abbreviations_exec
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
+from utils import batch_editor
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
@@ -35,7 +34,7 @@ def print_differences(from_file, to_file):
 
 print_differences(bib_examples_original, bib_examples_generated)
 
-examples_edited = abbreviations_exec.execute_abbreviations(examples, False, 1000)
+examples_edited = batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
 file_generator.generate_bib(examples_edited, bib_examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)

@@ -22,7 +22,6 @@ from utils.batch_editor import *
 from utils.abbreviations_exec import *
 import ast
 
-GREEN = "\033[92m"
 RESET = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -41,19 +40,19 @@ CONFIG_FILE = "config.json"
 
 COMMANDS = [("help", "Display the current menu"),
             ("load", "Load a particular file into the working directory"),
-            ("set_directory <absolte/path/to/wd>", "Choose the ABSOLUTE path to a working directory"),
+            ("cd <directory>", "Changes the current working directory"),
             ("list", "See all the bib files in the working directory"),
-            ("wd", "Get current working directory"),
-            ("abbreviations", "Display all abbreviations"),
+            ("pwd", "Prints the working directory"),
+            ("abb", "Display all abbreviations"),
             ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
             ("quit", "Close the BibSteak CLI"),
-            ("refgroup <filename> <order>", "Group and order based on entry type"),
-            ("expand <filename>", "Expand all abbreviations in the file"),
-            ("collapse <filename>", "Collapse all abbreviations in the file"),
-            ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
-            ("order <filename> <field> [descending=False]", "Sorts the references by a given field. By default is ASC"),
-            ("sub <filename> <fields> <old string> <new string>", "TBA"),
-
+            ("rg <filename> <field>", "Group references of a bib file based on a certain field"),
+            ("exp <filename>", "Expand all abbreviations in the file"),
+            ("col <filename>", "Collapse all abbreviations in the file"),
+            ("br <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
+            ("ord <filename> <field> [descending=False]", "Order the references based on a certain field"),
+            ("sub <filename>", "Creates a sub .bib file based on selected references"),
+            
             ]
 
 
@@ -145,7 +144,8 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is {get_working_directory_path()}
+    The current/last working directory is: '{
+        get_working_directory_path() if get_working_directory_path() is not "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -185,12 +185,12 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def do_pwd(self, arg):
+        print(f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() is not "" else 'No working directory is selected.'}{RESET}")
 
-    def do_wd(self, arg):
-        print(f"{BLUE}Current working directory: {get_working_directory_path()}{RESET}")
-
-    def do_set_directory(self, wd_path):
-
+    def do_cd(self, wd_path):
+        
         try:
             if wd_path == "":
                 raise ValueError("No path provided. Please provide an absolute path.")
@@ -216,7 +216,7 @@ class CLI(cmd.Cmd):
     def do_help(self, arg):
         display_help_commands()
 
-    def do_abbreviations(self, arg):
+    def do_abb(self, arg):
         display_abbreviations()
 
     def do_quit(self, arg):
@@ -234,8 +234,8 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-
-    def do_batch_replace(self, args):
+                
+    def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
             print(filename, fields, old_string, new_string)
@@ -251,8 +251,8 @@ class CLI(cmd.Cmd):
 
         except Exception as e:
             print(f"Unexpected error: {e}")
-
-    def do_refgroup(self, args):
+        
+    def do_rg(self, args):
         try:
             filename, order = args.split()
 
@@ -267,8 +267,8 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-
-    def do_expand(self, arg):
+        
+    def do_exp(self, arg):
         try:
             filename = arg
             if filename == "":
@@ -292,8 +292,8 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-
-    def do_collapse(self, arg):
+        
+    def do_col(self, arg):
         try:
             filename = arg
             if filename == "":
@@ -338,8 +338,8 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-
-    def do_order(self, args):
+                
+    def do_ord(self, args):
         try:
             def str_to_bool(s: str) -> bool:
                 return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
@@ -385,22 +385,25 @@ class CLI(cmd.Cmd):
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_expand(self, text, line, begidx, endidx):
+    def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-
-    def complete_refgroup(self, text, line, begidx, endidx):
+    
+    def complete_rg(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-
-    def complete_batch_replace(self, text, line, begidx, endidx):
+    
+    def complete_br(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-
-    def complete_order(self, text, line, begidx, endidx):
+    
+    def complete_ord(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):
         return self.filename_completions(text)
+    
+    def complete_col(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
 
-    def complete_collapse(self, text, line, begidx, endidx):
+    def complete_load(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

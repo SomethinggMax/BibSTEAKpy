@@ -1,11 +1,12 @@
 import difflib
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
-from utils import batch_editor
+from utils import batch_editor, sub_bib
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
 bib_examples_edited = "biblatex-examples-edited.bib"
+articles_examples = "articles-examples.bib"
 bib_tests = "bibtests.bib"
 
 examples = file_parser.parse_bib(bib_examples_original, False)
@@ -38,3 +39,6 @@ examples_edited = batch_editor.batch_replace(examples, [], "pup", "Princeton Uni
 file_generator.generate_bib(examples_edited, bib_examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)
+
+articles = sub_bib.sub_bib(examples, ["article"])
+file_generator.generate_bib(articles, articles_examples, 15)

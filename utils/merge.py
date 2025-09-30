@@ -19,8 +19,9 @@ def merge_reference(reference_1, reference_2) -> Reference:
     return merged_reference
 
 
-def merge_files(bib_file_1, bib_file_2, file_name) -> BibFile:
-    merged_bib_file = BibFile(file_name)
+def merge_files(bib_file_1, bib_file_2) -> BibFile:
+    # File name will be set when generating the file, this is just temporary.
+    merged_bib_file = BibFile(bib_file_1.file_name + "+" + bib_file_2.file_name)
 
     # Add all strings first.
     merged_bib_file.content = bib_file_1.get_strings()

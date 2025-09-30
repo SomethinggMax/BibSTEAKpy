@@ -129,6 +129,15 @@ def display_abbreviations():
         
 
 class CLI(cmd.Cmd):
+
+    def preloop(self):
+        try:
+            delims = readline.get_completer_delims()
+            if "-" in delims:
+                readline.set_completer_delims(delims.replace("-", ""))
+        except Exception:
+            pass
+
     intro = f"""{MAGENTA}
     _____  ___     _____ _______ ______         __  __       _____ __     ______ 
     |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|

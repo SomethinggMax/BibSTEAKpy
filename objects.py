@@ -25,21 +25,15 @@ class String(object):
 
 
 class Reference(object):
-    def __init__(self, entry_type, citekey):
+    def __init__(self, entry_type, cite_key):
         self.entry_type = entry_type
-        self.citekey = citekey
+        self.cite_key = cite_key
 
-    def get_key(self):
-        return self.entry_type, self.citekey
-
-    def get_entry_type(self):
-        return self.entry_type
-
-    def get_non_none_fields(self):
-        return {k: v for k, v in self.__dict__.items() if v is not None}
+    def get_fields(self):
+        return vars(self)
 
     def __str__(self):
-        return f"[Reference: {self.get_key()}]"
+        return f"[Reference: {self.cite_key}]"
 
     def __repr__(self):
         return self.__str__()
@@ -69,5 +63,8 @@ if __name__ == "__main__":
     example_reference.year = 2004
     example_reference.custom_attribute = "custom value"
     print(example_reference.custom_attribute)
+
+    print(example_reference.get_fields())
+
     random_file.content.append(example_reference)
     print(random_file.content)

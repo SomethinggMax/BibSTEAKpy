@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 import readline
+
 if os.name == 'nt' and not hasattr(readline, 'backend'):
     readline.backend = 'unsupported'
 import utils.batch_editor as batch_editor
@@ -21,19 +22,20 @@ from utils.batch_editor import *
 from utils.abbreviations_exec import *
 import ast
 
-
 GREEN = "\033[92m"
 RESET = "\033[0m"
-RED         = "\033[31m"
-GREEN       = "\033[32m"
-YELLOW      = "\033[33m"
-BLUE        = "\033[34m"
-MAGENTA     = "\033[35m"
-CYAN        = "\033[36m"
-WHITE       = "\033[37m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+
 
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
+
 
 CONFIG_FILE = "config.json"
 
@@ -45,14 +47,15 @@ COMMANDS = [("help", "Display the current menu"),
             ("abbreviations", "Display all abbreviations"),
             ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
             ("quit", "Close the BibSteak CLI"),
-            ("refgroup <filename> <order>" , "Group and order based on entry type"),
-            ("expand <filename>" , "Expand all abbreviations in the file"),
-            ("collapse <filename>" , "Collapse all abbreviations in the file"),
+            ("refgroup <filename> <order>", "Group and order based on entry type"),
+            ("expand <filename>", "Expand all abbreviations in the file"),
+            ("collapse <filename>", "Collapse all abbreviations in the file"),
             ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
             ("order <filename> <field> [descending=False]", "Sorts the references by a given field. By default is ASC"),
             ("sub <filename> <fields> <old string> <new string>", "TBA"),
-            
+
             ]
+
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -71,11 +74,13 @@ def completer(text, state):
     else:
         return None
 
+
 def get_working_directory_path():
     with open("config.json", "r") as f:
         config = json.load(f)
         working_directory_path = config["working_directory"]
         return working_directory_path
+
 
 def load_file_to_storage(source_path):
     """
@@ -88,7 +93,7 @@ def load_file_to_storage(source_path):
         filename = os.path.basename(source_path)
         name, extension = os.path.splitext(filename)
         destination_path = os.path.join(working_directory, filename)
-        
+
         if extension == ".bib":
             shutil.copy(source_path, destination_path)
 
@@ -98,7 +103,7 @@ def load_file_to_storage(source_path):
                 raise ValueError("File has no extension. Only .bib files are allowed.")
             else:
                 raise ValueError(f"Invalid file extension: '{extension}'. Only .bib files are allowed.")
-            
+
     except ValueError as e:
         print(f"File Type Error: {e}")
         return None
@@ -114,19 +119,21 @@ def load_file_to_storage(source_path):
     except Exception as e:
         print(f"Unexpected error: {e}")
         return None
-    
+
+
 def display_help_commands():
     for command in COMMANDS:
-        print(command[0], (60 - len(command[0]))*" ", command[1])
-        
+        print(command[0], (60 - len(command[0])) * " ", command[1])
+
     print("")
-    
+
+
 def display_abbreviations():
     with open("abbreviations.json", "r") as f:
         abreviations = json.load(f)
         for key, value in abreviations.items():
-            print(f"{key} {(15-len(key))*' '} {value[0]}")
-        
+            print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
+
 
 class CLI(cmd.Cmd):
     intro = f"""{MAGENTA}
@@ -141,22 +148,22 @@ class CLI(cmd.Cmd):
     The current/last working directory is {get_working_directory_path()}
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
-    """   
+    """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
-    doc_header   = "Available commands:"
+    doc_header = "Available commands:"
     undoc_header = "Other commands:"
-    misc_header  = "Topics:"
-    ruler        = "-"
+    misc_header = "Topics:"
+    ruler = "-"
 
     # commands  
     def do_load(self, arg):
         load_file_to_storage(arg)
-        
+
     def do_list(self, arg):
         try:
             folder_path = get_working_directory_path()
-            
+
             if os.listdir(folder_path):
                 index = 1
                 files = []
@@ -164,7 +171,7 @@ class CLI(cmd.Cmd):
                     full_path = os.path.join(folder_path, filename)
                     _, extension = os.path.splitext(filename)
                     if os.path.isfile(full_path) and extension == '.bib':
-                        files.append((filename, index))   # ignore subfolders
+                        files.append((filename, index))  # ignore subfolders
                         index += 1
                 if files != []:
                     print(f"Bib files in {folder_path}")
@@ -174,16 +181,16 @@ class CLI(cmd.Cmd):
                     print("No .bib files found in the working directory!")
             else:
                 print("The working directory is empty!")
-                    
+
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_wd(self, arg):
         print(f"{BLUE}Current working directory: {get_working_directory_path()}{RESET}")
-        
-    def do_set_directory(self, wd_path): 
-        
+
+    def do_set_directory(self, wd_path):
+
         try:
             if wd_path == "":
                 raise ValueError("No path provided. Please provide an absolute path.")
@@ -191,17 +198,17 @@ class CLI(cmd.Cmd):
                 raise FileNotFoundError(f"Path not found: {wd_path}")
             if not os.path.isdir(wd_path):
                 raise TypeError(f"The provided path is not a directory: {wd_path}")
-            
+
             with open("config.json", "r") as f:
                 config = json.load(f)
-                
+
             config["working_directory"] = wd_path
-                
+
             with open("config.json", "w") as f:
                 json.dump(config, f, indent=2)
-                
-            print_in_green(f"Directory successfuly set to {wd_path}")
-            
+
+            print_in_green(f"Directory successfully set to {wd_path}")
+
         except Exception as e:
             print(f"Path Error: {e}")
             return None
@@ -211,98 +218,106 @@ class CLI(cmd.Cmd):
 
     def do_abbreviations(self, arg):
         display_abbreviations()
-        
+
     def do_quit(self, arg):
         print(f"{GREEN}Bye! - Shell closed{RESET}")
         return True  # returning True exits the loop
-    
+
     def do_view(self, arg):
         try:
             path = os.path.join(get_working_directory_path(), arg)
             with open(path, "r") as f:
                 for line in f:
                     print(f"{YELLOW}|>  {RESET}", line, end="")
-                    
+
             print("\n")
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-                
+
     def do_batch_replace(self, args):
         try:
-            filename, fields, old_string, new_string = args.split()  
+            filename, fields, old_string, new_string = args.split()
             print(filename, fields, old_string, new_string)
-            
+
             # working_direcory =
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib(path, False)
-            
-            batch_editor.batch_replace(reference_entries, fields, old_string, new_string)
-            utils.file_generator.generate_bib(path, reference_entries, 15)
-            
-            print_in_green("Batch replace has been done successfuly!")
-            
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            batch_editor.batch_replace(bib_file, fields, old_string, new_string)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Batch replace has been done successfully!")
+
         except Exception as e:
             print(f"Unexpected error: {e}")
-        
+
     def do_refgroup(self, args):
         try:
             filename, order = args.split()
+
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib(path, False)
-            result = groupByRefType(reference_entries, order)
-            utils.file_generator.generate_bib(path, result, 15)
-            
-            print_in_green("Grouping by reference done successfuly!")
-            
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            groupByRefType(bib_file, order)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Grouping by reference done successfully!")
+
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_expand(self, arg):
         try:
             filename = arg
             if filename == "":
                 raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
             path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib_helper(path, False)
-            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, True, 1000)
-            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
-            
-            print_in_green("Expanding abbreviations has been done successfuly!")
-            
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
-        except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-        
-    def do_collapse(self, arg):
-        try:
-            filename = arg
-            if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
-            path = os.path.join(get_working_directory_path(), filename)
-            reference_entries = utils.file_parser.parse_bib_helper(path, False)
-            examples_edited = abbreviations_exec.execute_abbreviations(reference_entries, False, 1000)
-            utils.file_generator.generate_bib_helper(path, examples_edited, 15)
-            
-            print_in_green("Collapsing abbreviations has been done successfuly!")
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Expanding abbreviations has been done successfully!")
 
         except ValueError as e:
             print(f"Argument error: {e}")
             return None
         except FileNotFoundError as e:
             print(f"File error: {e.filename} not found.")
-            return None    
+            return None
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
+    def do_collapse(self, arg):
+        try:
+            filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Collapsing abbreviations has been done successfully!")
+
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
     def do_sub(self, args):
         try:
             filename, new_filename, entry_types = args.split()
@@ -316,19 +331,19 @@ class CLI(cmd.Cmd):
             new_path = os.path.join(get_working_directory_path(), new_filename)
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            utils.file_generator.generate_bib(new_path, sub_file, 15)  
-            
-            print_in_green("Sub operation done successfuly!")
-                  
+            utils.file_generator.generate_bib(sub_file, new_path, 15)
+
+            print_in_green("Sub operation done successfully!")
+
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-                
+
     def do_order(self, args):
         try:
             def str_to_bool(s: str) -> bool:
                 return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
-            
+
             args_split = args.split()
             filename = args_split[0]
             field = args_split[1]
@@ -337,27 +352,26 @@ class CLI(cmd.Cmd):
             else:
                 descending = False
 
-            
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
             utils.file_generator.generate_bib(path, file, 15)
-            
-            if descending == False:
-                print_in_green(f"Ascending order by '{field}' field done successfuly!")
-            else:
-                print_in_green(f"Descending order by '{field}' field done successfuly!")
-                
 
-            
+            if descending == False:
+                print_in_green(f"Ascending order by '{field}' field done successfully!")
+            else:
+                print_in_green(f"Descending order by '{field}' field done successfully!")
+
+
+
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def default(self, line):
         print('Command not found!')
-        
+
     def emptyline(self):
         pass
 
@@ -373,25 +387,25 @@ class CLI(cmd.Cmd):
 
     def complete_expand(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_refgroup(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_batch_replace(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_order(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_sub(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_collapse(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-
     # Add similar methods for other commands that take filenames as arguments
-     
+
+
 if __name__ == "__main__":
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")

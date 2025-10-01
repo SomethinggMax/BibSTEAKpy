@@ -9,7 +9,12 @@ def merge_reference(reference_1, reference_2) -> Reference:
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
             if data != reference_2_fields[field_type]:
-                print("Duplicate fields do not have the same contents!")
+                print(f"Conflict in field '{field_type}' for reference '{reference_1.cite_key}':")
+                print(f"1. '{data}'")
+                print(f"2. '{reference_2_fields[field_type]}'")
+                choice = input("Choose which to keep (1 or 2): ")
+                if choice == '2':
+                    data = reference_2_fields[field_type]
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
     for field_type, data in reference_2_fields.items():
@@ -26,10 +31,12 @@ def merge_files(bib_file_1, bib_file_2) -> BibFile:
     # Add all strings first.
     merged_bib_file.content = bib_file_1.get_strings()
     merged_bib_file.content.extend(bib_file_2.get_strings())
+    
 
     # Add references from bib file 1.
     for entry in bib_file_1.content:
         if type(entry) is Reference:
+            # Currently only checks for cite key, could be extended to check for more fields.
             if entry.cite_key in bib_file_2.get_cite_keys():
                 merged_reference = merge_reference(entry, bib_file_2.get_reference(entry.cite_key))
                 merged_bib_file.content.append(merged_reference)

@@ -17,6 +17,10 @@ from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
 import ast
+import readline
+
+if os.name == 'nt' and not hasattr(readline, 'backend'):
+    readline.backend = 'unsupported'
 
 
 GREEN = "\033[92m"

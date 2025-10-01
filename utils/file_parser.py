@@ -1,5 +1,5 @@
 from enum import Enum
-from objects import BibFile, Reference
+from objects import BibFile, Reference, String, Comment
 
 
 class Token(Enum):
@@ -25,7 +25,7 @@ def parse_fields(data, remove_whitespace_in_fields):
             match char:
                 case "=":
                     if curly_bracket_level == 0 and double_quotation_level == 0:
-                        field_type = token.strip()
+                        field_type = token.strip().lower()
                         token = ""
                         continue
                 case ",":
@@ -62,8 +62,8 @@ def parse_fields(data, remove_whitespace_in_fields):
     return fields
 
 
-def parse_bib_helper(file_name, remove_whitespace_in_fields):
-    references = {}
+def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
+    result = BibFile(file_name)
 
     with open(file_name, "r+") as file:
         token = ""
@@ -76,6 +76,9 @@ def parse_bib_helper(file_name, remove_whitespace_in_fields):
                 match char:
                     case "@":
                         if token_type == Token.EXTRA:
+                            token = token.strip()
+                            if token != "":
+                                result.content.append(Comment(token))
                             token = ""
                             token_type = Token.REF_TYPE
                             continue
@@ -97,9 +100,13 @@ def parse_bib_helper(file_name, remove_whitespace_in_fields):
                                     continue
                                 token = token.strip()
                                 if ref_type == "string":
-                                    references[(ref_type, key)] = parse_string(token)
+                                    result.content.append(String(key, parse_string(token)))
                                 else:
-                                    references[(ref_type, key)] = parse_fields(token, remove_whitespace_in_fields)
+                                    reference = Reference(ref_type, key)
+                                    fields = parse_fields(token, remove_whitespace_in_fields)
+                                    for field, field_value in fields.items():
+                                        setattr(reference, field, field_value)
+                                    result.content.append(reference)
                                 token = ""
                                 token_type = Token.EXTRA
                                 continue
@@ -110,25 +117,4 @@ def parse_bib_helper(file_name, remove_whitespace_in_fields):
                             token_type = Token.DATA
                             continue
                 token += char
-    return references
-
-
-def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
-    """ 
-    Reading the content of the file, parsing it, and encapsulating it
-    as reference objects in a File object. This File object will be returned
-    """
-    file = BibFile(file_name)
-    dict_references = parse_bib_helper(file_name, remove_whitespace_in_fields)
-
-    # Picking one reference
-    for (entry_type, cite_key), field_maps in dict_references.items():
-        reference = Reference(entry_type, cite_key)
-
-        if isinstance(field_maps, dict):  # <== Is this always the case? We should discuss based
-            # on your implementation, when we have @strings this doesn't hold!
-            for field, field_value in field_maps.items():
-                setattr(reference, (field.lower()), field_value)
-            file.append_reference(reference)
-
-    return file
+    return result

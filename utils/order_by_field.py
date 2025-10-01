@@ -11,7 +11,7 @@ def order_by_field(file: BibFile, field: str, descending=False):
     It acts on the same file and it sorts the Reference objects in the file
     based on a passed <field> argument in descending or ascending order
     """
-    references = file.references
+    references = [ref for ref in file.content if type(ref) is Reference]
     sorted_by_year = sorted(references, key=lambda ref: getattr(ref, field), reverse=descending)
     file.references = sorted_by_year
 

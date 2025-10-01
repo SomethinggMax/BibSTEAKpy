@@ -136,6 +136,15 @@ def display_abbreviations():
 
 
 class CLI(cmd.Cmd):
+
+    def preloop(self):
+        try:
+            delims = readline.get_completer_delims()
+            if "-" in delims:
+                readline.set_completer_delims(delims.replace("-", ""))
+        except Exception:
+            pass
+
     intro = f"""{MAGENTA}
     _____  ___     _____ _______ ______         __  __       _____ __     ______ 
     |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
@@ -188,8 +197,7 @@ class CLI(cmd.Cmd):
             return None
         
     def do_pwd(self, arg):
-        print(
-            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
+        print(f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() is not '' else 'No working directory is selected.'}{RESET}")
         
     def do_cd(self, wd_path): 
         

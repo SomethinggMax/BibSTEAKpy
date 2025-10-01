@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 import readline
+from utils import merge
 
 if os.name == 'nt' and not hasattr(readline, 'backend'):
     readline.backend = 'unsupported'
@@ -52,7 +53,7 @@ COMMANDS = [("help", "Display the current menu"),
             ("br <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
             ("ord <filename> <field> [descending=False]", "Order the references based on a certain field"),
             ("sub <filename>", "Creates a sub .bib file based on selected references"),
-            
+            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file.")
             ]
 
 
@@ -154,7 +155,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: '{
-        get_working_directory_path() if get_working_directory_path() is not "" else "No directory has been set"}'
+        get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -197,9 +198,7 @@ class CLI(cmd.Cmd):
         
     def do_pwd(self, arg):
         print(
-            f"{BLUE}Current working directory: {get_working_directory_path() 
-                                                if get_working_directory_path() is not '' 
-                                                else 'No working directory is selected.'}{RESET}")
+            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
         
     def do_cd(self, wd_path): 
         
@@ -381,6 +380,24 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
+    def do_mer(self, args):
+        try:
+            file_name_1, file_name_2, new_file_name = args.split()
+
+            path_1 = os.path.join(get_working_directory_path(), file_name_1)
+            path_2 = os.path.join(get_working_directory_path(), file_name_2)
+            bib_file_1 = utils.file_parser.parse_bib(path_1, False)
+            bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+
+            merge_result = merge.merge_files(bib_file_1, bib_file_2)
+            utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+
+            print_in_green("Files have been merged successfully!")
+
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+
     def default(self, line):
         print('Command not found!')
 
@@ -416,6 +433,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_load(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_mer(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

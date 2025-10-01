@@ -6,6 +6,26 @@ class BibFile(object):
         self.file_name = file_name
         self.content = list()
 
+    def get_cite_keys(self):
+        cite_keys = []
+        for entry in self.content:
+            if type(entry) is Reference:
+                cite_keys.append(entry.cite_key)
+        return cite_keys
+
+    def get_reference(self, cite_key):
+        for entry in self.content:
+            if type(entry) is Reference:
+                if entry.cite_key == cite_key:
+                    return entry
+
+    def get_strings(self):
+        strings = []
+        for entry in self.content:
+            if type(entry) is String:
+                strings.append(entry)
+        return strings
+
     def __str__(self):
         return f"[File: {self.file_name} - content: {self.content}]"
 

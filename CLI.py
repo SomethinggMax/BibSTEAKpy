@@ -150,6 +150,14 @@ class CLI(cmd.Cmd):
     misc_header  = "Topics:"
     ruler        = "-"
 
+    def preloop(self):
+        try:
+            delims = readline.get_completer_delims()
+            if "-" in delims:
+                readline.set_completer_delims(delims.replace("-", ""))
+        except Exception:
+            pass
+
     # commands  
     def do_load(self, arg):
         load_file_to_storage(arg)
@@ -355,7 +363,10 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
+    def do_merge(self, args):
+
+        return None
     def default(self, line):
         print('Command not found!')
         

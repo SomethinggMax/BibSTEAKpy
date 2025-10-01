@@ -9,14 +9,14 @@ if os.name == 'nt' and not hasattr(readline, 'backend'):
 import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
 from pprint import pprint
-from utils.GroupByRefType import groupByRefType
+from utils.Reftype import groupByRefType
 import utils.abbreviations_exec as abbreviations_exec
 import utils
 from utils.order_by_field import *
 from utils.sub_bib import *
 from utils.file_parser import *
 from utils.file_generator import *
-from utils.GroupByRefType import *
+from utils.Reftype import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *

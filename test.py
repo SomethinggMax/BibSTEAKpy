@@ -2,7 +2,7 @@ import difflib
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
 from utils import batch_editor, sub_bib
-from utils.GroupByRefType import groupByRefType, GroupingType
+from utils.Reftype import sortByReftype, GroupingType
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
@@ -18,7 +18,7 @@ test = file_parser.parse_bib(bib_tests, True)
 # print(result[("book", "cicero")]["annotation"])
 
 #testing
-groupByRefType(examples, GroupingType.ZTOA)
+sortByReftype(examples, GroupingType.ZTOA)
 file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)
 
 # Generate file from the dictionary:

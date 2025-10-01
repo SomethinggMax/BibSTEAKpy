@@ -1,7 +1,7 @@
 import utils.file_parser as file_parser
 import utils.file_generator as file_generator
 
-from objects import BibFile, Reference, Comment
+from objects import BibFile, Reference
 
 
 def sub_bib(file: BibFile, entry_types: list) -> BibFile:
@@ -10,18 +10,12 @@ def sub_bib(file: BibFile, entry_types: list) -> BibFile:
     which have entry types in the passed entry_types list
     """
     new_file = BibFile(file.file_name)
-    comment = False  # Flag to ensure that only relevant comments get added.
     for entry in file.content:
         if type(entry) is Reference:
             if entry.entry_type in entry_types:
-                if comment:
-                    new_file.content.append(comment)
                 new_file.content.append(entry)
-            else:
-                comment = False
-        elif type(entry) is Comment:
-            comment = entry
         else:
+            # Always add all other types (string, comment and preamble)
             new_file.content.append(entry)
 
     return new_file

@@ -1,8 +1,8 @@
-from objects import BibFile, Reference, String, Comment
+from objects import BibFile, Reference
 
 
-def merge_reference(reference_1, reference_2) -> Reference:
-    merged_reference = Reference(reference_1.entry_type, reference_1.cite_key)
+def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference:
+    merged_reference = Reference(reference_1.comment_above_reference, reference_1.entry_type, reference_1.cite_key)
     reference_1_fields = reference_1.get_fields()
     reference_2_fields = reference_2.get_fields()
 
@@ -19,7 +19,7 @@ def merge_reference(reference_1, reference_2) -> Reference:
     return merged_reference
 
 
-def merge_files(bib_file_1, bib_file_2) -> BibFile:
+def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
     # File name will be set when generating the file, this is just temporary.
     merged_bib_file = BibFile(bib_file_1.file_name + "+" + bib_file_2.file_name)
 

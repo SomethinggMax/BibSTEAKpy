@@ -38,6 +38,11 @@ class Comment(object):
         self.comment = comment
 
 
+class Preamble(object):
+    def __init__(self, preamble):
+        self.preamble = preamble
+
+
 class String(object):
     def __init__(self, abbreviation, long_form):
         self.abbreviation = abbreviation
@@ -45,7 +50,8 @@ class String(object):
 
 
 class Reference(object):
-    def __init__(self, entry_type, cite_key):
+    def __init__(self, comment_above_reference, entry_type, cite_key):
+        self.comment_above_reference = comment_above_reference
         self.entry_type = entry_type
         self.cite_key = cite_key
 
@@ -75,7 +81,7 @@ class BibLaTexReference(Reference):
 # JUST FOR TESTING PURPOSES
 if __name__ == "__main__":
     random_file = BibFile("random_file.bib")
-    example_reference = Reference("article", "au32")
+    example_reference = Reference("", "article", "au32")
     example_reference.author = "George"
 
     # You can add custom attributes to the object dynamically

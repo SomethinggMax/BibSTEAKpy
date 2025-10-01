@@ -1,4 +1,61 @@
+import re
+import unicodedata
+
 from objects import BibFile, Reference, String, Comment
+
+
+NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
+AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
+
+
+def _strip_diacritics(value: str) -> str:
+    normalized = unicodedata.normalize('NFKD', value)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _prepare_text(value) -> str:
+    text = str(value)
+    text = text.replace('{', '').replace('}', '')
+    text = _strip_diacritics(text)
+    return text.lower()
+
+
+def normalize_author_field(raw_author) -> str:
+    if not raw_author:
+        return ''
+
+    text = _prepare_text(raw_author)
+    people = AUTHOR_SEPARATOR_RE.split(text)
+    normalized_people = []
+
+    for person in people:
+        tokens = [token for token in NON_ALNUM_RE.split(person) if token]
+        if tokens:
+            normalized_people.append(''.join(sorted(tokens)))
+
+    if not normalized_people:
+        return ''
+
+    normalized_people.sort()
+    return '::'.join(normalized_people)
+
+
+def normalize_title_field(raw_title) -> str:
+    if not raw_title:
+        return ''
+
+    text = _prepare_text(raw_title)
+    return NON_ALNUM_RE.sub('', text)
+
+
+def build_reference_signature(reference: Reference):
+    authors_signature = normalize_author_field(getattr(reference, 'author', None))
+    title_signature = normalize_title_field(getattr(reference, 'title', None))
+
+    if authors_signature and title_signature:
+        return f'{authors_signature}||{title_signature}'
+
+    return None
 
 
 def merge_reference(reference_1, reference_2) -> Reference:
@@ -12,7 +69,7 @@ def merge_reference(reference_1, reference_2) -> Reference:
                 print(f"Conflict in field '{field_type}' for reference '{reference_1.cite_key}':")
                 print(f"1. '{data}'")
                 print(f"2. '{reference_2_fields[field_type]}'")
-                choice = input("Choose which to keep (1 or 2): ")
+                choice = input('Choose which to keep (1 or 2): ')
                 if choice == '2':
                     data = reference_2_fields[field_type]
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
@@ -26,27 +83,56 @@ def merge_reference(reference_1, reference_2) -> Reference:
 
 def merge_files(bib_file_1, bib_file_2) -> BibFile:
     # File name will be set when generating the file, this is just temporary.
-    merged_bib_file = BibFile(bib_file_1.file_name + "+" + bib_file_2.file_name)
+    merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
 
     # Add all strings first.
     merged_bib_file.content = bib_file_1.get_strings()
     merged_bib_file.content.extend(bib_file_2.get_strings())
-    
+
+    bib2_reference_by_key = {
+        entry.cite_key: entry
+        for entry in bib_file_2.content
+        if isinstance(entry, Reference)
+    }
+
+    bib2_signatures = {}
+    for reference in bib2_reference_by_key.values():
+        signature = build_reference_signature(reference)
+        if signature:
+            bib2_signatures.setdefault(signature, []).append(reference.cite_key)
+
+    consumed_bib2_keys = set()
 
     # Add references from bib file 1.
     for entry in bib_file_1.content:
-        if type(entry) is Reference:
-            # Currently only checks for cite key, could be extended to check for more fields.
-            if entry.cite_key in bib_file_2.get_cite_keys():
-                merged_reference = merge_reference(entry, bib_file_2.get_reference(entry.cite_key))
+        if isinstance(entry, Reference):
+            if entry.cite_key in bib2_reference_by_key:
+                merged_reference = merge_reference(entry, bib2_reference_by_key[entry.cite_key])
                 merged_bib_file.content.append(merged_reference)
-            else:
-                merged_bib_file.content.append(entry)
+                consumed_bib2_keys.add(entry.cite_key)
+                continue
+
+            signature = build_reference_signature(entry)
+            if signature:
+                candidate_keys = [
+                    key for key in bib2_signatures.get(signature, [])
+                    if key not in consumed_bib2_keys
+                ]
+                if candidate_keys:
+                    target_key = candidate_keys[0]
+                    print(
+                        f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
+                    )
+                    merged_reference = merge_reference(entry, bib2_reference_by_key[target_key])
+                    merged_bib_file.content.append(merged_reference)
+                    consumed_bib2_keys.add(target_key)
+                    continue
+
+            merged_bib_file.content.append(entry)
 
     # Add remaining references from bib file 2.
     for entry in bib_file_2.content:
-        if type(entry) is Reference:
-            if entry.cite_key not in merged_bib_file.get_cite_keys():
-                merged_bib_file.content.append(entry)
+        if isinstance(entry, Reference) and entry.cite_key not in consumed_bib2_keys:
+            merged_bib_file.content.append(entry)
 
     return merged_bib_file

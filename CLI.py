@@ -420,10 +420,15 @@ class CLI(cmd.Cmd):
                     label = f"{n}\n(cited by: {in_degree}, cites: {out_degree})"
                     nodes.append({"id": str(n), "label": label})
 
-                # 2) Convert to vis.js format
                 # nodes = [{"id": str(n), "label": str(n)} for n in G.nodes()]
                 # edges = [{"from": str(u), "to": str(v)} for u, v in G.edges()]
-                edges = [{"from": u, "to": v, "arrows": "to", "label": str(G[u][v].get('weight', ''), )} for u, v in G.edges()]
+                edges = [{"from": u, "to": v, "arrows": "to", "label": str(G[u][v].get('weight', '')), "font": {
+                    "color": "red",        # color of the label text
+                    # optional extras:
+                    "background": "white", # rectangle background behind text
+                    "strokeWidth": 3,
+                    "strokeColor": "black"
+                }} for u, v in G.edges()]
                 nodes_json = json.dumps(nodes)
                 edges_json = json.dumps(edges)
 

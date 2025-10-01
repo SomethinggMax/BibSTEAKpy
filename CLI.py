@@ -145,7 +145,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: '{
-        get_working_directory_path() if get_working_directory_path() is not "" else "No directory has been set"}'
+        get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -188,7 +188,7 @@ class CLI(cmd.Cmd):
         
     def do_pwd(self, arg):
         print(
-            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() is not '' else 'No working directory is selected.'}{RESET}")
+            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
         
     def do_cd(self, wd_path): 
         

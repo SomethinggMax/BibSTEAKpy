@@ -10,17 +10,17 @@ def sub_bib(file: BibFile, entry_types: list) -> BibFile:
     which have entry types in the passed entry_types list
     """
     new_file = BibFile(file.file_name)
-    previous_added = False  # Flag to ensure that only relevant comments get added.
+    comment = False  # Flag to ensure that only relevant comments get added.
     for entry in file.content:
         if type(entry) is Reference:
             if entry.entry_type in entry_types:
+                if comment:
+                    new_file.content.append(comment)
                 new_file.content.append(entry)
-                previous_added = True
             else:
-                previous_added = False
+                comment = False
         elif type(entry) is Comment:
-            if previous_added:
-                new_file.content.append(entry)
+            comment = entry
         else:
             new_file.content.append(entry)
 
@@ -29,6 +29,6 @@ def sub_bib(file: BibFile, entry_types: list) -> BibFile:
 
 # JUST FOR TESTING       
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("../bibtests.bib", True)
-    sub_file = sub_bib(test_file, ["article"])
+    test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
+    sub_file = sub_bib(test_file, ["article", "collection"])
     file_generator.generate_bib(sub_file, sub_file.file_name, 15)

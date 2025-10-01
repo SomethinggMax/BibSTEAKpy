@@ -1,7 +1,7 @@
 import difflib
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
-from utils import batch_editor, sub_bib
+from utils import batch_editor, sub_bib, merge
 from utils.Reftype import sortByReftype, GroupingType
 
 bib_examples_original = "biblatex-examples.bib"
@@ -9,9 +9,13 @@ bib_examples_generated = "biblatex-examples-generated.bib"
 bib_examples_edited = "biblatex-examples-edited.bib"
 articles_examples = "articles-examples.bib"
 bib_tests = "bibtests.bib"
+bib_merge_test = "bib-merge-test.bib"
+merge_result = "merge-result.bib"
+
 
 examples = file_parser.parse_bib(bib_examples_original, False)
 test = file_parser.parse_bib(bib_tests, True)
+merge_test = file_parser.parse_bib(bib_merge_test, True)
 
 # Some examples on how to access information from the dictionary.
 # print(result[("book", "augustine")]["author"])
@@ -47,3 +51,5 @@ print_differences(bib_examples_generated, bib_examples_edited)
 
 articles = sub_bib.sub_bib(examples, ["article"])
 file_generator.generate_bib(articles, articles_examples, 15)
+
+file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)

@@ -44,7 +44,7 @@ file_generator.generate_bib(examples_edited, bib_examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)
 
-articles = sub_bib.sub_bib(examples, ["article"])
+articles = sub_bib.sub_bib(test, ["article"])
 file_generator.generate_bib(articles, articles_examples, 15)
 
 file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)

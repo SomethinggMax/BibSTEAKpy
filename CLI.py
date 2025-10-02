@@ -56,7 +56,8 @@ COMMANDS = [("help", "Display the current menu"),
                                                                 "types."),
             ("sub -t <filename> <new_filename>, <tags>", "Creates a sub .bib file with only references with specified "
                                                          "tags."),
-            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file.")
+            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file."),
+            ("mer -all <new_filename>", "Merge all bib files in the current working directory.")
             ]
 
 
@@ -83,6 +84,28 @@ def get_working_directory_path():
         config = json.load(f)
         working_directory_path = config["working_directory"]
         return working_directory_path
+
+
+def get_bib_file_names(folder_path):
+    files = []
+    if os.listdir(folder_path):
+        index = 1
+        for filename in os.listdir(folder_path):
+            full_path = os.path.join(folder_path, filename)
+            _, extension = os.path.splitext(filename)
+            if os.path.isfile(full_path) and extension == '.bib':
+                files.append((filename, index))  # ignore subfolders
+                index += 1
+    return files
+
+
+def check_extension(new_file_name):
+    root, ext = os.path.splitext(new_file_name)
+    if ext == "":
+        new_file_name += ".bib"
+    elif ext != ".bib":
+        raise ValueError("The new file name must have a .bib extension or no extension at all.")
+    return new_file_name
 
 
 def load_file_to_storage(source_path):
@@ -178,14 +201,7 @@ class CLI(cmd.Cmd):
             folder_path = get_working_directory_path()
 
             if os.listdir(folder_path):
-                index = 1
-                files = []
-                for filename in os.listdir(folder_path):
-                    full_path = os.path.join(folder_path, filename)
-                    _, extension = os.path.splitext(filename)
-                    if os.path.isfile(full_path) and extension == '.bib':
-                        files.append((filename, index))  # ignore subfolders
-                        index += 1
+                files = get_bib_file_names(folder_path)
                 if files != []:
                     print(f"Bib files in {folder_path}")
                     for file, index in files:
@@ -338,6 +354,7 @@ class CLI(cmd.Cmd):
             flag, filename, new_filename = argument_list[:3]
             search_list = argument_list[3:][0]
             path = os.path.join(get_working_directory_path(), filename)
+            new_filename = check_extension(new_filename)
             file = utils.file_parser.parse_bib(path, True)
             match flag:
                 case "-e":
@@ -391,27 +408,41 @@ class CLI(cmd.Cmd):
 
     def do_mer(self, args):
         try:
-            file_name_1, file_name_2, new_file_name = args.split()
-            root, ext = os.path.splitext(new_file_name)
-            if ext == "":
-                new_file_name += ".bib"
-            elif ext != ".bib":
-                raise ValueError("The new file name must have a .bib extension or no extension at all.")
+            argument_list = args.split()
+            if len(argument_list) == 2 and argument_list[0] == "-all":
+                new_file_name = argument_list[1]
+                new_file_name = check_extension(new_file_name)
 
-            path_1 = os.path.join(get_working_directory_path(), file_name_1)
-            path_2 = os.path.join(get_working_directory_path(), file_name_2)
-            bib_file_1 = utils.file_parser.parse_bib(path_1, False)
-            bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+                file_names = get_bib_file_names(get_working_directory_path())
+                path = os.path.join(get_working_directory_path(), file_names[0][0])
+                merged_bib_file = utils.file_parser.parse_bib(path, False)
+                for file_name, index in file_names:
+                    if index == 1:
+                        continue
+                    path = os.path.join(get_working_directory_path(), file_name)
+                    bib_file = utils.file_parser.parse_bib(path, False)
+                    merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
+                utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
 
-            merge_result = merge.merge_files(bib_file_1, bib_file_2)
-            utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+            else:
+                file_name_1, file_name_2, new_file_name = args.split()
+                new_file_name = check_extension(new_file_name)
+
+                path_1 = os.path.join(get_working_directory_path(), file_name_1)
+                path_2 = os.path.join(get_working_directory_path(), file_name_2)
+                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
+                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+
+                merge_result = merge.merge_files(bib_file_1, bib_file_2)
+                utils.file_generator.generate_bib(merge_result, new_file_name, 15)
 
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
             if "not enough values to unpack" in str(e):
                 print(
-                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> <filename2> <new_filename>.")
+                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "<filename2> <new_filename>.")
             else:
                 print(f"Argument error: {e}")
         except Exception as e:

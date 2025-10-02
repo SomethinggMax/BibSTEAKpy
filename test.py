@@ -44,7 +44,10 @@ file_generator.generate_bib(examples_edited, bib_examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)
 
-articles = sub_bib.sub_bib(test, ["article"])
+articles = sub_bib.sub_bib_entry_types(test, ["article"])
 file_generator.generate_bib(articles, articles_examples, 15)
 
 file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
+
+tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
+file_generator.generate_bib(tagged_sub_file, "tagged-examples.bib", 15)

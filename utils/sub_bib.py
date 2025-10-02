@@ -53,5 +53,5 @@ def sub_bib_tags(file: BibFile, tags: list) -> BibFile:
 # JUST FOR TESTING
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
-    sub_file = sub_bib_entry_types(test_file, ["article", "collection"])
-    file_generator.generate_bib(sub_file, "article+collection-examples.bib", 15)
+    article_file = sub_bib_entry_types(test_file, ["article", "collection"])
+    file_generator.generate_bib(article_file, "article+collection-examples.bib", 15)

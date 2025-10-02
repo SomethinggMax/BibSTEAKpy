@@ -52,7 +52,10 @@ COMMANDS = [("help", "Display the current menu"),
             ("col <filename>", "Collapse all abbreviations in the file"),
             ("br <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
             ("ord <filename> <field> [descending=False]", "Order the references based on a certain field"),
-            ("sub <filename>", "Creates a sub .bib file based on selected references"),
+            ("sub -e <filename> <new_filename>, <entry_types>", "Creates a sub .bib file with only specified entry "
+                                                                "types."),
+            ("sub -t <filename> <new_filename>, <tags>", "Creates a sub .bib file with only references with specified "
+                                                         "tags."),
             ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file.")
             ]
 
@@ -155,7 +158,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: '{
-        get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
+    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -195,12 +198,13 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_pwd(self, arg):
-        print(f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() is not '' else 'No working directory is selected.'}{RESET}")
-        
-    def do_cd(self, wd_path): 
-        
+        print(
+            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
+
+    def do_cd(self, wd_path):
+
         try:
             if wd_path == "":
                 raise ValueError("No path provided. Please provide an absolute path.")
@@ -244,7 +248,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-                
+
     def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
@@ -261,7 +265,7 @@ class CLI(cmd.Cmd):
 
         except Exception as e:
             print(f"Unexpected error: {e}")
-        
+
     def do_rg(self, args):
         try:
             filename, order = args.split()
@@ -277,7 +281,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_exp(self, arg):
         try:
             filename = arg
@@ -302,7 +306,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_col(self, arg):
         try:
             filename = arg
@@ -330,24 +334,31 @@ class CLI(cmd.Cmd):
 
     def do_sub(self, args):
         try:
-            filename, new_filename, entry_types = args.split()
-            entry_types_list = ast.literal_eval(entry_types)
-            # print(type(entry_types))
+            argument_list = args.split(maxsplit=3)
+            flag, filename, new_filename = argument_list[:3]
+            search_list = argument_list[3:][0]
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
-            sub_file = sub_bib_entry_types(file, entry_types_list)
+            match flag:
+                case "-e":
+                    entry_types_list = ast.literal_eval(search_list)
+                    sub_file = sub_bib_entry_types(file, entry_types_list)
+                case "-t":
+                    tags = ast.literal_eval(search_list)
+                    sub_file = sub_bib_tags(file, tags)
+                case _:
+                    print("Flag not supported!")
+                    return
 
             new_path = os.path.join(get_working_directory_path(), new_filename)
-            # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path, 15)
-
             print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-                
+
     def do_ord(self, args):
         try:
             def str_to_bool(s: str) -> bool:
@@ -386,8 +397,6 @@ class CLI(cmd.Cmd):
                 new_file_name += ".bib"
             elif ext != ".bib":
                 raise ValueError("The new file name must have a .bib extension or no extension at all.")
-            
-
 
             path_1 = os.path.join(get_working_directory_path(), file_name_1)
             path_2 = os.path.join(get_working_directory_path(), file_name_2)
@@ -398,15 +407,15 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(merge_result, new_file_name, 15)
 
             print_in_green("Files have been merged successfully!")
-            
+
         except ValueError as e:
             if "not enough values to unpack" in str(e):
-                print("Argument error: Not enough arguments provided. Please provide three arguments: <filename1> <filename2> <new_filename>.")
+                print(
+                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> <filename2> <new_filename>.")
             else:
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
-
 
     def default(self, line):
         print('Command not found!')
@@ -426,19 +435,19 @@ class CLI(cmd.Cmd):
 
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_rg(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_br(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_ord(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_col(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 

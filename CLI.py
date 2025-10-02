@@ -335,9 +335,8 @@ class CLI(cmd.Cmd):
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
-            sub_file = sub_bib(file, entry_types_list)
-            # sub_file = sub_bib(file, ['article'])
-            # print(sub_file)
+            sub_file = sub_bib_entry_types(file, entry_types_list)
+
             new_path = os.path.join(get_working_directory_path(), new_filename)
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
@@ -382,6 +381,13 @@ class CLI(cmd.Cmd):
     def do_mer(self, args):
         try:
             file_name_1, file_name_2, new_file_name = args.split()
+            root, ext = os.path.splitext(new_file_name)
+            if ext == "":
+                new_file_name += ".bib"
+            elif ext != ".bib":
+                raise ValueError("The new file name must have a .bib extension or no extension at all.")
+            
+
 
             path_1 = os.path.join(get_working_directory_path(), file_name_1)
             path_2 = os.path.join(get_working_directory_path(), file_name_2)
@@ -392,7 +398,12 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(merge_result, new_file_name, 15)
 
             print_in_green("Files have been merged successfully!")
-
+            
+        except ValueError as e:
+            if "not enough values to unpack" in str(e):
+                print("Argument error: Not enough arguments provided. Please provide three arguments: <filename1> <filename2> <new_filename>.")
+            else:
+                print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
 

@@ -335,9 +335,8 @@ class CLI(cmd.Cmd):
             # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
-            sub_file = sub_bib(file, entry_types_list)
-            # sub_file = sub_bib(file, ['article'])
-            # print(sub_file)
+            sub_file = sub_bib_entry_types(file, entry_types_list)
+
             new_path = os.path.join(get_working_directory_path(), new_filename)
             # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)

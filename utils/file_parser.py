@@ -1,5 +1,5 @@
 from enum import Enum
-from objects import BibFile, Reference, String, Comment
+from objects import BibFile, Reference, String, Comment, Preamble
 
 
 class Token(Enum):
@@ -67,6 +67,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
 
     with open(file_name, "r+") as file:
         token = ""
+        comment = ""
         ref_type = ""
         key = ""
         curly_bracket_level = 0
@@ -76,9 +77,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                 match char:
                     case "@":
                         if token_type == Token.EXTRA:
-                            token = token.strip()
-                            if token != "":
-                                result.content.append(Comment(token))
+                            comment = token.strip()
                             token = ""
                             token_type = Token.REF_TYPE
                             continue
@@ -88,21 +87,22 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             ref_type = token.lower()
                             token = ""
                             token_type = Token.KEY
+                            if ref_type == "comment" or ref_type == "preamble":
+                                token_type = Token.DATA
                             continue
                     case "}":
                         curly_bracket_level -= 1
                         if token_type == Token.DATA:
                             if curly_bracket_level == 0:
-                                if ref_type == "preamble" or ref_type == "comment":
-                                    print("Skipping ", ref_type, "entry")
-                                    token = ""
-                                    token_type = Token.EXTRA
-                                    continue
                                 token = token.strip()
-                                if ref_type == "string":
+                                if ref_type == "comment":
+                                    result.content.append(Comment(token))
+                                elif ref_type == "preamble":
+                                    result.content.append(Preamble(token))
+                                elif ref_type == "string":
                                     result.content.append(String(key, parse_string(token)))
                                 else:
-                                    reference = Reference(ref_type, key)
+                                    reference = Reference(comment, ref_type, key)
                                     fields = parse_fields(token, remove_whitespace_in_fields)
                                     for field, field_value in fields.items():
                                         setattr(reference, field, field_value)

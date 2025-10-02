@@ -65,8 +65,8 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
 
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
-            if data != reference_2_fields[field_type]:
-                print(f"Conflict in field '{field_type}' for reference '{reference_1.cite_key}':")
+            if data != reference_2_fields[field_type]:                     
+                print(f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
                 print(f"1. '{data}'")
                 print(f"2. '{reference_2_fields[field_type]}'")
                 choice = input('Choose which to keep (1 or 2): ')
@@ -120,13 +120,30 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                 ]
                 if candidate_keys:
                     target_key = candidate_keys[0]
-                    print(
-                        f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
-                    )
-                    merged_reference = merge_reference(entry, bib2_reference_by_key[target_key])
-                    merged_bib_file.content.append(merged_reference)
-                    consumed_bib2_keys.add(target_key)
-                    continue
+                    print("References seem to be similar based on author/title normalization.")
+                    print("Please compare the following references:")
+                    print(f"Reference 1 (from first file):\n{entry}\n")
+                    print(f"Reference 2 (from second file):\n{bib2_reference_by_key[target_key]}\n")
+                    print("Choose where to merge or skip:")
+                    print("1: Merge references")
+                    print("2: Keep both references")
+                    choice = input("Enter your choice (1 or 2): ")
+                    if choice == '1':
+                        print(
+                            f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
+                        )
+                        merged_reference = merge_reference(entry, bib2_reference_by_key[target_key])
+                        merged_bib_file.content.append(merged_reference)
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    elif choice == '2':
+                        print(f"Skipping merge for '{entry.cite_key}'. Keeping both entries.")
+                        merged_bib_file.content.append(entry)
+                        merged_bib_file.content.append(bib2_reference_by_key[target_key])
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    else:
+                        raise ValueError("Invalid choice. Please enter 1 or 2.")
 
             merged_bib_file.content.append(entry)
 

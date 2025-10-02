@@ -59,7 +59,11 @@ class Reference(object):
         return vars(self)
 
     def __str__(self):
-        return f"[Reference: {self.cite_key}]"
+        # print the reference like a dictionary
+        fields = self.get_fields()
+        field_strings = [f"{key}: {value}" for key, value in fields.items() if key not in ["comment_above_reference", "entry_type"]]
+        return "\n".join(field_strings)
+        
 
     def __repr__(self):
         return self.__str__()

@@ -1,7 +1,8 @@
 import re
 import unicodedata
 
-from objects import BibFile, Reference
+from objects import BibFile, Reference, String
+from utils import batch_editor
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
@@ -81,6 +82,41 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
     return merged_reference
 
 
+def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile, [String]):
+    """
+    Merge the Strings from two bib files together into a single list of Strings.
+    :param bib_file_1: the first file.
+    :param bib_file_2: the second file.
+    :return: (bib_file_1, bib_file_2, string_list), updated bib files with a list of the strings for the merged file.
+    """
+    string_list = []
+    file_2_strings = {x.abbreviation: x.long_form for x in bib_file_2.get_strings()}
+    for string in bib_file_1.get_strings():
+        if string.abbreviation not in file_2_strings:
+            string_list.append(string)
+        elif file_2_strings[string.abbreviation] == string.long_form:
+            string_list.append(string)
+        else:
+            print(f"Conflict with string abbreviation '{string.abbreviation}'!")
+            print("You can select an abbreviation to rename.")
+            print(f"1: {string.long_form}")
+            print(f"2: {file_2_strings[string.abbreviation]}")
+            choice = input("Enter your choice (1 or 2): ")
+            new_abbreviation = input(f"Now input the new abbreviation for '{string.long_form}'. "
+                                     f"(Old abbreviation: '{string.abbreviation}'): ")
+            if choice == '1':
+                batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
+                string_list.append([x for x in bib_file_1.get_strings() if x.abbreviation == new_abbreviation][0])
+                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == string.abbreviation][0])
+            elif choice == '2':
+                batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
+                string_list.append(string)  # The unchanged string from file 1.
+                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == new_abbreviation][0])
+            else:
+                raise ValueError("Invalid choice. Please enter 1 or 2.")
+    return bib_file_1, bib_file_2, string_list
+
+
 def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
     # File name will be set when generating the file, this is just temporary.
     merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
@@ -93,16 +129,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
         if preamble.preamble not in preamble_contents:
             merged_bib_file.content.append(preamble)
 
-    merged_bib_file.content.extend(bib_file_1.get_strings())  # Add strings from file 1.
-
-    # Add strings from file 2 if they have different abbreviations.
-    file_1_strings = {x.abbreviation: x.long_form for x in bib_file_1.get_strings()}
-    for string in bib_file_2.get_strings():
-        if string.abbreviation not in file_1_strings:
-            merged_bib_file.content.append(string)
-        elif file_1_strings[string.abbreviation] != string.long_form:
-            print("Found different strings with the same abbreviation!")
-            # Maybe add an option to choose which string to add?
+    bib_file_1, bib_file_2, string_list = merge_strings(bib_file_1, bib_file_2)
+    merged_bib_file.content.extend(string_list)
 
     bib2_reference_by_key = {
         entry.cite_key: entry

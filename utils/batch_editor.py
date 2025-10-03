@@ -28,11 +28,9 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
     :param abbreviations: the list of abbreviations to extend, if empty extend all Strings.
     :return: output BibFile object.
     """
-    strings_to_extend = {}
+    strings_to_extend = {x.abbreviation: x.long_form for x in bib_file.get_strings()
+                         if not abbreviations or x.abbreviation in abbreviations}
     for entry in bib_file.content:
-        if isinstance(entry, String):
-            if not abbreviations or entry.abbreviation in abbreviations:
-                strings_to_extend[entry.abbreviation] = entry.long_form
         if isinstance(entry, Reference):
             fields = entry.get_fields()
             for field_type, data in fields.items():

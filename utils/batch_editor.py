@@ -20,6 +20,44 @@ def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new
     return bib_file
 
 
+def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbreviation: str) -> BibFile:
+    """
+    Rename a String abbreviation in the BibFile.
+    """
+    for entry in bib_file.content:
+        if isinstance(entry, String):
+            if entry.abbreviation == old_abbreviation:
+                entry.abbreviation = new_abbreviation
+        if isinstance(entry, Reference):
+            fields = entry.get_fields()
+            for field_type, data in fields.items():
+                if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
+                    continue
+                if data == old_abbreviation:
+                    fields[field_type] = new_abbreviation
+                elif "#" in data:
+                    data_list = data.split("#")
+                    final_data = ""
+                    # Loop over all elements except the last one (to add the #s back)
+                    for string in data_list[:-1]:
+                        stripped = string.strip()
+                        if stripped == old_abbreviation:
+                            final_data += new_abbreviation + " # "
+                        else:
+                            final_data += stripped + " # "
+
+                    # Add the final part of the string.
+                    stripped = data_list[-1].strip()
+                    if stripped == old_abbreviation:
+                        final_data += new_abbreviation
+                    else:
+                        final_data += stripped
+
+                    fields[field_type] = final_data
+
+    return bib_file
+
+
 def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
     """
     Extends all given abbreviations in the BibFile and removes the Strings from the BibFile.
@@ -68,5 +106,6 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
 # JUST FOR TESTING
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
-    extended_strings = batch_extend_strings(test_file, [])
-    file_generator.generate_bib(extended_strings, "extended-examples.bib", 15)
+    batch_extend_strings(test_file, ["pup"])
+    batch_rename_abbreviation(test_file, "cup", "camup")
+    file_generator.generate_bib(test_file, "extended-examples.bib", 15)

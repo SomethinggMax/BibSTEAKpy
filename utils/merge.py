@@ -3,7 +3,6 @@ import unicodedata
 
 from objects import BibFile, Reference
 
-
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
 
@@ -65,8 +64,9 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
 
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
-            if data != reference_2_fields[field_type]:                     
-                print(f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
+            if data != reference_2_fields[field_type]:
+                print(
+                    f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
                 print(f"1. '{data}'")
                 print(f"2. '{reference_2_fields[field_type]}'")
                 choice = input('Choose which to keep (1 or 2): ')
@@ -85,9 +85,24 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
     # File name will be set when generating the file, this is just temporary.
     merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
 
-    # Add all strings first.
-    merged_bib_file.content = bib_file_1.get_strings()
-    merged_bib_file.content.extend(bib_file_2.get_strings())
+    merged_bib_file.content = bib_file_1.get_preambles()  # Add preambles from file 1.
+
+    # Add preambles from file 2 if they are different.
+    preamble_contents = [x.preamble for x in bib_file_1.get_preambles()]
+    for preamble in bib_file_2.get_preambles():
+        if preamble.preamble not in preamble_contents:
+            merged_bib_file.content.append(preamble)
+
+    merged_bib_file.content.extend(bib_file_1.get_strings())  # Add strings from file 1.
+
+    # Add strings from file 2 if they have different abbreviations.
+    file_1_strings = {x.abbreviation: x.long_form for x in bib_file_1.get_strings()}
+    for string in bib_file_2.get_strings():
+        if string.abbreviation not in file_1_strings:
+            merged_bib_file.content.append(string)
+        elif file_1_strings[string.abbreviation] != string.long_form:
+            print("Found different strings with the same abbreviation!")
+            # Maybe add an option to choose which string to add?
 
     bib2_reference_by_key = {
         entry.cite_key: entry

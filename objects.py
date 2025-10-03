@@ -26,6 +26,13 @@ class BibFile(object):
                 strings.append(entry)
         return strings
 
+    def get_preambles(self):
+        preambles = []
+        for entry in self.content:
+            if isinstance(entry, Preamble):
+                preambles.append(entry)
+        return preambles
+
     def __str__(self):
         return f"[File: {self.file_name} - content: {self.content}]"
 

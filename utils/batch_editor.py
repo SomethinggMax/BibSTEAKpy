@@ -28,6 +28,8 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
         if isinstance(entry, String):
             if entry.abbreviation == old_abbreviation:
                 entry.abbreviation = new_abbreviation
+            elif entry.abbreviation == new_abbreviation:
+                raise ValueError(f"Abbreviation '{new_abbreviation}' already exists in the bib file!")
         if isinstance(entry, Reference):
             fields = entry.get_fields()
             for field_type, data in fields.items():

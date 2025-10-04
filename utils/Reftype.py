@@ -7,7 +7,6 @@ class GroupingType(Enum):
 
 def sortByReftype(bibfileObj: BibFile, enum: GroupingType):
     #get all references from the bib obj
-    allStrings = [ref for ref in bibfileObj.content if type(ref) is String]
     
     refsByTypeDict = reftypesToDict(BibFile)
         
@@ -19,16 +18,14 @@ def sortByReftype(bibfileObj: BibFile, enum: GroupingType):
 
     #replace the old content by the new content
     #notice how strings stay on top of the document
-    bibfileObj.content = allStrings + allRefsOrdered
+    bibfileObj.content = bibfileObj.get_strings() + allRefsOrdered
 
 
 def reftypesToDict(bibfileObj: BibFile):
-    #get all refs from file
-    allRefs = [ref for ref in bibfileObj.content if type(ref) is Reference]
 
     #define dict with structure: {reftype: [refobj1,refobj2,refobj3]}
     refsByTypeDict = {}
-    for ref in allRefs:
+    for ref in bibfileObj.get_references():
         fieldsDict = ref.get_fields()
         entryType = fieldsDict["entry_type"]
 

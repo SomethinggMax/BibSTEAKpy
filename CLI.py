@@ -10,7 +10,7 @@ if os.name == 'nt' and not hasattr(readline, 'backend'):
 import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
 from pprint import pprint
-from utils.Reftype import groupByRefType
+from utils.Reftype import sortByReftype
 import utils.abbreviations_exec as abbreviations_exec
 import utils
 from utils.order_by_field import *

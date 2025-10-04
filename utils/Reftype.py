@@ -1,5 +1,5 @@
 from enum import Enum
-from objects import BibFile, Reference, String
+from objects import BibFile, String
 
 class GroupingType(Enum):
     ATOZ = 0

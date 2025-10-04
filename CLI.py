@@ -270,7 +270,7 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
-            groupByRefType(bib_file, order)
+            sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
             print_in_green("Grouping by reference done successfully!")

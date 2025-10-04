@@ -3,6 +3,7 @@ import utils.file_generator as file_generator
 import utils.file_parser as file_parser
 from utils import batch_editor, sub_bib, merge
 from utils.Reftype import sortByReftype, GroupingType
+from utils.filtering import search
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
@@ -21,7 +22,11 @@ merge_test = file_parser.parse_bib(bib_merge_test, True)
 # print(result[("book", "augustine")]["author"])
 # print(result[("book", "cicero")]["annotation"])
 
-#testing
+#test filtering/searching
+displayfile = search(examples, "english")
+file_generator.generate_bib(displayfile, "newfile.bib", 15)
+
+#testing groyping
 sortByReftype(examples, GroupingType.ZTOA)
 file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)
 

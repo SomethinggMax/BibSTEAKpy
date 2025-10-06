@@ -105,9 +105,10 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
             new_abbreviation = input(f"Now input the new abbreviation for '{string.long_form}'. "
                                      f"(Old abbreviation: '{string.abbreviation}'): ")
             if choice == '1':
+                old_abbreviation = string.abbreviation
                 batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
                 string_list.append([x for x in bib_file_1.get_strings() if x.abbreviation == new_abbreviation][0])
-                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == string.abbreviation][0])
+                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == old_abbreviation][0])
             elif choice == '2':
                 batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
                 string_list.append(string)  # The unchanged string from file 1.

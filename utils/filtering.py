@@ -40,4 +40,4 @@ def search(bibFile: BibFile, searchterm):
     newFile = BibFile("searchedFor" + searchterm)
     newFile.content = array
 
-    return newFile
+    return -1 if not array else newFile

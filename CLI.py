@@ -21,7 +21,7 @@ from utils.Reftype import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
-from utils.filtering import search
+from utils.filtering import *
 import ast
 
 RESET = "\033[0m"
@@ -36,6 +36,9 @@ WHITE = "\033[37m"
 
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
+
+def print_in_yellow(arg):
+    print(f"{YELLOW}{arg}{RESET}")
 
 
 CONFIG_FILE = "config.json"
@@ -57,6 +60,7 @@ COMMANDS = [
         "rg <filename> <field>",
         "Group references of a bib file based on a certain field",
     ),
+    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
@@ -296,28 +300,57 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def do_filter(self, args):
+        try:
+            args_split = args.split()
+
+            #get bibfileobj
+            filename = args_split[0]
+            path = os.path.join(get_working_directory_path(), filename)
+            bibfileobj = utils.file_parser.parse_bib(path, False)
+        
+            field = args_split[1]
+
+            if len(args_split) == 3:
+                value = args_split[2]
+                newFile = filterByFieldValue(bibfileobj, field, value)
+                if newFile == -1:
+                    print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+            else:
+                newFile = filterByFieldExistence(bibfileobj, field)
+                if newFile == -1:
+                    print_in_yellow(f"No references found with a field named {WHITE}{field}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+        except IndexError as e:
+            print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+                    
 
     def do_search(self, args):
         
         try:
-            args_split = args.split()
-            filename = args_split[0]
+            filename, searchterm = args.split()
             path = os.path.join(get_working_directory_path(), filename)
-            bibfile_obj = utils.file_parser.parse_bib(path, False)
-            
-            searchterm = args_split[1]
+            bibfileobj = utils.file_parser.parse_bib(path, False)
 
-            newFile = search(bibfile_obj, searchterm)
+            newFile = search(bibfileobj, searchterm)
             if newFile == -1:
                 print_in_green("No references match your search :(")
             else: 
                 self.do_view_bibfile_obj(newFile)
         except IndexError as e:
-            print(f"Index error! Specify two arguments: filename, searchterm")
+            print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
         except FileNotFoundError as e:
-            print(f"File \"{filename}\" not found! Check your spelling.")
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print_in_yellow(f"Unexpected error: {e}")
 
     def do_view_bibfile_obj(self, args):
         for item in args.content:

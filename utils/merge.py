@@ -1,7 +1,8 @@
 import re
 import unicodedata
-
+import utils.synonyms as synonyms
 from objects import BibFile, Reference
+
 
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -65,13 +66,19 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
 
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
-            if data != reference_2_fields[field_type]:                     
-                print(f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
-                print(f"1. '{data}'")
-                print(f"2. '{reference_2_fields[field_type]}'")
-                choice = input('Choose which to keep (1 or 2): ')
-                if choice == '2':
-                    data = reference_2_fields[field_type]
+            if data != reference_2_fields[field_type]:
+                # TODO: Use synonyms.json to automatically resolve some conflicts. 
+                synonym_1 = synonyms.replace_synonym(data)
+                synonym_2 = synonyms.replace_synonym(reference_2_fields[field_type])
+                if synonym_1 and synonym_1 == synonym_2:
+                    data = synonym_1
+                else:
+                    print(f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
+                    print(f"1. '{data}'")
+                    print(f"2. '{reference_2_fields[field_type]}'")
+                    choice = input('Choose which to keep (1 or 2): ')
+                    if choice == '2':
+                        data = reference_2_fields[field_type]
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
     for field_type, data in reference_2_fields.items():

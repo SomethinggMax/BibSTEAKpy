@@ -21,6 +21,7 @@ from utils.Reftype import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
+from utils.filtering import search
 import ast
 
 RESET = "\033[0m"
@@ -47,6 +48,7 @@ COMMANDS = [("help", "Display the current menu"),
             ("abb", "Display all abbreviations"),
             ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
             ("quit", "Close the BibSteak CLI"),
+            ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
             ("rg <filename> <field>", "Group references of a bib file based on a certain field"),
             ("exp <filename>", "Expand all abbreviations in the file"),
             ("col <filename>", "Collapse all abbreviations in the file"),
@@ -245,6 +247,21 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def do_search(self, args):
+        try:
+            args_split = args.split()
+            filename = args_split[0]
+            searchterm = args_split[1]
+
+            # if len(args_split) == 3:
+            #     value = args_split[2]
+
+            newFile = search(filename, searchterm)
+            self.do_view(newFile)
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+        
                 
     def do_br(self, args):
         try:

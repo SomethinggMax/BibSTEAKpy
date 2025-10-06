@@ -1,15 +1,78 @@
-from objects import BibFile, Reference, String, Comment
+import re
+import unicodedata
+
+from objects import BibFile, Reference, String
+from utils import batch_editor
+
+NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
+AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
 
 
-def merge_reference(reference_1, reference_2) -> Reference:
-    merged_reference = Reference(reference_1.entry_type, reference_1.cite_key)
+def _strip_diacritics(value: str) -> str:
+    normalized = unicodedata.normalize('NFKD', value)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _prepare_text(value) -> str:
+    text = str(value)
+    text = text.replace('{', '').replace('}', '')
+    text = _strip_diacritics(text)
+    return text.lower()
+
+
+def normalize_author_field(raw_author) -> str:
+    if not raw_author:
+        return ''
+
+    text = _prepare_text(raw_author)
+    people = AUTHOR_SEPARATOR_RE.split(text)
+    normalized_people = []
+
+    for person in people:
+        tokens = [token for token in NON_ALNUM_RE.split(person) if token]
+        if tokens:
+            normalized_people.append(''.join(sorted(tokens)))
+
+    if not normalized_people:
+        return ''
+
+    normalized_people.sort()
+    return '::'.join(normalized_people)
+
+
+def normalize_title_field(raw_title) -> str:
+    if not raw_title:
+        return ''
+
+    text = _prepare_text(raw_title)
+    return NON_ALNUM_RE.sub('', text)
+
+
+def build_reference_signature(reference: Reference):
+    authors_signature = normalize_author_field(getattr(reference, 'author', None))
+    title_signature = normalize_title_field(getattr(reference, 'title', None))
+
+    if authors_signature and title_signature:
+        return f'{authors_signature}||{title_signature}'
+
+    return None
+
+
+def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference:
+    merged_reference = Reference(reference_1.comment_above_reference, reference_1.entry_type, reference_1.cite_key)
     reference_1_fields = reference_1.get_fields()
     reference_2_fields = reference_2.get_fields()
 
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
             if data != reference_2_fields[field_type]:
-                print("Duplicate fields do not have the same contents!")
+                print(
+                    f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
+                print(f"1. '{data}'")
+                print(f"2. '{reference_2_fields[field_type]}'")
+                choice = input('Choose which to keep (1 or 2): ')
+                if choice == '2':
+                    data = reference_2_fields[field_type]
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
     for field_type, data in reference_2_fields.items():
@@ -19,27 +82,117 @@ def merge_reference(reference_1, reference_2) -> Reference:
     return merged_reference
 
 
-def merge_files(bib_file_1, bib_file_2) -> BibFile:
-    # File name will be set when generating the file, this is just temporary.
-    merged_bib_file = BibFile(bib_file_1.file_name + "+" + bib_file_2.file_name)
+def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile, [String]):
+    """
+    Merge the Strings from two bib files together into a single list of Strings.
+    :param bib_file_1: the first file.
+    :param bib_file_2: the second file.
+    :return: (bib_file_1, bib_file_2, string_list), updated bib files with a list of the strings for the merged file.
+    """
+    string_list = []
+    file_2_strings = {x.abbreviation: x.long_form for x in bib_file_2.get_strings()}
+    for string in bib_file_1.get_strings():
+        if string.abbreviation not in file_2_strings:
+            string_list.append(string)
+        elif file_2_strings[string.abbreviation] == string.long_form:
+            string_list.append(string)
+        else:
+            print(f"Conflict with string abbreviation '{string.abbreviation}'!")
+            print("You can select an abbreviation to rename.")
+            print(f"1: {string.long_form}")
+            print(f"2: {file_2_strings[string.abbreviation]}")
+            choice = input("Enter your choice (1 or 2): ")
+            new_abbreviation = input(f"Now input the new abbreviation for '{string.long_form}'. "
+                                     f"(Old abbreviation: '{string.abbreviation}'): ")
+            if choice == '1':
+                batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
+                string_list.append([x for x in bib_file_1.get_strings() if x.abbreviation == new_abbreviation][0])
+                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == string.abbreviation][0])
+            elif choice == '2':
+                batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
+                string_list.append(string)  # The unchanged string from file 1.
+                string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == new_abbreviation][0])
+            else:
+                raise ValueError("Invalid choice. Please enter 1 or 2.")
+    return bib_file_1, bib_file_2, string_list
 
-    # Add all strings first.
-    merged_bib_file.content = bib_file_1.get_strings()
-    merged_bib_file.content.extend(bib_file_2.get_strings())
+
+def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
+    # File name will be set when generating the file, this is just temporary.
+    merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
+
+    merged_bib_file.content = bib_file_1.get_preambles()  # Add preambles from file 1.
+
+    # Add preambles from file 2 if they are different.
+    preamble_contents = [x.preamble for x in bib_file_1.get_preambles()]
+    for preamble in bib_file_2.get_preambles():
+        if preamble.preamble not in preamble_contents:
+            merged_bib_file.content.append(preamble)
+
+    bib_file_1, bib_file_2, string_list = merge_strings(bib_file_1, bib_file_2)
+    merged_bib_file.content.extend(string_list)
+
+    bib2_reference_by_key = {
+        entry.cite_key: entry
+        for entry in bib_file_2.content
+        if isinstance(entry, Reference)
+    }
+
+    bib2_signatures = {}
+    for reference in bib2_reference_by_key.values():
+        signature = build_reference_signature(reference)
+        if signature:
+            bib2_signatures.setdefault(signature, []).append(reference.cite_key)
+
+    consumed_bib2_keys = set()
 
     # Add references from bib file 1.
     for entry in bib_file_1.content:
-        if type(entry) is Reference:
-            if entry.cite_key in bib_file_2.get_cite_keys():
-                merged_reference = merge_reference(entry, bib_file_2.get_reference(entry.cite_key))
+        if isinstance(entry, Reference):
+            if entry.cite_key in bib2_reference_by_key:
+                merged_reference = merge_reference(entry, bib2_reference_by_key[entry.cite_key])
                 merged_bib_file.content.append(merged_reference)
-            else:
-                merged_bib_file.content.append(entry)
+                consumed_bib2_keys.add(entry.cite_key)
+                continue
+
+            signature = build_reference_signature(entry)
+            if signature:
+                candidate_keys = [
+                    key for key in bib2_signatures.get(signature, [])
+                    if key not in consumed_bib2_keys
+                ]
+                if candidate_keys:
+                    target_key = candidate_keys[0]
+                    print("References seem to be similar based on author/title normalization.")
+                    print("Please compare the following references:")
+                    print(f"Reference 1 (from first file):\n{entry}\n")
+                    print(f"Reference 2 (from second file):\n{bib2_reference_by_key[target_key]}\n")
+                    print("Choose where to merge or skip:")
+                    print("1: Merge references")
+                    print("2: Keep both references")
+                    choice = input("Enter your choice (1 or 2): ")
+                    if choice == '1':
+                        print(
+                            f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
+                        )
+                        merged_reference = merge_reference(entry, bib2_reference_by_key[target_key])
+                        merged_bib_file.content.append(merged_reference)
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    elif choice == '2':
+                        print(f"Skipping merge for '{entry.cite_key}'. Keeping both entries.")
+                        merged_bib_file.content.append(entry)
+                        merged_bib_file.content.append(bib2_reference_by_key[target_key])
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    else:
+                        raise ValueError("Invalid choice. Please enter 1 or 2.")
+
+            merged_bib_file.content.append(entry)
 
     # Add remaining references from bib file 2.
     for entry in bib_file_2.content:
-        if type(entry) is Reference:
-            if entry.cite_key not in merged_bib_file.get_cite_keys():
-                merged_bib_file.content.append(entry)
+        if isinstance(entry, Reference) and entry.cite_key not in consumed_bib2_keys:
+            merged_bib_file.content.append(entry)
 
     return merged_bib_file

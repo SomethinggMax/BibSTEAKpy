@@ -54,8 +54,12 @@ COMMANDS = [("help", "Display the current menu"),
             ("col <filename>", "Collapse all abbreviations in the file"),
             ("br <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
             ("ord <filename> <field> [descending=False]", "Order the references based on a certain field"),
-            ("sub <filename>", "Creates a sub .bib file based on selected references"),
-            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file.")
+            ("sub -e <filename> <new_filename>, <entry_types>", "Creates a sub .bib file with only specified entry "
+                                                                "types."),
+            ("sub -t <filename> <new_filename>, <tags>", "Creates a sub .bib file with only references with specified "
+                                                         "tags."),
+            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file."),
+            ("mer -all <new_filename>", "Merge all bib files in the current working directory.")
             ]
 
 
@@ -82,6 +86,28 @@ def get_working_directory_path():
         config = json.load(f)
         working_directory_path = config["working_directory"]
         return working_directory_path
+
+
+def get_bib_file_names(folder_path):
+    files = []
+    if os.listdir(folder_path):
+        index = 1
+        for filename in os.listdir(folder_path):
+            full_path = os.path.join(folder_path, filename)
+            _, extension = os.path.splitext(filename)
+            if os.path.isfile(full_path) and extension == '.bib':
+                files.append((filename, index))  # ignore subfolders
+                index += 1
+    return files
+
+
+def check_extension(new_file_name):
+    root, ext = os.path.splitext(new_file_name)
+    if ext == "":
+        new_file_name += ".bib"
+    elif ext != ".bib":
+        raise ValueError("The new file name must have a .bib extension or no extension at all.")
+    return new_file_name
 
 
 def load_file_to_storage(source_path):
@@ -157,7 +183,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: '{
-        get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
+    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -177,14 +203,7 @@ class CLI(cmd.Cmd):
             folder_path = get_working_directory_path()
 
             if os.listdir(folder_path):
-                index = 1
-                files = []
-                for filename in os.listdir(folder_path):
-                    full_path = os.path.join(folder_path, filename)
-                    _, extension = os.path.splitext(filename)
-                    if os.path.isfile(full_path) and extension == '.bib':
-                        files.append((filename, index))  # ignore subfolders
-                        index += 1
+                files = get_bib_file_names(folder_path)
                 if files != []:
                     print(f"Bib files in {folder_path}")
                     for file, index in files:
@@ -197,13 +216,13 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_pwd(self, arg):
         print(
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
-        
-    def do_cd(self, wd_path): 
-        
+
+    def do_cd(self, wd_path):
+
         try:
             if wd_path == "":
                 raise ValueError("No path provided. Please provide an absolute path.")
@@ -279,7 +298,7 @@ class CLI(cmd.Cmd):
 
         except Exception as e:
             print(f"Unexpected error: {e}")
-        
+
     def do_rg(self, args):
         try:
             filename, order = args.split()
@@ -295,7 +314,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_exp(self, arg):
         try:
             filename = arg
@@ -320,7 +339,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_col(self, arg):
         try:
             filename = arg
@@ -348,25 +367,32 @@ class CLI(cmd.Cmd):
 
     def do_sub(self, args):
         try:
-            filename, new_filename, entry_types = args.split()
-            entry_types_list = ast.literal_eval(entry_types)
-            # print(type(entry_types))
+            argument_list = args.split(maxsplit=3)
+            flag, filename, new_filename = argument_list[:3]
+            search_list = argument_list[3:][0]
             path = os.path.join(get_working_directory_path(), filename)
+            new_filename = check_extension(new_filename)
             file = utils.file_parser.parse_bib(path, True)
-            sub_file = sub_bib(file, entry_types_list)
-            # sub_file = sub_bib(file, ['article'])
-            # print(sub_file)
+            match flag:
+                case "-e":
+                    entry_types_list = ast.literal_eval(search_list)
+                    sub_file = sub_bib_entry_types(file, entry_types_list)
+                case "-t":
+                    tags = ast.literal_eval(search_list)
+                    sub_file = sub_bib_tags(file, tags)
+                case _:
+                    print("Flag not supported!")
+                    return
+
             new_path = os.path.join(get_working_directory_path(), new_filename)
-            # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path, 15)
-
             print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-                
+
     def do_ord(self, args):
         try:
             def str_to_bool(s: str) -> bool:
@@ -399,21 +425,45 @@ class CLI(cmd.Cmd):
 
     def do_mer(self, args):
         try:
-            file_name_1, file_name_2, new_file_name = args.split()
+            argument_list = args.split()
+            if len(argument_list) == 2 and argument_list[0] == "-all":
+                new_file_name = argument_list[1]
+                new_file_name = check_extension(new_file_name)
 
-            path_1 = os.path.join(get_working_directory_path(), file_name_1)
-            path_2 = os.path.join(get_working_directory_path(), file_name_2)
-            bib_file_1 = utils.file_parser.parse_bib(path_1, False)
-            bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+                file_names = get_bib_file_names(get_working_directory_path())
+                path = os.path.join(get_working_directory_path(), file_names[0][0])
+                merged_bib_file = utils.file_parser.parse_bib(path, False)
+                for file_name, index in file_names:
+                    if index == 1:
+                        continue
+                    path = os.path.join(get_working_directory_path(), file_name)
+                    bib_file = utils.file_parser.parse_bib(path, False)
+                    merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
+                utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
 
-            merge_result = merge.merge_files(bib_file_1, bib_file_2)
-            utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+            else:
+                file_name_1, file_name_2, new_file_name = args.split()
+                new_file_name = check_extension(new_file_name)
+
+                path_1 = os.path.join(get_working_directory_path(), file_name_1)
+                path_2 = os.path.join(get_working_directory_path(), file_name_2)
+                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
+                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+
+                merge_result = merge.merge_files(bib_file_1, bib_file_2)
+                utils.file_generator.generate_bib(merge_result, new_file_name, 15)
 
             print_in_green("Files have been merged successfully!")
 
+        except ValueError as e:
+            if "not enough values to unpack" in str(e):
+                print(
+                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "<filename2> <new_filename>.")
+            else:
+                print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
-
 
     def default(self, line):
         print('Command not found!')
@@ -433,19 +483,19 @@ class CLI(cmd.Cmd):
 
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_rg(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_br(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_ord(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):
         return self.filename_completions(text)
-    
+
     def complete_col(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 

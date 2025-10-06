@@ -1,4 +1,5 @@
 import difflib
+import re
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
 from utils import batch_editor, sub_bib, merge
@@ -10,7 +11,6 @@ articles_examples = "articles-examples.bib"
 bib_tests = "bibtests.bib"
 bib_merge_test = "bib-merge-test.bib"
 merge_result = "merge-result.bib"
-
 
 examples = file_parser.parse_bib(bib_examples_original, False)
 test = file_parser.parse_bib(bib_tests, True)
@@ -24,12 +24,15 @@ merge_test = file_parser.parse_bib(bib_merge_test, True)
 file_generator.generate_bib(examples, bib_examples_generated, 15)
 
 
+def file_to_string(file_name):
+    with open(file_name) as file:
+        return file.readlines()
+
+
 # Print the differences between two files.:
 def print_differences(from_file, to_file):
-    with open(from_file) as first:
-        first_string = first.readlines()
-    with open(to_file) as second:
-        second_string = second.readlines()
+    first_string = file_to_string(from_file)
+    second_string = file_to_string(to_file)
     for line in difflib.unified_diff(
             first_string, second_string,
             fromfile=from_file, tofile=to_file,
@@ -37,6 +40,32 @@ def print_differences(from_file, to_file):
         print(line)
 
 
+def is_different(from_file, to_file, ignore_spaces) -> bool:
+    """
+    Check if two files contain any differences.
+    :param from_file:
+    :param to_file:
+    :param ignore_spaces: if True ignore any differences in spaces.
+    :return:
+    """
+    first_string_list = file_to_string(from_file)
+    second_string_list = file_to_string(to_file)
+    new_first_string = ""
+    new_second_string = ""
+    if ignore_spaces:
+        for string in first_string_list:
+            new_first_string += re.sub(r'\s+', '', string)
+        for string in second_string_list:
+            new_second_string += re.sub(r'\s+', '', string)
+        differences = difflib.unified_diff(new_first_string, new_second_string)
+    else:
+        differences = difflib.unified_diff(first_string_list, second_string_list)
+    if any(True for _ in differences):
+        return True
+    return False
+
+
+print(f"Different when ignoring spaces: {is_different(bib_examples_original, bib_examples_generated, True)}")
 print_differences(bib_examples_original, bib_examples_generated)
 
 examples_edited = batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")

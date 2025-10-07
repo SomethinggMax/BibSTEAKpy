@@ -1,28 +1,20 @@
 import cmd
 import os
 import shutil
-import json
 import readline
 from utils import merge
-
-if os.name == "nt" and not hasattr(readline, "backend"):
-    readline.backend = "unsupported"
-import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
-from pprint import pprint
-from utils.Reftype import sortByReftype
 import utils.abbreviations_exec as abbreviations_exec
 import utils
-from utils.order_by_field import *
 from utils.sub_bib import *
-from utils.file_parser import *
-from utils.file_generator import *
 from utils.Reftype import *
 from utils.order_by_field import *
-from utils.batch_editor import *
 from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
+
+if os.name == "nt" and not hasattr(readline, "backend"):
+    readline.backend = "unsupported"
 
 RESET = "\033[0m"
 RED = "\033[31m"
@@ -36,6 +28,7 @@ WHITE = "\033[37m"
 
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
+
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -60,7 +53,10 @@ COMMANDS = [
         "rg <filename> <field>",
         "Group references of a bib file based on a certain field",
     ),
-    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
+    (
+        "filter <filename> <field>, [value]",
+        "Displays references with a certain field (OPTIONAL: a value in that field)"
+    ),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
@@ -300,23 +296,24 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_filter(self, args):
         try:
             args_split = args.split()
 
-            #get bibfileobj
+            # get bibfileobj
             filename = args_split[0]
             path = os.path.join(get_working_directory_path(), filename)
             bibfileobj = utils.file_parser.parse_bib(path, False)
-        
+
             field = args_split[1]
 
             if len(args_split) == 3:
                 value = args_split[2].lower()
                 newFile = filterByFieldValue(bibfileobj, field, value)
                 if newFile == -1:
-                    print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
+                    print_in_yellow(
+                        f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
                 else:
                     self.do_view_bibfile_obj(newFile)
             else:
@@ -331,10 +328,9 @@ class CLI(cmd.Cmd):
             print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
-                    
 
     def do_search(self, args):
-        
+
         try:
             filename, searchterm = args.split()
             path = os.path.join(get_working_directory_path(), filename)
@@ -343,7 +339,7 @@ class CLI(cmd.Cmd):
             newFile = search(bibfileobj, searchterm)
             if newFile == -1:
                 print_in_green("No references match your search :(")
-            else: 
+            else:
                 self.do_view_bibfile_obj(newFile)
         except IndexError as e:
             print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
@@ -355,7 +351,6 @@ class CLI(cmd.Cmd):
     def do_view_bibfile_obj(self, args):
         for item in args.content:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
-        
 
     def do_br(self, args):
         try:

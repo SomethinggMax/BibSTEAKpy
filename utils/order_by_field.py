@@ -1,6 +1,5 @@
 from objects import BibFile, Reference
 import utils.file_parser as file_parser
-import utils.file_generator as file_generator
 
 
 # Note for me: Account for the fact that all Reference objects

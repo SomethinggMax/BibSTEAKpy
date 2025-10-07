@@ -313,7 +313,7 @@ class CLI(cmd.Cmd):
             field = args_split[1]
 
             if len(args_split) == 3:
-                value = args_split[2]
+                value = args_split[2].lower()
                 newFile = filterByFieldValue(bibfileobj, field, value)
                 if newFile == -1:
                     print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")

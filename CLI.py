@@ -563,6 +563,12 @@ class CLI(cmd.Cmd):
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
+    def complete_filter(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_search(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 

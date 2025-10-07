@@ -5,6 +5,8 @@ import utils.file_generator as file_generator
 import utils.file_parser as file_parser
 from CLI import get_bib_file_names, get_working_directory_path
 from utils import batch_editor, sub_bib, merge, cleanup
+from utils.Reftype import sortByReftype, GroupingType
+from utils.filtering import search
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
@@ -21,6 +23,14 @@ merge_test = file_parser.parse_bib(bib_merge_test, True)
 # Some examples on how to access information from the dictionary.
 # print(result[("book", "augustine")]["author"])
 # print(result[("book", "cicero")]["annotation"])
+
+#test filtering/searching
+displayfile = search(examples, "english")
+file_generator.generate_bib(displayfile, "newfile.bib", 15)
+
+#testing groyping
+sortByReftype(examples, GroupingType.ZTOA)
+file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)
 
 # Generate file from the dictionary:
 file_generator.generate_bib(examples, bib_examples_generated, 15)

@@ -13,18 +13,20 @@ class BibFile(object):
                 cite_keys.append(entry.cite_key)
         return cite_keys
 
-    def get_reference(self, cite_key):
+    def get_reference_by_key(self, cite_key):
         for entry in self.content:
             if type(entry) is Reference:
                 if entry.cite_key == cite_key:
                     return entry
+                
+    def get_references(self):
+        return [entry for entry in self.content if type(entry) is Reference]
 
     def get_strings(self):
-        strings = []
-        for entry in self.content:
-            if type(entry) is String:
-                strings.append(entry)
-        return strings
+        return [entry for entry in self.content if type(entry) is String]
+    
+    def get_comments(self):
+         return [entry for entry in self.content if type(entry) is Comment]
 
     def get_preambles(self):
         preambles = []

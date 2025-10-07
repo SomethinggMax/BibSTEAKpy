@@ -5,22 +5,23 @@ import json
 import readline
 from utils import merge
 
-if os.name == 'nt' and not hasattr(readline, 'backend'):
-    readline.backend = 'unsupported'
+if os.name == "nt" and not hasattr(readline, "backend"):
+    readline.backend = "unsupported"
 import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
 from pprint import pprint
-from utils.GroupByRefType import groupByRefType
+from utils.Reftype import sortByReftype
 import utils.abbreviations_exec as abbreviations_exec
 import utils
 from utils.order_by_field import *
 from utils.sub_bib import *
 from utils.file_parser import *
 from utils.file_generator import *
-from utils.GroupByRefType import *
+from utils.Reftype import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
+from utils.filtering import *
 import ast
 
 RESET = "\033[0m"
@@ -36,29 +37,57 @@ WHITE = "\033[37m"
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
 
+def print_in_yellow(arg):
+    print(f"{YELLOW}{arg}{RESET}")
+
 
 CONFIG_FILE = "config.json"
 
-COMMANDS = [("help", "Display the current menu"),
-            ("load", "Load a particular file into the working directory"),
-            ("cd <directory>", "Changes the current working directory"),
-            ("list", "See all the bib files in the working directory"),
-            ("pwd", "Prints the working directory"),
-            ("abb", "Display all abbreviations"),
-            ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
-            ("quit", "Close the BibSteak CLI"),
-            ("rg <filename> <field>", "Group references of a bib file based on a certain field"),
-            ("exp <filename>", "Expand all abbreviations in the file"),
-            ("col <filename>", "Collapse all abbreviations in the file"),
-            ("br <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
-            ("ord <filename> <field> [descending=False]", "Order the references based on a certain field"),
-            ("sub -e <filename> <new_filename>, <entry_types>", "Creates a sub .bib file with only specified entry "
-                                                                "types."),
-            ("sub -t <filename> <new_filename>, <tags>", "Creates a sub .bib file with only references with specified "
-                                                         "tags."),
-            ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file."),
-            ("mer -all <new_filename>", "Merge all bib files in the current working directory.")
-            ]
+COMMANDS = [
+    ("help", "Display the current menu"),
+    ("load", "Load a particular file into the working directory"),
+    ("cd <directory>", "Changes the current working directory"),
+    ("list", "See all the bib files in the working directory"),
+    ("pwd", "Prints the working directory"),
+    ("abb", "Display all abbreviations"),
+    (
+        "view <filename>",
+        "View the content of a certain .bib file from your chosen working directory",
+    ),
+    ("quit", "Close the BibSteak CLI"),
+    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
+    (
+        "rg <filename> <field>",
+        "Group references of a bib file based on a certain field",
+    ),
+    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
+    ("exp <filename>", "Expand all abbreviations in the file"),
+    ("col <filename>", "Collapse all abbreviations in the file"),
+    (
+        "br <filename> <fields> <old string> <new string>",
+        "Replace all occurrences in given fields",
+    ),
+    (
+        "ord <filename> <field> [descending=False]",
+        "Order the references based on a certain field",
+    ),
+    (
+        "sub -e <filename> <new_filename>, <entry_types>",
+        "Creates a sub .bib file with only specified entry " "types.",
+    ),
+    (
+        "sub -t <filename> <new_filename>, <tags>",
+        "Creates a sub .bib file with only references with specified " "tags.",
+    ),
+    (
+        "mer <filename1> <filename2> <new_filename>",
+        "Merge the references from two bib files into one file.",
+    ),
+    (
+        "mer -all <new_filename>",
+        "Merge all bib files in the current working directory.",
+    ),
+]
 
 
 def completer(text, state):
@@ -69,7 +98,9 @@ def completer(text, state):
     else:
         try:
             wd = get_working_directory_path()
-            files = [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
+            files = [
+                f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
+            ]
             options = files
         except Exception:
             options = []
@@ -93,7 +124,7 @@ def get_bib_file_names(folder_path):
         for filename in os.listdir(folder_path):
             full_path = os.path.join(folder_path, filename)
             _, extension = os.path.splitext(filename)
-            if os.path.isfile(full_path) and extension == '.bib':
+            if os.path.isfile(full_path) and extension == ".bib":
                 files.append((filename, index))  # ignore subfolders
                 index += 1
     return files
@@ -104,7 +135,9 @@ def check_extension(new_file_name):
     if ext == "":
         new_file_name += ".bib"
     elif ext != ".bib":
-        raise ValueError("The new file name must have a .bib extension or no extension at all.")
+        raise ValueError(
+            "The new file name must have a .bib extension or no extension at all."
+        )
     return new_file_name
 
 
@@ -128,7 +161,9 @@ def load_file_to_storage(source_path):
             if extension == "":
                 raise ValueError("File has no extension. Only .bib files are allowed.")
             else:
-                raise ValueError(f"Invalid file extension: '{extension}'. Only .bib files are allowed.")
+                raise ValueError(
+                    f"Invalid file extension: '{extension}'. Only .bib files are allowed."
+                )
 
     except ValueError as e:
         print(f"File Type Error: {e}")
@@ -192,7 +227,7 @@ class CLI(cmd.Cmd):
     misc_header = "Topics:"
     ruler = "-"
 
-    # commands  
+    # commands
     def do_load(self, arg):
         load_file_to_storage(arg)
 
@@ -217,7 +252,8 @@ class CLI(cmd.Cmd):
 
     def do_pwd(self, arg):
         print(
-            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}")
+            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
+        )
 
     def do_cd(self, wd_path):
 
@@ -264,6 +300,62 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def do_filter(self, args):
+        try:
+            args_split = args.split()
+
+            #get bibfileobj
+            filename = args_split[0]
+            path = os.path.join(get_working_directory_path(), filename)
+            bibfileobj = utils.file_parser.parse_bib(path, False)
+        
+            field = args_split[1]
+
+            if len(args_split) == 3:
+                value = args_split[2].lower()
+                newFile = filterByFieldValue(bibfileobj, field, value)
+                if newFile == -1:
+                    print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+            else:
+                newFile = filterByFieldExistence(bibfileobj, field)
+                if newFile == -1:
+                    print_in_yellow(f"No references found with a field named {WHITE}{field}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+        except IndexError as e:
+            print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+                    
+
+    def do_search(self, args):
+        
+        try:
+            filename, searchterm = args.split()
+            path = os.path.join(get_working_directory_path(), filename)
+            bibfileobj = utils.file_parser.parse_bib(path, False)
+
+            newFile = search(bibfileobj, searchterm)
+            if newFile == -1:
+                print_in_green("No references match your search :(")
+            else: 
+                self.do_view_bibfile_obj(newFile)
+        except IndexError as e:
+            print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+
+    def do_view_bibfile_obj(self, args):
+        for item in args.content:
+            print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
+        
 
     def do_br(self, args):
         try:
@@ -289,7 +381,7 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
-            groupByRefType(bib_file, order)
+            sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
             print_in_green("Grouping by reference done successfully!")
@@ -378,6 +470,7 @@ class CLI(cmd.Cmd):
 
     def do_ord(self, args):
         try:
+
             def str_to_bool(s: str) -> bool:
                 return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
 
@@ -398,9 +491,9 @@ class CLI(cmd.Cmd):
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
             else:
-                print_in_green(f"Descending order by '{field}' field done successfully!")
-
-
+                print_in_green(
+                    f"Descending order by '{field}' field done successfully!"
+                )
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -445,14 +538,15 @@ class CLI(cmd.Cmd):
             if "not enough values to unpack" in str(e):
                 print(
                     "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
-                    "<filename2> <new_filename>.")
+                    "<filename2> <new_filename>."
+                )
             else:
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
 
     def default(self, line):
-        print('Command not found!')
+        print("Command not found!")
 
     def emptyline(self):
         pass
@@ -460,11 +554,19 @@ class CLI(cmd.Cmd):
     def filename_completions(self, text):
         wd = get_working_directory_path()
         try:
-            return [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
+            return [
+                f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
+            ]
         except Exception:
             return []
 
     def complete_view(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_filter(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_search(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_exp(self, text, line, begidx, endidx):

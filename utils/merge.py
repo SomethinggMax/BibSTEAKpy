@@ -70,6 +70,7 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
                 # TODO: Use synonyms.json to automatically resolve some conflicts. 
                 synonym_1 = synonyms.replace_synonym(data)
                 synonym_2 = synonyms.replace_synonym(reference_2_fields[field_type])
+                print(f"synonym_1: {synonym_1}, synonym_2: {synonym_2}")
                 if synonym_1 and synonym_1 == synonym_2:
                     data = synonym_1
                 else:

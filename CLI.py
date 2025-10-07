@@ -505,8 +505,11 @@ class CLI(cmd.Cmd):
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
-
-                file_names = get_bib_file_names(get_working_directory_path())
+                wd = get_working_directory_path()
+                if not os.listdir(wd):
+                    print("The working directory is empty!")
+                    return
+                file_names = get_bib_file_names(wd)
                 path = os.path.join(get_working_directory_path(), file_names[0][0])
                 merged_bib_file = utils.file_parser.parse_bib(path, False)
                 for file_name, index in file_names:

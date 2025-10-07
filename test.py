@@ -1,7 +1,9 @@
 import difflib
+import os
 import re
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
+from CLI import get_bib_file_names, get_working_directory_path
 from utils import batch_editor, sub_bib, merge, cleanup
 
 bib_examples_original = "biblatex-examples.bib"
@@ -40,32 +42,67 @@ def print_differences(from_file, to_file):
         print(line)
 
 
-def is_different(from_file, to_file, ignore_spaces) -> bool:
+def is_different(from_file, to_file, ignore_spaces, ignore_capitalization) -> bool:
     """
-    Check if two files contain any differences.
+    Check if two files contain any differences (ignoring newlines).
     :param from_file:
     :param to_file:
     :param ignore_spaces: if True ignore any differences in spaces.
+    :param ignore_capitalization: if True ignore any difference in capitalization.
     :return:
     """
     first_string_list = file_to_string(from_file)
     second_string_list = file_to_string(to_file)
     new_first_string = ""
     new_second_string = ""
+    for string in first_string_list:
+        new_first_string += string
+    for string in second_string_list:
+        new_second_string += string
     if ignore_spaces:
-        for string in first_string_list:
-            new_first_string += re.sub(r'\s+', '', string)
-        for string in second_string_list:
-            new_second_string += re.sub(r'\s+', '', string)
-        differences = difflib.unified_diff(new_first_string, new_second_string)
-    else:
-        differences = difflib.unified_diff(first_string_list, second_string_list)
+        new_first_string = re.sub(r'\s+', '', new_first_string)
+        new_second_string = re.sub(r'\s+', '', new_second_string)
+    if ignore_capitalization:
+        new_first_string = new_first_string.lower()
+        new_second_string = new_second_string.lower()
+    differences = difflib.unified_diff(new_first_string, new_second_string)
     if any(True for _ in differences):
         return True
     return False
 
 
-print(f"Different when ignoring spaces: {is_different(bib_examples_original, bib_examples_generated, True)}")
+def test_files(directory_path) -> bool:
+    """
+    Check if all the bib files in the directory are correctly parsed and generated.
+    Works by checking differences between original and generated file. Ignores spaces.
+    :param directory_path:
+    :return: if the files are correctly parsed and generated.
+    """
+    if not os.listdir(directory_path):
+        print("The directory is empty!")
+        return True
+
+    file_names = get_bib_file_names(directory_path)
+    temp_file_name = "new-generated-temporary-test-file.bib"
+
+    for file_name, index in file_names:
+        path = os.path.join(get_working_directory_path(), file_name)
+        bib_file = file_parser.parse_bib(path, False)
+        file_generator.generate_bib(bib_file, temp_file_name, 15)
+        if is_different(path, temp_file_name, True, True):
+            print(f"Difference between original and generated file: {path}")
+            print_differences(path, temp_file_name)
+            return False
+    os.remove(temp_file_name)
+    return True
+
+
+if not os.listdir(get_working_directory_path()):
+    print("The working directory is empty!")
+elif test_files(get_working_directory_path()):
+    print("All files in the working directory seem correctly parsed and generated.")
+
+
 print_differences(bib_examples_original, bib_examples_generated)
 
 batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")

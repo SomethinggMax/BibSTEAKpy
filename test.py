@@ -2,7 +2,7 @@ import difflib
 import re
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
-from utils import batch_editor, sub_bib, merge
+from utils import batch_editor, sub_bib, merge, cleanup
 
 bib_examples_original = "biblatex-examples.bib"
 bib_examples_generated = "biblatex-examples-generated.bib"
@@ -68,8 +68,9 @@ def is_different(from_file, to_file, ignore_spaces) -> bool:
 print(f"Different when ignoring spaces: {is_different(bib_examples_original, bib_examples_generated, True)}")
 print_differences(bib_examples_original, bib_examples_generated)
 
-examples_edited = batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
-file_generator.generate_bib(examples_edited, bib_examples_edited, 15)
+batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
+cleanup.cleanup(examples)
+file_generator.generate_bib(examples, bib_examples_edited, 15)
 
 print_differences(bib_examples_generated, bib_examples_edited)
 

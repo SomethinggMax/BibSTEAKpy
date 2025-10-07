@@ -1,5 +1,5 @@
 {
   "working_directory": "",
-  "theme": "light",
-  "user": "John"
+  "use_url": false,
+  "use_doi": true
 }

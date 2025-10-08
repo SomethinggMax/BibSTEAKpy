@@ -2,7 +2,7 @@ from objects import BibFile, Reference, Comment, String, Preamble
 
 
 def generate_bib(bib_file: BibFile, file_name, align_fields_position):
-    with open(file_name, "w") as file:
+    with open(file_name, "w", encoding="utf-8") as file:
         final_string = ""
 
         for entry in bib_file.content:

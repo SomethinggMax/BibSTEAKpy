@@ -25,7 +25,7 @@ file_generator.generate_bib(examples, bib_examples_generated, 15)
 
 
 def file_to_string(file_name):
-    with open(file_name) as file:
+    with open(file_name, encoding='utf-8') as file:
         return file.readlines()
 
 

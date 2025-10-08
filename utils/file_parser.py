@@ -65,7 +65,7 @@ def parse_fields(data, remove_whitespace_in_fields):
 def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
     result = BibFile(file_name)
 
-    with open(file_name, "r+") as file:
+    with open(file_name, encoding='utf-8') as file:
         token = ""
         comment = ""
         ref_type = ""

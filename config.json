@@ -1,5 +1,6 @@
 {
   "working_directory": "",
   "use_url": false,
-  "use_doi": true
+  "use_doi": true,
+  "unnecessary_fields": ["langidopts"]
 }

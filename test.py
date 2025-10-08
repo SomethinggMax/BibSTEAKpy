@@ -20,18 +20,6 @@ examples = file_parser.parse_bib(bib_examples_original, False)
 test = file_parser.parse_bib(bib_tests, True)
 merge_test = file_parser.parse_bib(bib_merge_test, True)
 
-# Some examples on how to access information from the dictionary.
-# print(result[("book", "augustine")]["author"])
-# print(result[("book", "cicero")]["annotation"])
-
-#test filtering/searching
-displayfile = search(examples, "english")
-file_generator.generate_bib(displayfile, "newfile.bib", 15)
-
-#testing groyping
-sortByReftype(examples, GroupingType.ZTOA)
-file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)
-
 # Generate file from the dictionary:
 file_generator.generate_bib(examples, bib_examples_generated, 15)
 
@@ -115,6 +103,10 @@ elif test_files(get_working_directory_path()):
 
 print_differences(bib_examples_original, bib_examples_generated)
 
+# test filtering/searching
+displayfile = search(examples, "english")
+file_generator.generate_bib(displayfile, "newfile.bib", 15)
+
 batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
 cleanup.cleanup(examples)
 file_generator.generate_bib(examples, bib_examples_edited, 15)
@@ -128,3 +120,7 @@ file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 1
 
 tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
 file_generator.generate_bib(tagged_sub_file, "tagged-examples.bib", 15)
+
+# testing grouping
+sortByReftype(examples, GroupingType.ZTOA)
+file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)

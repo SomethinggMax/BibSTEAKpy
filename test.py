@@ -40,12 +40,13 @@ def print_differences(from_file, to_file):
         print(line)
 
 
-def is_different(from_file, to_file, ignore_spaces, ignore_capitalization) -> bool:
+def is_different(from_file, to_file, ignore_spaces, ignore_commas, ignore_capitalization) -> bool:
     """
     Check if two files contain any differences (ignoring newlines).
     :param from_file:
     :param to_file:
     :param ignore_spaces: if True ignore any differences in spaces.
+    :param ignore_commas: if True ignore any differences in commas (since in the last field the comma is not necessary)
     :param ignore_capitalization: if True ignore any difference in capitalization.
     :return:
     """
@@ -60,6 +61,9 @@ def is_different(from_file, to_file, ignore_spaces, ignore_capitalization) -> bo
     if ignore_spaces:
         new_first_string = re.sub(r'\s+', '', new_first_string)
         new_second_string = re.sub(r'\s+', '', new_second_string)
+    if ignore_commas:
+        new_first_string = re.sub(r',', '', new_first_string)
+        new_second_string = re.sub(r',', '', new_second_string)
     if ignore_capitalization:
         new_first_string = new_first_string.lower()
         new_second_string = new_second_string.lower()
@@ -88,7 +92,7 @@ def test_files(directory_path) -> bool:
         path = os.path.join(directory_path, file_name)
         bib_file = file_parser.parse_bib(path, False)
         file_generator.generate_bib(bib_file, temp_file_name, 15)
-        if is_different(path, temp_file_name, True, True):
+        if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
             return False

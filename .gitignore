@@ -2,6 +2,7 @@
 biblatex-examples-edited.bib
 biblatex-examples-generated.bib
 bib-examples-grouped.bib
+newfile.bib
 /.idea
 /.vs
 my_tests.py

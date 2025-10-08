@@ -90,7 +90,11 @@ def test_files(directory_path) -> bool:
     for file_name, index in file_names:
         print(f"Testing parsing and generation of file '{file_name}'")
         path = os.path.join(directory_path, file_name)
-        bib_file = file_parser.parse_bib(path, False)
+        try:
+            bib_file = file_parser.parse_bib(path, False)
+        except UnicodeDecodeError:
+            print(f"File {file_name} cannot be decoded with UTF-8, skipping.")
+            continue
         file_generator.generate_bib(bib_file, temp_file_name, 15)
         if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")

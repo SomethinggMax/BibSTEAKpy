@@ -39,7 +39,7 @@ CONFIG_FILE = "config.json"
 COMMANDS = [
     ("help", "Display the current menu"),
     ("load", "Load a particular file into the working directory"),
-    ("cd <directory>", "Changes the current working directory"),
+    ("cwd <directory>", "Changes the current working directory"),
     ("list", "See all the bib files in the working directory"),
     ("pwd", "Prints the working directory"),
     ("abb", "Display all abbreviations"),
@@ -251,7 +251,7 @@ class CLI(cmd.Cmd):
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
         )
 
-    def do_cd(self, wd_path):
+    def do_cwd(self, wd_path):
 
         try:
             if wd_path == "":

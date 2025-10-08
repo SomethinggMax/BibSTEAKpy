@@ -84,7 +84,7 @@ def test_files(directory_path) -> bool:
     temp_file_name = "new-generated-temporary-test-file.bib"
 
     for file_name, index in file_names:
-        path = os.path.join(get_working_directory_path(), file_name)
+        print(f"Testing parsing and generation of file '{file_name}'")
         path = os.path.join(directory_path, file_name)
         bib_file = file_parser.parse_bib(path, False)
         file_generator.generate_bib(bib_file, temp_file_name, 15)

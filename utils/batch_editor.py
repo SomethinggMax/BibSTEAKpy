@@ -107,7 +107,7 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
 
 # JUST FOR TESTING
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
+    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib", True)
     batch_extend_strings(test_file, ["pup"])
     batch_rename_abbreviation(test_file, "cup", "camup")
     file_generator.generate_bib(test_file, "extended-examples.bib", 15)

@@ -105,7 +105,7 @@ print_differences(bib_examples_original, bib_examples_generated)
 
 # test filtering/searching
 displayfile = search(examples, "english")
-file_generator.generate_bib(displayfile, "newfile.bib", 15)
+file_generator.generate_bib(displayfile, "bib_files/newfile.bib", 15)
 
 batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
 cleanup.cleanup(examples)
@@ -119,8 +119,8 @@ file_generator.generate_bib(articles, articles_examples, 15)
 file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
 
 tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
-file_generator.generate_bib(tagged_sub_file, "tagged-examples.bib", 15)
+file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
 
 # testing grouping
 sortByReftype(examples, GroupingType.ZTOA)
-file_generator.generate_bib(examples, "bib-examples-grouped.bib", 15)
+file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib", 15)

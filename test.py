@@ -8,13 +8,13 @@ from utils import batch_editor, sub_bib, merge, cleanup
 from utils.Reftype import sortByReftype, GroupingType
 from utils.filtering import search
 
-bib_examples_original = "biblatex-examples.bib"
-bib_examples_generated = "biblatex-examples-generated.bib"
-bib_examples_edited = "biblatex-examples-edited.bib"
-articles_examples = "articles-examples.bib"
-bib_tests = "bibtests.bib"
-bib_merge_test = "bib-merge-test.bib"
-merge_result = "merge-result.bib"
+bib_examples_original = "bib_files/biblatex-examples.bib"
+bib_examples_generated = "bib_files/biblatex-examples-generated.bib"
+bib_examples_edited = "bib_files/biblatex-examples-edited.bib"
+articles_examples = "bib_files/articles-examples.bib"
+bib_tests = "bib_files/bibtests.bib"
+bib_merge_test = "bib_files/bib-merge-test.bib"
+merge_result = "bib_files/merge-result.bib"
 
 examples = file_parser.parse_bib(bib_examples_original, False)
 test = file_parser.parse_bib(bib_tests, True)

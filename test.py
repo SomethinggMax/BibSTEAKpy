@@ -85,6 +85,7 @@ def test_files(directory_path) -> bool:
 
     for file_name, index in file_names:
         path = os.path.join(get_working_directory_path(), file_name)
+        path = os.path.join(directory_path, file_name)
         bib_file = file_parser.parse_bib(path, False)
         file_generator.generate_bib(bib_file, temp_file_name, 15)
         if is_different(path, temp_file_name, True, True):

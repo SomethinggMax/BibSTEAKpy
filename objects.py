@@ -50,7 +50,8 @@ class Preamble(object):
 
 
 class String(object):
-    def __init__(self, abbreviation, long_form):
+    def __init__(self, comment_above_string, abbreviation, long_form):
+        self.comment_above_string = comment_above_string
         self.abbreviation = abbreviation
         self.long_form = long_form
 

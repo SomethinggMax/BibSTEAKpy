@@ -100,7 +100,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                                 elif ref_type == "preamble":
                                     result.content.append(Preamble(token))
                                 elif ref_type == "string":
-                                    result.content.append(String(key, parse_string(token)))
+                                    result.content.append(String(comment, key, parse_string(token)))
                                 else:
                                     reference = Reference(comment, ref_type, key)
                                     fields = parse_fields(token, remove_whitespace_in_fields)

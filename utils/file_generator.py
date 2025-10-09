@@ -12,6 +12,8 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                 case Preamble():
                     final_string += "@preamble{" + entry.preamble + "}\n"
                 case String():
+                    if entry.comment_above_string != "":
+                        final_string += entry.comment_above_string + "\n"
                     string_start = "@string{" + entry.abbreviation
                     position_minus_length = align_fields_position - len(string_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0

@@ -117,4 +117,5 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             token_type = Token.DATA
                             continue
                 token += char
+    result.content.append(token)
     return result

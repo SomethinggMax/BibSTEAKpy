@@ -31,5 +31,7 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                         padding_size = position_minus_length if position_minus_length > 0 else 0
                         final_string += field_start + " " * padding_size + "= " + data + ",\n"
                     final_string += "}\n"
+                case _:
+                    final_string += entry
 
         file.write(final_string)

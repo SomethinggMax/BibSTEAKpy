@@ -30,6 +30,8 @@ def parse_fields(data, remove_whitespace_in_fields):
                         continue
                 case ",":
                     if curly_bracket_level == 0 and double_quotation_level == 0:
+                        if field_type in fields:
+                            raise ValueError("Bib file contains duplicate fields in a single reference!")
                         fields[field_type] = token.strip()
                         token = ""
                         continue

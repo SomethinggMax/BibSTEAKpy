@@ -93,7 +93,10 @@ def test_files(directory_path) -> bool:
         try:
             bib_file = file_parser.parse_bib(path, False)
         except UnicodeDecodeError:
-            print(f"File {file_name} cannot be decoded with UTF-8, skipping.")
+            print(f"Skipping file {file_name}, it cannot be decoded with UTF-8.")
+            continue
+        except ValueError as e:
+            print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue
         file_generator.generate_bib(bib_file, temp_file_name, 15)
         if is_different(path, temp_file_name, True, True, True):

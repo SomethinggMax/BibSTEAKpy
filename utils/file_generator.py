@@ -17,7 +17,7 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                     string_start = "@string{" + entry.abbreviation
                     position_minus_length = align_fields_position - len(string_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0
-                    final_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
+                    final_string += string_start + " " * padding_size + "= \"" + entry.long_form + "\"}\n"
                 case Reference():
                     if entry.comment_above_reference != "":
                         final_string += "\n"

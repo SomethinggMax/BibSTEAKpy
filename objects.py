@@ -1,5 +1,3 @@
-
-
 class BibFile(object):
     def __init__(self, file_name):
         self.file_name = file_name
@@ -17,15 +15,15 @@ class BibFile(object):
             if type(entry) is Reference:
                 if entry.cite_key == cite_key:
                     return entry
-                
+
     def get_references(self):
         return [entry for entry in self.content if type(entry) is Reference]
 
     def get_strings(self):
         return [entry for entry in self.content if type(entry) is String]
-    
+
     def get_comments(self):
-         return [entry for entry in self.content if type(entry) is Comment]
+        return [entry for entry in self.content if type(entry) is Comment]
 
     def get_preambles(self):
         preambles = []
@@ -69,9 +67,9 @@ class Reference(object):
     def __str__(self):
         # print the reference like a dictionary
         fields = self.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if key not in ["comment_above_reference", "entry_type"]]
+        field_strings = [f"{key}: {value}" for key, value in fields.items() if
+                         key not in ["comment_above_reference", "entry_type"]]
         return "\n".join(field_strings)
-        
 
     def __repr__(self):
         return self.__str__()

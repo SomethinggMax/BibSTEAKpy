@@ -103,7 +103,8 @@ def test_files(directory_path) -> bool:
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
             return False
-    os.remove(temp_file_name)
+    if os.path.isfile(temp_file_name):
+        os.remove(temp_file_name)
     return True
 
 

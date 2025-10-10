@@ -1,5 +1,5 @@
 from enum import Enum
-from objects import BibFile, Reference, String, Comment, Preamble
+from objects import BibFile, Reference, String, Comment, Preamble, Enclosure
 
 
 class Token(Enum):
@@ -102,7 +102,13 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                                 elif ref_type == "preamble":
                                     result.content.append(Preamble(token))
                                 elif ref_type == "string":
-                                    result.content.append(String(comment, key, parse_string(token)))
+                                    if token.startswith("{") and token.endswith("}"):
+                                        enclosure = Enclosure.BRACKETS
+                                    elif token.startswith("\"") and token.endswith("\""):
+                                        enclosure = Enclosure.QUOTATION_MARKS
+                                    else:
+                                        raise ValueError("Bib file contains a string with invalid enclosure.")
+                                    result.content.append(String(comment, key, parse_string(token), enclosure))
                                 else:
                                     reference = Reference(comment, ref_type, key)
                                     fields = parse_fields(token, remove_whitespace_in_fields)

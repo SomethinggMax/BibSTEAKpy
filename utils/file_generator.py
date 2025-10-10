@@ -1,4 +1,4 @@
-from objects import BibFile, Reference, Comment, String, Preamble
+from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
 
 
 def generate_bib(bib_file: BibFile, file_name, align_fields_position):
@@ -17,7 +17,10 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                     string_start = "@string{" + entry.abbreviation
                     position_minus_length = align_fields_position - len(string_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0
-                    final_string += string_start + " " * padding_size + "= \"" + entry.long_form + "\"}\n"
+                    if entry.enclosure == Enclosure.BRACKETS:
+                        final_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
+                    elif entry.enclosure == Enclosure.QUOTATION_MARKS:
+                        final_string += string_start + " " * padding_size + "= \"" + entry.long_form + "\"}\n"
                 case Reference():
                     if entry.comment_above_reference != "":
                         final_string += "\n"

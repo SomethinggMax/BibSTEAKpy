@@ -1,3 +1,6 @@
+from enum import Enum
+
+
 class BibFile(object):
     def __init__(self, file_name):
         self.file_name = file_name
@@ -49,11 +52,17 @@ class Preamble(object):
         self.preamble = preamble
 
 
+class Enclosure(Enum):
+    BRACKETS = 1
+    QUOTATION_MARKS = 2
+
+
 class String(object):
-    def __init__(self, comment_above_string, abbreviation, long_form):
+    def __init__(self, comment_above_string, abbreviation, long_form, enclosure: Enclosure):
         self.comment_above_string = comment_above_string
         self.abbreviation = abbreviation
         self.long_form = long_form
+        self.enclosure = enclosure
 
 
 class Reference(object):

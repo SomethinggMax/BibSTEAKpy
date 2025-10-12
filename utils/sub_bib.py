@@ -6,29 +6,30 @@ import utils.file_generator as file_generator
 from objects import BibFile, Reference
 
 
-def sub_bib_entry_types(file: BibFile, entry_types: list) -> BibFile:
+def filter_entry_types(file: BibFile, entry_types: list) -> list:
     """
-    Returns a grouped File object which contains References
+    Returns a list which contains References
     which have entry types in the passed entry_types list
     """
-    new_file = BibFile(file.file_name)
+    array = []
     for entry in file.content:
         if type(entry) is Reference:
             if entry.entry_type in entry_types:
-                new_file.content.append(entry)
-        else:
-            # Always add all other types (string, comment and preamble)
-            new_file.content.append(entry)
+                array.append(entry)
+        # else:
+        #     # Always add all other types (string, comment and preamble)
+        #     array.append(entry)
+        #TODO: COMMENTS?
 
-    return new_file
+    return array
 
 
-def sub_bib_tags(file: BibFile, tags: list) -> BibFile:
+def filter_tags(file: BibFile, tags: list) -> list:
     """
-    Returns a BibFile object with all references that have a tag from the tags list.
+    Returns a list with all references that have a tag from the tags file
     :param file: the input file
     :param tags: a list of tags
-    :return: the output file
+    :return: the output list
     """
     with open('tags.json') as tags_data:
         tags_dict = json.load(tags_data)
@@ -38,20 +39,21 @@ def sub_bib_tags(file: BibFile, tags: list) -> BibFile:
         if tag in tags:
             relevant_cite_keys.update(cite_keys)
 
-    new_file = BibFile(file.file_name)
+    array = []
     for entry in file.content:
         if type(entry) is Reference:
             if entry.cite_key in relevant_cite_keys:
-                new_file.content.append(entry)
-        else:
-            # Always add all other types (string, comment and preamble)
-            new_file.content.append(entry)
+                array.append(entry)
+        # else:
+        #     # Always add all other types (string, comment and preamble)
+        #     array.append(entry)
+        #TODO: COMMENTS?
 
-    return new_file
+    return array
 
 
 # JUST FOR TESTING
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
-    article_file = sub_bib_entry_types(test_file, ["article", "collection"])
+    article_file = filter_entry_types(test_file, ["article", "collection"])
     file_generator.generate_bib(article_file, "article+collection-examples.bib", 15)

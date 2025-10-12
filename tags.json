@@ -1,5 +1,18 @@
 {
-  "Computer Science": ["jcg", "sarfraz", "knuth:ct", "knuth:ct:b", "knuth:ct:c", "knuth:ct:d", "knuth:ct:e", "knuth:ct:related",
-    "chiu", "wassenberg"],
-  "Virtual memory and storage": ["chiu", "wassenberg"]
+    "true": [
+        "westfahl:space",
+        "westfahl:space"
+    ],
+    "kant": [
+        "kant:kpv",
+        "kant:ku",
+        "kant:kpv",
+        "kant:ku",
+        "kant:kpv",
+        "kant:ku",
+        "kant:kpv",
+        "kant:ku",
+        "kant:kpv",
+        "kant:ku"
+    ]
 }

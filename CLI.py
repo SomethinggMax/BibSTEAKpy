@@ -56,11 +56,9 @@ COMMANDS = [
     ),
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
-    (
-        "rg <filename> <field>",
-        "Group references of a bib file based on a certain field",
-    ),
-    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
+    ("filter <filename> <field> [value=None]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
+    ("tag -q <tag> <query>", "Tags all references in a certain search or filter query"),
+    ("tag -ls", "Lists all existing tags"),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
@@ -195,6 +193,10 @@ def display_abbreviations():
         for key, value in abreviations.items():
             print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
 
+def path_to_bibfileobj(filename):
+    path = os.path.join(get_working_directory_path(), filename)
+    bibfileobj = utils.file_parser.parse_bib(path, False)
+    return bibfileobj
 
 class CLI(cmd.Cmd):
 
@@ -307,24 +309,23 @@ class CLI(cmd.Cmd):
 
             #get bibfileobj
             filename = args_split[0]
-            path = os.path.join(get_working_directory_path(), filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            bibfileobj = path_to_bibfileobj(filename)
         
             field = args_split[1]
 
             if len(args_split) == 3:
                 value = args_split[2].lower()
-                newFile = filterByFieldValue(bibfileobj, field, value)
-                if newFile == -1:
+                array = filterByFieldValue(bibfileobj, field, value)
+                if array == -1:
                     print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
                 else:
-                    self.do_view_bibfile_obj(newFile)
+                    self.do_view_array(array)
             else:
-                newFile = filterByFieldExistence(bibfileobj, field)
-                if newFile == -1:
+                array = filterByFieldExistence(bibfileobj, field)
+                if array == -1:
                     print_in_yellow(f"No references found with a field named {WHITE}{field}")
                 else:
-                    self.do_view_bibfile_obj(newFile)
+                    self.do_view_array(array)
         except IndexError as e:
             print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
         except FileNotFoundError as e:
@@ -334,17 +335,16 @@ class CLI(cmd.Cmd):
                     
 
     def do_search(self, args):
-        
         try:
+            print(args)
             filename, searchterm = args.split()
-            path = os.path.join(get_working_directory_path(), filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            bibfileobj = path_to_bibfileobj(filename)
 
-            newFile = search(bibfileobj, searchterm)
-            if newFile == -1:
+            array = search(bibfileobj, searchterm)
+            if array == -1:
                 print_in_green("No references match your search :(")
             else: 
-                self.do_view_bibfile_obj(newFile)
+                self.do_view_array(array)
         except IndexError as e:
             print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
         except FileNotFoundError as e:
@@ -352,8 +352,8 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
-    def do_view_bibfile_obj(self, args):
-        for item in args.content:
+    def do_view_array(self, args):
+        for item in args:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
         
 
@@ -363,8 +363,7 @@ class CLI(cmd.Cmd):
             print(filename, fields, old_string, new_string)
 
             # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
             batch_editor.batch_replace(bib_file, fields, old_string, new_string)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
@@ -378,8 +377,7 @@ class CLI(cmd.Cmd):
         try:
             filename, order = args.split()
 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
             sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
@@ -397,8 +395,7 @@ class CLI(cmd.Cmd):
                 raise ValueError("No filename provided. Please provide a filename.")
 
             # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
@@ -422,8 +419,7 @@ class CLI(cmd.Cmd):
                 raise ValueError("No filename provided. Please provide a filename.")
 
             # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
@@ -439,30 +435,90 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+        
+    def do_tag(self, args):
+        try:
+            arguments = args.split()
+            flag = arguments[0]
+            match flag:
+                case "-q":
+                    tag = arguments[1]
+                    query = arguments[2:]
+                    array = []
+                    
+                    bibfileobj = path_to_bibfileobj(query[1])
+
+                    match query[0]:
+                        case "search":
+                            array = search(bibfileobj, query[2])
+                        case "filter":
+                            if len(query) == 3:
+                                array = filterByFieldExistence(bibfileobj, query[2])
+                            elif len(query) == 4:
+                                array = filterByFieldValue(bibfileobj, query[2], query[3])
+                            else:
+                                print("Invalid query given!")
+                                return
+                        case default:
+                            print_in_yellow("Invalid query! Check your spelling")
+                            return
+
+                    #no queries returned, tell the user
+                    if array == -1:
+                        print("Query returns no matches! No tags have been added") 
+                        return
+                    
+                    #get cite_keys only
+                    newarr = [ref.cite_key for ref in array] 
+                    with open("tags.json", "r+") as tagsfile:
+                        #add the new tagged references
+                        tags = json.load(tagsfile)
+                        if tag in tags.keys():
+                            tags[tag] += newarr #TODO: duplicates
+                        else:
+                            tags[tag] = newarr
+
+                        tagsfile.seek(0) #go to beginning of file
+                        json.dump(tags, tagsfile, indent=4) #replace content
+                    print_in_green("Successfully added tags!")
+
+                case "-ls":
+                    with open ("tags.json") as tagsfile:
+                        tags = json.load(tagsfile)
+                        for key, value in tags.items():
+                            print(f"{YELLOW}{key} {RESET}{value}") #TODO: pretty
+                case default:
+                    print("Flag not supported!")
+                    return
+        except: #TODO
+            return
 
     def do_sub(self, args):
         try:
             argument_list = args.split(maxsplit=3)
             flag, filename, new_filename = argument_list[:3]
             search_list = argument_list[3:][0]
+            
             path = os.path.join(get_working_directory_path(), filename)
             new_filename = check_extension(new_filename)
             file = utils.file_parser.parse_bib(path, True)
             match flag:
                 case "-e":
                     entry_types_list = ast.literal_eval(search_list)
-                    sub_file = sub_bib_entry_types(file, entry_types_list)
+                    array = filter_entry_types(file, entry_types_list)
+                    self.do_view_array(array) #TODO: create new file? comments?
                 case "-t":
                     tags = ast.literal_eval(search_list)
-                    sub_file = sub_bib_tags(file, tags)
+                    array = filter_tags(file, tags)
+                    self.do_view_array(array) #TODO same
                 case _:
                     print("Flag not supported!")
                     return
 
-            new_path = os.path.join(get_working_directory_path(), new_filename)
-            os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            utils.file_generator.generate_bib(sub_file, new_path, 15)
-            print_in_green("Sub operation done successfully!")
+            # new_path = os.path.join(get_working_directory_path(), new_filename)
+            # os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            # utils.file_generator.generate_bib(sub_file, new_path, 15)
+            # print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -510,13 +566,11 @@ class CLI(cmd.Cmd):
                     print("The working directory is empty!")
                     return
                 file_names = get_bib_file_names(wd)
-                path = os.path.join(get_working_directory_path(), file_names[0][0])
-                merged_bib_file = utils.file_parser.parse_bib(path, False)
+                merged_bib_file = path_to_bibfileobj(file_names[0][0])
                 for file_name, index in file_names:
                     if index == 1:
                         continue
-                    path = os.path.join(get_working_directory_path(), file_name)
-                    bib_file = utils.file_parser.parse_bib(path, False)
+                    bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
 

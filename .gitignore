@@ -1,6 +1,8 @@
 .pycache
 biblatex-examples-edited.bib
 biblatex-examples-generated.bib
+bib-examples-grouped.bib
+newfile.bib
 /.idea
 /.vs
 my_tests.py
@@ -12,3 +14,4 @@ permissionstest.bib
 /merge-result.bib
 /tagged-examples.bib
 /utils/article+collection-examples.bib
+/utils/extended-examples.bib

@@ -4,8 +4,7 @@ import json
 import utils.file_parser as file_parser
 import re
 import pprint
-from objects import BibFile, Reference, String, Comment, Preamble
-import utils.batch_editor as batch_editor
+from objects import BibFile, Reference
 from utils.abbreviations_exec import execute_abbreviations
 from utils.file_parser import parse_bib
 from utils.file_generator import generate_bib
@@ -18,6 +17,13 @@ selected_files: set[str] = set()
 all_selected_files: bool = False
 selected_references: set = set()
 all_selected_references: bool = False
+
+PRIMARY_COLOR = "#CCE0D4"
+SECONDARY_COLOR = "#9AC1A9"
+SUCCESS_COLOR = "#5D9874"
+# WARNING_COLOR = "#FBBF24"
+# ERROR_COLOR = "#EF4444"
+
 
 def get_working_directory_path():
     with open("config.json", "r") as f:
@@ -75,7 +81,7 @@ def populate_files():
                 btn_classes = "flex-1 text-left"
                 if filename == selected_file:
                     btn_classes += " bg-gray-300"
-                ui.button(filename, on_click=lambda e, fn=filename: on_file_click(fn)).classes(btn_classes)
+                ui.button(filename, on_click=lambda e, fn=filename: on_file_click(fn), color=SECONDARY_COLOR).classes(btn_classes).style("text-transform: none;")
 
         #display of the bar at the bottom
         with files_col:
@@ -157,16 +163,16 @@ def populate_refs_for_file(filename: str):
         for ref in [r for r in bib_file.content if isinstance(r, Reference)]:
             author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
             title = normalize_field(getattr(ref, 'title', None) or "Untitled")
-            year = normalize_field(getattr(ref, 'year', None) or "n.d.")
+            year = normalize_field(getattr(ref, 'year', None) or "N.D.")
             short_label = f"{author} ({year}): {title}"
 
             with ui.row().classes("items-center w-full gap-2"):
-                checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value))
+                checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
                 checkbox.value = ref in selected_references
                 btn_classes = "flex-1 text-left"
                 if ref is selected_ref:
                     btn_classes += " bg-gray-300"
-                ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r)).classes(btn_classes)
+                ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color = SECONDARY_COLOR).classes(btn_classes).style("text-transform: none;")
 
 
 def toggle_reference_selection(ref, checked: bool):
@@ -282,16 +288,33 @@ def on_merge_click():
         bib_to_merge = files[filename]
         merged_bib = merge_files(merged_bib, bib_to_merge)
 
-    merged_filename = "+".join(selected_files_list)
+    dialog = ui.dialog()
+    with dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-80"):
+        ui.label("Enter a name for the merged file").classes("font-bold mb-2")
+        name_input = ui.input(label="Merged file name").classes("w-full")
+        with ui.row().classes("justify-end gap-2 mt-4"):
+            ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
+            ui.button("Merge",on_click=lambda: choose_merge_name(name_input.value, merged_bib, selected_files_list, dialog), color=SECONDARY_COLOR).style("text-transform: none;")
+    dialog.open()
+
+def choose_merge_name(name, merged_bib, selected_files_list, dialog):
+    global selected_file, selected_ref, selected_files
+
+    name = (name or "").strip()
+    if not name:
+        ui.notify("Please enter a name to merge the files", color="red")
+        return
+
+    merged_filename = name if name.endswith(".bib") else f"{name}.bib"
     save_bib_file(merged_filename, merged_bib)
 
     selected_file = merged_filename
     selected_ref = None
     selected_files = {merged_filename}
 
+    dialog.close()
     ui.notify(f"Merged {len(selected_files_list)} files into '{merged_filename}'", color="green")
     reload_after_edit()
-
 
 def on_filter_click():
     if not selected_file:
@@ -323,7 +346,7 @@ def on_filter_click():
             label="Order"
         )
         with ui.row().classes("justify-end gap-2 mt-4"):
-            ui.button("Cancel", on_click=lambda: dialog.close())
+            ui.button("Cancel", on_click=lambda: dialog.close(), color=PRIMARY_COLOR).style("text-transform: none;")
             def apply_sort():
                 descending = order_dropdown.value == "Descending"
                 order_by_field(bib_file, field_dropdown.value, descending=descending)
@@ -332,7 +355,7 @@ def on_filter_click():
                 ui.notify(
                     f"References sorted by {field_dropdown.value} ({'descending' if descending else 'ascending'})"
                 )
-            ui.button("Apply", on_click=apply_sort)
+            ui.button("Apply", on_click=apply_sort, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
     
 
@@ -387,11 +410,11 @@ def main_page():
     """
     global files_col, refs_col, bib_col
     load_all_files_from_storage()
-    with ui.column().classes("w-full h-full"):
+    with ui.column().classes("w-screen h-screen m-0 p-0"):
         with ui.row().classes('w-full h-full gap-4 p-4'):
             files_col = ui.column().classes('p-4 bg-gray-100 rounded shadow w-90')
-            refs_col = ui.column().classes('p-4 bg-gray-200 rounded shadow flex-1 min-w-[360px]')
-            bib_col = ui.column().classes('p-4 bg-gray-300 rounded shadow flex-1 min-w-[360px]')
+            refs_col = ui.column().classes('p-4 bg-gray-100 rounded shadow flex-1 min-w-[420px]')
+            bib_col = ui.column().classes('p-4 bg-gray-100 rounded shadow flex-1 min-w-[300px]')
     populate_files()
 
 

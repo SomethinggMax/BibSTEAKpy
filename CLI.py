@@ -21,6 +21,7 @@ from utils.GroupByRefType import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
+from utils.sanitization import sanitize_bib_file
 import ast
 
 RESET = "\033[0m"
@@ -169,7 +170,19 @@ class CLI(cmd.Cmd):
     misc_header = "Topics:"
     ruler = "-"
 
+<<<<<<< HEAD
     # commands  
+=======
+    def preloop(self):
+        try:
+            delims = readline.get_completer_delims()
+            if "-" in delims:
+                readline.set_completer_delims(delims.replace("-", ""))
+        except Exception:
+            pass
+
+    # commands
+>>>>>>> c5263e483282194d6363e209b8a59f0c10e7996e
     def do_load(self, arg):
         load_file_to_storage(arg)
 
@@ -416,6 +429,13 @@ class CLI(cmd.Cmd):
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
+    def do_san(self, arg):
+        filename = arg
+        path = os.path.join(get_working_directory_path(), filename)
+        bib_file = utils.file_parser.parse_bib(path, False)
+        bib_file = sanitize_bib_file(bib_file)
+        utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
 
     def default(self, line):
         print('Command not found!')

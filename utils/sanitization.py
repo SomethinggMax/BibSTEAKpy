@@ -1,26 +1,54 @@
-from typing import Dict, Any, List
-
+import re
+import unicodedata
+from difflib import SequenceMatcher
+from typing import Dict, Any, Iterable, Tuple, List
 import requests
 
+from objects import BibFile, Reference
+from utils.file_parser import *
 
-def lookup_bibtex_fields_by_title(query: str, timeout: float = 10.0) -> Dict[str, Any] | None:
+
+def sanitize_bib_file(bib_file: BibFile):
+    for entry in bib_file.content:
+        lookup = None
+        if type(entry) is Reference:
+            fields = entry.get_fields()
+            if fields['entry_type'] != 'set':
+                if 'author' in fields:
+                    authors = _split_authors(fields['author'])
+                    iterable = iter(authors)
+                    first_author = next(iterable)
+                    lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+                elif 'editor' in fields:
+                    authors = _split_authors(fields['editor'])
+                    iterable = iter(authors)
+                    first_author = next(iterable)
+                    lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+            if lookup:
+                for k, v in lookup.items():
+                    if not k in fields:
+                        fields[k] = v
+    return bib_file
+
+
+def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0) -> Dict[str, Any] | None:
     # Make session for api friendliness
     session = requests.session()
     session.headers.update({'User-Agent': 'BibSTEAK/0.1'})
 
     responses: List[Dict[str, Any]] = []
-
+    query = title + " " + author
     # Execute API queries
     try:
         cr = _search_crossref(session, query, timeout)
-        if cr:
+        if cr and is_same_paper(title, author, cr):
             responses.append(cr)
     except Exception as e:
         print(e)
 
     try:
         db = _search_dblp(session, query, timeout)
-        if db:
+        if db and is_same_paper(title, author, db):
             responses.append(db)
     except Exception as e:
         print(e)
@@ -77,8 +105,19 @@ def _map_crossref_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
         result["title"] = title
 
     # Get authors
-    result["authors"] = "placeholder"
-    # TODO: Implement
+    authors = data.get("author") or []
+    names = []
+    for a in authors:
+        if "literal" in a:
+            names.append(a["literal"])
+        else:
+            given = a.get("given", "").strip()
+            family = a.get("family", "").strip()
+            full = " ".join(x for x in [given, family] if x).strip()
+            if full:
+                names.append(full)
+    if names:
+        result["author"] = " and ".join(names)
 
     # Year(s)
     for k in ("issued", "published-print", "published-online"):
@@ -141,7 +180,8 @@ def _map_dblp_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     # Identifiers
     if data.get("doi"): result["doi"] = data["doi"]
     if data.get("ee"): result["ee"] = data["ee"]
-    if result["doi"]: result["url"] = f"https://doi.org/{result["doi"]}"
+    if result["doi"]:
+        result["url"] = f"https://doi.org/{result["doi"]}"
     else:
         if data.get("ee"): result["ee"] = data["ee"]
 
@@ -164,4 +204,93 @@ def _merge_responses(response_a: Dict[str, Any], response_b: Dict[str, Any]) -> 
     return result
 
 
-print(lookup_bibtex_fields_by_title("New version of the Crimean Tatar resettlement"))
+def _normalize_text(s: str) -> str:
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = re.sub(r"[^\w\s]", " ", s)  # remove punctuation
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _seq_ratio(a: str, b: str) -> float:
+    a_n = _normalize_text(a)
+    b_n = _normalize_text(b)
+    if not a_n or not b_n:
+        return 0.0
+    return SequenceMatcher(None, a_n, b_n).ratio()
+
+
+def _split_authors(authors_str: str) -> Iterable[str]:
+    if not authors_str:
+        return []
+    # replace ' and ' with comma to combine, then split
+    s = re.sub(r"\band\b", ",", authors_str, flags=re.IGNORECASE)
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    return parts
+
+
+def _last_name(name: str) -> str:
+    n = _normalize_text(name)
+    toks = n.split()
+    return toks[-1] if toks else ""
+
+
+def _extract_candidate_authors(cand: Dict[str, Any]) -> Iterable[str]:
+    if cand.get("author"):
+        return _split_authors(str(cand["author"]))
+    if cand.get("authors"):
+        return _split_authors(str(cand["authors"]))
+    return []
+
+
+def _author_overlap_ratio(query_authors: str, cand_authors: Iterable[str]) -> float:
+    """
+    Compute a surname Jaccard-like overlap between query authors and candidate authors.
+    Returns value in [0,1]. Empty on either side -> 0.
+    """
+    q_names = set(filter(None, (_last_name(a) for a in _split_authors(query_authors))))
+    c_names = set(filter(None, (_last_name(a) for a in cand_authors)))
+    if not q_names or not c_names:
+        return 0.0
+    inter = len(q_names & c_names)
+    union = len(q_names | c_names)
+    return inter / union if union else 0.0
+
+
+def match_score(
+        query_title: str,
+        query_authors: str,
+        candidate: Dict[str, Any],
+        title_weight: float = 0.8,
+) -> Tuple[float, float, float]:
+    """
+    Compute a combined score in [0,1] plus the sub-scores (title, authors).
+    - title_weight (0..1) is applied to title similarity; the rest goes to authors.
+    Returns: (combined, title_score, author_score)
+    """
+    cand_title = str(candidate.get("title", "") or "")
+    title_score = _seq_ratio(query_title, cand_title)
+
+    cand_authors = list(_extract_candidate_authors(candidate))
+    author_score = _author_overlap_ratio(query_authors, cand_authors)
+
+    title_weight = max(0.0, min(1.0, title_weight))
+    combined = title_weight * title_score + (1.0 - title_weight) * author_score
+    return combined, title_score, author_score
+
+
+def is_same_paper(
+        query_title: str,
+        query_authors: str,
+        candidate: Dict[str, Any],
+        threshold: float = 0.80,
+        title_weight: float = 0.80,
+) -> bool:
+    combined, title_score, author_score = match_score(query_title, query_authors, candidate, title_weight)
+    return combined >= threshold
+
+
+file = parse_bib("biblatex-examples.bib", True)

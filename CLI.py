@@ -24,6 +24,7 @@ from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
 import ast
+from graph import generate_graph
 
 GREEN = "\033[92m"
 RESET = "\033[0m"

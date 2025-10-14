@@ -75,6 +75,12 @@ class Reference(object):
 
     def __repr__(self):
         return self.__str__()
+    
+
+class GraphNode(object):
+    def __init__(self, title):
+        self.title = title
+        self.year = "N/A"
 
 
 # We will explore these child objects in the future if 

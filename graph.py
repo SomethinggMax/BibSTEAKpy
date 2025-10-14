@@ -177,9 +177,8 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
             }})();
             """)
 
-        ui.run(port=8090, reload=False)          # open http://localhost:8080
+        ui.run(port=8090, reload=False) 
         # ui.run(native=True, reload=False)  # opens a native window via PyWebView
-
         # s = socket.socket(); s.bind(('', 0)); port = s.getsockname()[1]; s.close()
         # ui.run(host='127.0.0.1', port=port, reload=False)
         
@@ -228,10 +227,6 @@ def generate_graph(bib_file: BibFile):
             title = fields['title'].replace("{", "").replace("}", "")
             year = fields['year'].replace("{", "").replace("}", "")
             
-            
-    
-            
-            
             try:
                 fetched_work = None
                 results = Works().search(title).get() # Optimize this
@@ -251,61 +246,11 @@ def generate_graph(bib_file: BibFile):
                         
             except Exception as e:
                 print(e)
-                        
-            #     id_refs = fetched_work.get("referenced_works", [])
-            #     print(len(id_refs))
-                
-            #     if len(id_refs) > 0:
-                    
-            #         # print(id_refs)
-            #         # print(f"Number of cited works: {len(id_refs)}")
-            #         # result = Works().filter(openalex="|".join(id_refs)).get()
-                    
-            #         joined = "|".join(id_refs)
-            #         # neighbours = Works().filter(openalex=joined).select(["id", "title", "publication_year", "authorships"]).get()
-            #         neighbours = Works().filter(openalex=joined).sort(cited_by_count="desc").select(["id", "title", "publication_year", "authorships", "referenced_works"]).get(per_page=15)
-            #         neighbours = neighbours[:5]
-                    
-            #         print("Nr fetched neighbours: ", len(neighbours))
-            #         update_adjacency_neighbours(adjacency_list, base_node)
-                    
-            #         for neighbour in neighbours:
-            #             neighbour_node = GraphNode(neighbour.get("title", "No known title"))
-            #             neighbour_node.authors = [author['author']['display_name'] for author in neighbour.get("authorships", [])]
-            #             neighbour_node.year = neighbour.get("publication_year", "No known year")
-                        
-            #             adjacency_list[base_node].append(neighbour_node)
-                            
-            #             update_adjacency_neighbours(adjacency_list, neighbour)
-                        
-                        
-                        
-                
-            #     else:
-            #         adjacency_list[base_node] = []
-                    
-                            
-            # except Exception as e:
-            #     print(e)
-                    
-                
-                
-                
 
-            
-            
-    print()   
-    
-    # print(adjacency_list)
-    
-    
     G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
     for base_node, neighbours in adjacency_list.items():
         for neighbour in neighbours:    
             G.add_edge(base_node.title, neighbour.title)
-            # print(neighbour.title, end=" ") 
-        # print("")
-        
         
     try:
         threading.Thread(target=run_server(G, base_nodes_titles, first_neighbours_titles), daemon=True).start()

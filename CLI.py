@@ -5,6 +5,7 @@ import readline
 from utils import merge
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
+
 import utils
 from utils.sub_bib import *
 from utils.Reftype import *
@@ -12,6 +13,8 @@ from utils.order_by_field import *
 from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
+import graph
+from graph import generate_graph
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -567,6 +570,31 @@ class CLI(cmd.Cmd):
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
+            
+            
+    def do_graph(self, args):
+        if get_working_directory_path() == '':
+            print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
+        else:
+            print(f"{BLUE}PLEASE CHOOSE ONE FILE FROM WD BY INDEX FOR GRAPH GENERATION{RESET}")
+            self.do_list("")
+            
+            index_str = input(f"{BLUE}Enter file index: {RESET}")
+            
+            try:
+                files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
+                index = int(index_str)
+                print(f"You selected file {files[index-1][0]}")  
+                file = (files[index-1])    
+                file_name = file[0]
+                path = os.path.join(get_working_directory_path(), file_name)
+                bibfileobj = utils.file_parser.parse_bib(path, False)  
+                graph.generate_graph(bibfileobj)
+                
+                
+            except ValueError:
+                print(f"{RED}Invalid index. Please enter a number.{RESET}")
+                
 
     def default(self, line):
         print("Command not found!")

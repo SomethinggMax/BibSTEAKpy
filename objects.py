@@ -58,7 +58,7 @@ class Enclosure(Enum):
 
 
 class String(object):
-    def __init__(self, comment_above_string, abbreviation, long_form, enclosure: Enclosure):
+    def __init__(self, comment_above_string, abbreviation, long_form, enclosure=Enclosure.QUOTATION_MARKS):
         self.comment_above_string = comment_above_string
         self.abbreviation = abbreviation
         self.long_form = long_form

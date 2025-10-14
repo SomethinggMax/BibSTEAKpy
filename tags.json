@@ -1,17 +1,5 @@
 {
-    "true": [
-        "westfahl:space",
-        "westfahl:space"
-    ],
     "kant": [
-        "kant:kpv",
-        "kant:ku",
-        "kant:kpv",
-        "kant:ku",
-        "kant:kpv",
-        "kant:ku",
-        "kant:kpv",
-        "kant:ku",
         "kant:kpv",
         "kant:ku"
     ]

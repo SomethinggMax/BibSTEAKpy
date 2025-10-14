@@ -440,6 +440,7 @@ class CLI(cmd.Cmd):
         try:
             arguments = args.split()
             flag = arguments[0]
+
             match flag:
                 case "-q":
                     tag = arguments[1]
@@ -459,7 +460,7 @@ class CLI(cmd.Cmd):
                             else:
                                 print("Invalid query given!")
                                 return
-                        case default:
+                        case _:
                             print_in_yellow("Invalid query! Check your spelling")
                             return
 
@@ -481,17 +482,27 @@ class CLI(cmd.Cmd):
                         tagsfile.seek(0) #go to beginning of file
                         json.dump(tags, tagsfile, indent=4) #replace content
                     print_in_green("Successfully added tags!")
-
+                    return
                 case "-ls":
                     with open ("tags.json") as tagsfile:
                         tags = json.load(tagsfile)
                         for key, value in tags.items():
                             print(f"{YELLOW}{key} {RESET}{value}") #TODO: pretty
-                case default:
+                    return
+                case _:
                     print("Flag not supported!")
                     return
-        except: #TODO
+        except IndexError as e: #TODO
+            print_in_yellow(f"Command is not complete, please check the amount of arguments.\nThe command can be invoked in two ways:\ntag -q <tag> <query> where <query> is a search or filter command\ntag -ls")
             return
+        # except FileNotFoundError as e: #TODO
+        #     print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
+        #     with open("tags.json", "w+") as tagsfile:
+        #         json.dump({}, tagsfile)
+        #     print_in_green("Try and run the command again")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+
 
     def do_sub(self, args):
         try:

@@ -1,32 +1,21 @@
 import cmd
 import os
 import shutil
-import json
 import readline
-from nicegui import ui, app
-import networkx as nx
-# pip install pywebview
-
-if os.name == 'nt' and not hasattr(readline, 'backend'):
-    readline.backend = 'unsupported'
-import utils.batch_editor as batch_editor
+from utils import merge
 import utils.file_generator as file_generator
-from pprint import pprint
-from utils.GroupByRefType import groupByRefType
 import utils.abbreviations_exec as abbreviations_exec
 import utils
-from utils.order_by_field import *
 from utils.sub_bib import *
-from utils.file_parser import *
-from utils.file_generator import *
-from utils.GroupByRefType import *
+from utils.Reftype import *
 from utils.order_by_field import *
-from utils.batch_editor import *
 from utils.abbreviations_exec import *
+from utils.filtering import *
 import ast
-from graph import generate_graph
 
-GREEN = "\033[92m"
+if os.name == "nt" and not hasattr(readline, "backend"):
+    readline.backend = "unsupported"
+
 RESET = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -41,24 +30,81 @@ def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
 
 
+def print_in_yellow(arg):
+    print(f"{YELLOW}{arg}{RESET}")
+
+
 CONFIG_FILE = "config.json"
 
-COMMANDS = [("help", "Display the current menu"),
-            ("load", "Load a particular file into the working directory"),
-            ("set_directory <absolte/path/to/wd>", "Choose the ABSOLUTE path to a working directory"),
-            ("list", "See all the bib files in the working directory"),
-            ("wd", "Get current working directory"),
-            ("abbreviations", "Display all abbreviations"),
-            ("view <filename>", "View the content of a certain .bib file from your chosen working directory"),
-            ("quit", "Close the BibSteak CLI"),
-            ("refgroup <filename> <order>", "Group and order based on entry type"),
-            ("expand <filename>", "Expand all abbreviations in the file"),
-            ("collapse <filename>", "Collapse all abbreviations in the file"),
-            ("batch_replace <filename> <fields> <old string> <new string>", "Replace all occurrences in given fields"),
-            ("order <filename> <field> [descending=False]", "Sorts the references by a given field. By default is ASC"),
-            ("sub <filename> <fields> <old string> <new string>", "TBA"),
+COMMANDS = [
+    ("help", "Display the current menu"),
+    ("load", "Load a particular file into the working directory"),
+    ("cd <directory>", "Changes the current working directory"),
+    ("list", "See all the bib files in the working directory"),
+    ("pwd", "Prints the working directory"),
+    ("abb", "Display all abbreviations"),
+    (
+        "view <filename>",
+        "View the content of a certain .bib file from your chosen working directory",
+    ),
+    ("quit", "Close the BibSteak CLI"),
+    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
+    (
+        "rg <filename> <field>",
+        "Group references of a bib file based on a certain field",
+    ),
+    (
+        "filter <filename> <field>, [value]",
+        "Displays references with a certain field (OPTIONAL: a value in that field)"
+    ),
+    ("exp <filename>", "Expand all abbreviations in the file"),
+    ("col <filename>", "Collapse all abbreviations in the file"),
+    (
+        "br <filename> <fields> <old string> <new string>",
+        "Replace all occurrences in given fields",
+    ),
+    (
+        "ord <filename> <field> [descending=False]",
+        "Order the references based on a certain field",
+    ),
+    (
+        "sub -e <filename> <new_filename>, <entry_types>",
+        "Creates a sub .bib file with only specified entry " "types.",
+    ),
+    (
+        "sub -t <filename> <new_filename>, <tags>",
+        "Creates a sub .bib file with only references with specified " "tags.",
+    ),
+    (
+        "mer <filename1> <filename2> <new_filename>",
+        "Merge the references from two bib files into one file.",
+    ),
+    (
+        "mer -all <new_filename>",
+        "Merge all bib files in the current working directory.",
+    ),
+]
 
+
+def completer(text, state):
+    line = readline.get_line_buffer()
+    split_line = line.strip().split()
+    if len(split_line) <= 1:
+        options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
+    else:
+        try:
+            wd = get_working_directory_path()
+            files = [
+                f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
+            options = files
+        except Exception:
+            options = []
+    if state < len(options):
+        return options[state]
+    else:
+        return None
+
 
 
 def completer(text, state):
@@ -86,6 +132,30 @@ def get_working_directory_path():
         return working_directory_path
 
 
+def get_bib_file_names(folder_path):
+    files = []
+    if os.listdir(folder_path):
+        index = 1
+        for filename in os.listdir(folder_path):
+            full_path = os.path.join(folder_path, filename)
+            _, extension = os.path.splitext(filename)
+            if os.path.isfile(full_path) and extension == ".bib":
+                files.append((filename, index))  # ignore subfolders
+                index += 1
+    return files
+
+
+def check_extension(new_file_name):
+    root, ext = os.path.splitext(new_file_name)
+    if ext == "":
+        new_file_name += ".bib"
+    elif ext != ".bib":
+        raise ValueError(
+            "The new file name must have a .bib extension or no extension at all."
+        )
+    return new_file_name
+
+
 def load_file_to_storage(source_path):
     """
     Copy a file from source_path into the storage folder.
@@ -106,7 +176,9 @@ def load_file_to_storage(source_path):
             if extension == "":
                 raise ValueError("File has no extension. Only .bib files are allowed.")
             else:
-                raise ValueError(f"Invalid file extension: '{extension}'. Only .bib files are allowed.")
+                raise ValueError(
+                    f"Invalid file extension: '{extension}'. Only .bib files are allowed."
+                )
 
     except ValueError as e:
         print(f"File Type Error: {e}")
@@ -140,6 +212,15 @@ def display_abbreviations():
 
 
 class CLI(cmd.Cmd):
+
+    def preloop(self):
+        try:
+            delims = readline.get_completer_delims()
+            if "-" in delims:
+                readline.set_completer_delims(delims.replace("-", ""))
+        except Exception:
+            pass
+
     intro = f"""{MAGENTA}
     _____  ___     _____ _______ ______         __  __       _____ __     ______ 
     |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
@@ -149,7 +230,8 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is {get_working_directory_path()}
+    The current/last working directory is: '{
+    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -160,8 +242,7 @@ class CLI(cmd.Cmd):
     misc_header = "Topics:"
     ruler = "-"
 
-
-    # commands  
+    # commands
     def do_load(self, arg):
         load_file_to_storage(arg)
 
@@ -170,14 +251,7 @@ class CLI(cmd.Cmd):
             folder_path = get_working_directory_path()
 
             if os.listdir(folder_path):
-                index = 1
-                files = []
-                for filename in os.listdir(folder_path):
-                    full_path = os.path.join(folder_path, filename)
-                    _, extension = os.path.splitext(filename)
-                    if os.path.isfile(full_path) and extension == '.bib':
-                        files.append((filename, index))  # ignore subfolders
-                        index += 1
+                files = get_bib_file_names(folder_path)
                 if files != []:
                     print(f"Bib files in {folder_path}")
                     for file, index in files:
@@ -191,10 +265,12 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
-    def do_wd(self, arg):
-        print(f"{BLUE}Current working directory: {get_working_directory_path()}{RESET}")
+    def do_pwd(self, arg):
+        print(
+            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
+        )
 
-    def do_set_directory(self, wd_path):
+    def do_cd(self, wd_path):
 
         try:
             if wd_path == "":
@@ -221,7 +297,7 @@ class CLI(cmd.Cmd):
     def do_help(self, arg):
         display_help_commands()
 
-    def do_abbreviations(self, arg):
+    def do_abb(self, arg):
         display_abbreviations()
 
     def do_quit(self, arg):
@@ -249,7 +325,62 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
-    def do_batch_replace(self, args):
+    def do_filter(self, args):
+        try:
+            args_split = args.split()
+
+            # get bibfileobj
+            filename = args_split[0]
+            path = os.path.join(get_working_directory_path(), filename)
+            bibfileobj = utils.file_parser.parse_bib(path, False)
+
+            field = args_split[1]
+
+            if len(args_split) == 3:
+                value = args_split[2].lower()
+                newFile = filterByFieldValue(bibfileobj, field, value)
+                if newFile == -1:
+                    print_in_yellow(
+                        f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+            else:
+                newFile = filterByFieldExistence(bibfileobj, field)
+                if newFile == -1:
+                    print_in_yellow(f"No references found with a field named {WHITE}{field}")
+                else:
+                    self.do_view_bibfile_obj(newFile)
+        except IndexError as e:
+            print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+
+    def do_search(self, args):
+
+        try:
+            filename, searchterm = args.split()
+            path = os.path.join(get_working_directory_path(), filename)
+            bibfileobj = utils.file_parser.parse_bib(path, False)
+
+            newFile = search(bibfileobj, searchterm)
+            if newFile == -1:
+                print_in_green("No references match your search :(")
+            else:
+                self.do_view_bibfile_obj(newFile)
+        except IndexError as e:
+            print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
+
+    def do_view_bibfile_obj(self, args):
+        for item in args.content:
+            print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
+
+    def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
             print(filename, fields, old_string, new_string)
@@ -266,14 +397,14 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
 
-    def do_refgroup(self, args):
+    def do_rg(self, args):
         try:
             filename, order = args.split()
 
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
-            groupByRefType(bib_file, order)
+            sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
             print_in_green("Grouping by reference done successfully!")
@@ -282,7 +413,7 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
-    def do_expand(self, arg):
+    def do_exp(self, arg):
         try:
             filename = arg
             if filename == "":
@@ -307,7 +438,7 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
-    def do_collapse(self, arg):
+    def do_col(self, arg):
         try:
             filename = arg
             if filename == "":
@@ -334,27 +465,35 @@ class CLI(cmd.Cmd):
 
     def do_sub(self, args):
         try:
-            filename, new_filename, entry_types = args.split()
-            entry_types_list = ast.literal_eval(entry_types)
-            # print(type(entry_types))
+            argument_list = args.split(maxsplit=3)
+            flag, filename, new_filename = argument_list[:3]
+            search_list = argument_list[3:][0]
             path = os.path.join(get_working_directory_path(), filename)
+            new_filename = check_extension(new_filename)
             file = utils.file_parser.parse_bib(path, True)
-            sub_file = sub_bib(file, entry_types_list)
-            # sub_file = sub_bib(file, ['article'])
-            # print(sub_file)
+            match flag:
+                case "-e":
+                    entry_types_list = ast.literal_eval(search_list)
+                    sub_file = sub_bib_entry_types(file, entry_types_list)
+                case "-t":
+                    tags = ast.literal_eval(search_list)
+                    sub_file = sub_bib_tags(file, tags)
+                case _:
+                    print("Flag not supported!")
+                    return
+
             new_path = os.path.join(get_working_directory_path(), new_filename)
-            # print(new_path)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path, 15)
-
             print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
 
-    def do_order(self, args):
+    def do_ord(self, args):
         try:
+
             def str_to_bool(s: str) -> bool:
                 return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
 
@@ -375,116 +514,62 @@ class CLI(cmd.Cmd):
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
             else:
-                print_in_green(f"Descending order by '{field}' field done successfully!")
-
-
+                print_in_green(
+                    f"Descending order by '{field}' field done successfully!"
+                )
 
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
-    # def do_graph(self, arg):
-    #     print("something")
-    #     # with open(get_working_directory_path, "r"):
-        
-    #     wd_path = get_working_directory_path()
-    #     for filename in os.listdir(wd_path):
-    #         file_path = os.path.join(wd_path, filename)
-    #         bib_file = utils.file_parser.parse_bib(file_path, True)
-    #         for reference in bib_file.content:
-    #             print(reference.entry_type)
-    #         # print(bib_file.content)
-            
-            
-    def do_graph(self, args):
-        import threading
-        import networkx as nx
-        import json
-        from nicegui import ui
 
-        def run_server():
-            try:
-                G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)"), 
-                                ("(Hamilton, 2024)","(Marie et al., 2017)"), 
-                                ("(Hamilton, 2024)","(Arthur et al., 2007)"), 
-                                ("(Jacob, 2003)","(Marie et al., 2017)"), 
-                                ("(Arthur et al., 2007)","(Yhong et al., 2008)"),
-                                ("(Jacob, 2003)","(Arthur et al., 2007)"),
-                                ("(John, 2024)","(Hamilton, 2024)"),
-                                ("(John, 2024)","(Mosh, 2025)"),
-                                ("(Anne et al., 2001)","(Mosh, 2025)")])
-                
-                nodes = []
-                for n in G.nodes():
-                    in_degree = G.in_degree(n)
-                    out_degree = G.out_degree(n)
-                    label = f"{n}\n(cited by: {in_degree}, cites: {out_degree})"
-                    nodes.append({"id": str(n), "label": label})
-
-                # nodes = [{"id": str(n), "label": str(n)} for n in G.nodes()]
-                # edges = [{"from": str(u), "to": str(v)} for u, v in G.edges()]
-                edges = [{"from": u, "to": v, "arrows": "to", "label": str(G[u][v].get('weight', '')), "font": {
-                    "color": "red",        # color of the label text
-                    # optional extras:
-                    "background": "white", # rectangle background behind text
-                    "strokeWidth": 3,
-                    "strokeColor": "black"
-                }} for u, v in G.edges()]
-                nodes_json = json.dumps(nodes)
-                edges_json = json.dumps(edges)
-
-                @ui.page('/')
-                def page():
-
-                    ui.html('<div id="graph" style="width:100%; height:600px; border:1px solid #ccc;"></div>')
-                    ui.run_javascript(f"""
-                (function () {{
-                    function render() {{
-                        const container = document.getElementById('graph');
-                        const data = {{
-                            nodes: new vis.DataSet({nodes_json}),
-                            edges: new vis.DataSet({edges_json})
-                        }};
-                        const options = {{
-                            physics: {{ stabilization: false }},
-                            interaction: {{ hover: true, dragNodes: true, zoomView: true }},
-                            edges: {{length: 200}}
-                        }};
-                        new vis.Network(container, data, options);
-                    }}
-                    if (window.vis) {{ render(); }}
-                    else {{
-                        const s = document.createElement('script');
-                        s.src = 'https://unpkg.com/vis-network/standalone/umd/vis-network.min.js';
-                        s.onload = render;
-                        document.head.appendChild(s);
-                    }}
-                }})();
-                """)
-
-                # ui.run(port=8090, reload=False)          # open http://localhost:8080
-                ui.run(native=True, reload=False)  # opens a native window via PyWebView
-
-                # s = socket.socket(); s.bind(('', 0)); port = s.getsockname()[1]; s.close()
-                # ui.run(host='127.0.0.1', port=port, reload=False)
-                
-            except (KeyboardInterrupt, SystemExit):
-                pass
-        
+    def do_mer(self, args):
         try:
-            threading.Thread(target=run_server, daemon=True).start()
-            # run_server()
-        except Exception:
-            pass
-    
-    
-    
-    
-    
-        
+            argument_list = args.split()
+            if len(argument_list) == 2 and argument_list[0] == "-all":
+                new_file_name = argument_list[1]
+                new_file_name = check_extension(new_file_name)
+                wd = get_working_directory_path()
+                if not os.listdir(wd):
+                    print("The working directory is empty!")
+                    return
+                file_names = get_bib_file_names(wd)
+                path = os.path.join(get_working_directory_path(), file_names[0][0])
+                merged_bib_file = utils.file_parser.parse_bib(path, False)
+                for file_name, index in file_names:
+                    if index == 1:
+                        continue
+                    path = os.path.join(get_working_directory_path(), file_name)
+                    bib_file = utils.file_parser.parse_bib(path, False)
+                    merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
+                utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
+
+            else:
+                file_name_1, file_name_2, new_file_name = args.split()
+                new_file_name = check_extension(new_file_name)
+
+                path_1 = os.path.join(get_working_directory_path(), file_name_1)
+                path_2 = os.path.join(get_working_directory_path(), file_name_2)
+                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
+                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+
+                merge_result = merge.merge_files(bib_file_1, bib_file_2)
+                utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+
+            print_in_green("Files have been merged successfully!")
+
+        except ValueError as e:
+            if "not enough values to unpack" in str(e):
+                print(
+                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "<filename2> <new_filename>."
+                )
+            else:
+                print(f"Argument error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     def default(self, line):
-        print('Command not found!')
+        print("Command not found!")
 
     def emptyline(self):
         pass
@@ -492,29 +577,43 @@ class CLI(cmd.Cmd):
     def filename_completions(self, text):
         wd = get_working_directory_path()
         try:
-            return [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
+            return [
+                f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
+            ]
         except Exception:
             return []
 
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_expand(self, text, line, begidx, endidx):
+    def complete_filter(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_refgroup(self, text, line, begidx, endidx):
+    def complete_search(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_batch_replace(self, text, line, begidx, endidx):
+    def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_order(self, text, line, begidx, endidx):
+    def complete_rg(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_br(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_ord(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_collapse(self, text, line, begidx, endidx):
+    def complete_col(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_load(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_mer(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

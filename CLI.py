@@ -20,6 +20,7 @@ from utils.GroupByRefType import *
 from utils.order_by_field import *
 from utils.batch_editor import *
 from utils.abbreviations_exec import *
+from utils.sanitization import sanitize_bib_file
 import ast
 
 RESET = "\033[0m"
@@ -378,6 +379,14 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+
+    def do_san(self, arg):
+        filename = arg
+        path = os.path.join(get_working_directory_path(), filename)
+        bib_file = utils.file_parser.parse_bib(path, False)
+        bib_file = sanitize_bib_file(bib_file)
+        utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
 
     def default(self, line):
         print('Command not found!')

@@ -170,9 +170,6 @@ class CLI(cmd.Cmd):
     misc_header = "Topics:"
     ruler = "-"
 
-<<<<<<< HEAD
-    # commands  
-=======
     def preloop(self):
         try:
             delims = readline.get_completer_delims()
@@ -182,7 +179,6 @@ class CLI(cmd.Cmd):
             pass
 
     # commands
->>>>>>> c5263e483282194d6363e209b8a59f0c10e7996e
     def do_load(self, arg):
         load_file_to_storage(arg)
 

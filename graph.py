@@ -1,11 +1,11 @@
 from pyalex import Works, config
+from nicegui import ui
 from objects import BibFile, Reference, String, GraphNode
 from collections import defaultdict
 import pprint
 import threading
 import networkx as nx
 import json
-from nicegui import ui
 
 # pyalex.config.email = "tabreafabian0@gmail.com"
 config.max_retries = 0
@@ -13,11 +13,9 @@ config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
 def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_titles = []):
-    print("here")
     try:
         G = constructed_graph
         nodes = []
-        
         
         base_set  = set(base_nodes_titles)
         first_set = {v for u, v in G.edges() if u in base_set}
@@ -26,6 +24,7 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
         for n in G.nodes():
             in_degree = G.in_degree(n)
             out_degree = G.out_degree(n)
+            
             label = f"{n}\n(cited by: {in_degree}, cites: {out_degree})"
             
             if n in base_set:
@@ -104,7 +103,7 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
                 _shortLabel: shortLabel,    // custom fields we will toggle
                 _longLabel:  longLabel,
                 _isShort: true,
-                shape: "ellipse",                // box allows wrapping nicely with widthConstraint
+                shape: "circle",                // box allows wrapping nicely with widthConstraint
                 color:  n.color || {{ background: '#27AE60', border: '#66BB6A' }}
                 }};
             }});
@@ -133,19 +132,19 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
 
                 }},
                 interaction: {{ hover: true, dragNodes: true, zoomView: true, zoomSpeed: 0.6, navigationButtons: true, dragView: true}},
-                // edges: {{ length: 250,width: 15}},
+                // edges: {{ length: 250, width: 15}},
                 edges: {{width: 15}},
                 
                 nodes: {{
-                    shape: "ellipse",
+                    shape: "circle",
                     shadow: {{ enabled: true, size: 15, x: 7, y: 7 }},
-                    margin: 6,
-                    size: 30,
+                    margin: 120,
+                    size: 80,
                     widthConstraint: {{ maximum: 180 }},   // wrap to this width
                     font: {{
                     // 'multi' isn't required for wrapping; \\n handles new lines
                     // you can tweak size or face if you want
-                    size: 20,
+                    size: 12,
      
                     }}
                 }}
@@ -188,13 +187,13 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
         
 def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
     # SOLVE THIS
-    neighbour_node = GraphNode(base_node.get("title", "No known title"))
+    neighbour_node = GraphNode(base_node.get("title", "N/A"))
     neighbour_node.authors = [author['author']['display_name'] for author in base_node.get("authorships", [])]
-    neighbour_node.year = base_node.get("publication_year", "No known year")
+    neighbour_node.year = base_node.get("publication_year", "N/A")
     
     
     second_id_refs = base_node.get("referenced_works", [])
-    second_neighbours = None
+    second_neighbours = []
     
     if len(second_id_refs) > 0:
         joined = "|".join(second_id_refs)
@@ -202,9 +201,9 @@ def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
         second_neighbours = second_neighbours[:max]
         
         for second_neighbour in second_neighbours:
-            authors = [author['author']['display_name'] for author in second_neighbour.get("authorships", [])]
-            node2 = GraphNode(second_neighbour.get("title", "No known title"))
-            node2.authors = authors
+            node2 = GraphNode(second_neighbour.get("title", "N/A"))
+            node2.authors = [author['author']['display_name'] for author in second_neighbour.get("authorships", [])]
+            node2.year = second_neighbour.get("publication_year", "N/A")
             adjacency_list[neighbour_node].append(node2)
             
     else:
@@ -212,6 +211,8 @@ def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
         
     return second_neighbours
         
+def construct_node_title():
+    pass
 
 
 def generate_graph(bib_file: BibFile):
@@ -234,11 +235,13 @@ def generate_graph(bib_file: BibFile):
                     if w.get("title", "").strip().lower() == title.strip().lower() and str(w.get("publication_year", 0)) == str(year):
                         fetched_work = w
                         
-                base_nodes_titles.append(fetched_work.get("title", "No known title"))
+                base_nodes_titles.append("Title: " + fetched_work.get("title", "N/A") + 
+                                         "\n Publication Year: " + str(fetched_work.get("publication_year", "N/A")))
+                
                 first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work)
                 
                 for neighbour in first_neighbours:
-                    first_neighbours_titles.append(neighbour.get("title", "No known title"))
+                    first_neighbours_titles.append(neighbour.get("title", "N/A"))
                     second_neighbours = update_adjacency_neighbours(adjacency_list, neighbour)
                     for sec_neighbour in second_neighbours:
                         update_adjacency_neighbours(adjacency_list, sec_neighbour, 3)
@@ -250,7 +253,7 @@ def generate_graph(bib_file: BibFile):
     G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
     for base_node, neighbours in adjacency_list.items():
         for neighbour in neighbours:    
-            G.add_edge(base_node.title, neighbour.title)
+            G.add_edge("Title: " + base_node.title + "\n Publication Year: " + str(base_node.year), "Title: " + neighbour.title + "\n Publication Year: " + str(neighbour.year))
         
     try:
         threading.Thread(target=run_server(G, base_nodes_titles, first_neighbours_titles), daemon=True).start()

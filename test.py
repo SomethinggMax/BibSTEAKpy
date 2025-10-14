@@ -29,8 +29,17 @@ def file_to_string(file_name):
         return file.readlines()
 
 
-# Print the differences between two files.:
+def convert_to_utf8(old_path, new_path, encoding):
+    with open(old_path, encoding=encoding) as file:
+        content = file.readlines()
+    with open(new_path, 'w', encoding="utf-8") as file:
+        file.writelines(content)
+
+
 def print_differences(from_file, to_file):
+    """
+    Print the differences between the two files.
+    """
     first_string = file_to_string(from_file)
     second_string = file_to_string(to_file)
     for line in difflib.unified_diff(
@@ -93,8 +102,12 @@ def test_files(directory_path) -> bool:
         try:
             bib_file = file_parser.parse_bib(path, False)
         except UnicodeDecodeError:
-            print(f"Skipping file {file_name}, it cannot be decoded with UTF-8.")
-            continue
+            try:
+                convert_to_utf8(path, path, 'windows-1252')
+                bib_file = file_parser.parse_bib(path, False)
+            except Exception as e:
+                print(f"Skipping file {file_name}, it cannot be decoded with UTF-8 or windows-1252. {e}")
+                continue
         except ValueError as e:
             print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue

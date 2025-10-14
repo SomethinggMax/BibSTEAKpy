@@ -112,7 +112,7 @@ def test_files(directory_path) -> bool:
             print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue
         file_generator.generate_bib(bib_file, temp_file_name, 15)
-        if is_different(path, temp_file_name, True, True, True):
+        if is_different(path, temp_file_name, True, True, False):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
             return False

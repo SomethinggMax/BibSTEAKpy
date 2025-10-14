@@ -25,7 +25,7 @@ def parse_fields(data, remove_whitespace_in_fields):
             match char:
                 case "=":
                     if curly_bracket_level == 0 and double_quotation_level == 0:
-                        field_type = token.strip().lower()
+                        field_type = token.strip()
                         token = ""
                         continue
                 case ",":
@@ -86,7 +86,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                     case "{":
                         curly_bracket_level += 1
                         if token_type == Token.REF_TYPE:
-                            ref_type = token.lower()
+                            ref_type = token
                             token = ""
                             token_type = Token.KEY
                             if ref_type == "comment" or ref_type == "preamble":

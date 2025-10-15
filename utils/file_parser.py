@@ -89,7 +89,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             ref_type = token
                             token = ""
                             token_type = Token.KEY
-                            if ref_type == "comment" or ref_type == "preamble":
+                            if ref_type.lower() == "comment" or ref_type.lower() == "preamble":
                                 token_type = Token.DATA
                             continue
                     case "}":
@@ -97,11 +97,11 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                         if token_type == Token.DATA:
                             if curly_bracket_level == 0:
                                 token = token.strip()
-                                if ref_type == "comment":
+                                if ref_type.lower() == "comment":
                                     result.content.append(Comment(token))
-                                elif ref_type == "preamble":
+                                elif ref_type.lower() == "preamble":
                                     result.content.append(Preamble(token))
-                                elif ref_type == "string":
+                                elif ref_type.lower() == "string":
                                     if token.startswith("{") and token.endswith("}"):
                                         enclosure = Enclosure.BRACKETS
                                     elif token.startswith("\"") and token.endswith("\""):

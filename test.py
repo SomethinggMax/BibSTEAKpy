@@ -8,21 +8,6 @@ from utils import batch_editor, sub_bib, merge, cleanup
 from utils.Reftype import sortByReftype, GroupingType
 from utils.filtering import search
 
-bib_examples_original = "bib_files/biblatex-examples.bib"
-bib_examples_generated = "bib_files/biblatex-examples-generated.bib"
-bib_examples_edited = "bib_files/biblatex-examples-edited.bib"
-articles_examples = "bib_files/articles-examples.bib"
-bib_tests = "bib_files/bibtests.bib"
-bib_merge_test = "bib_files/bib-merge-test.bib"
-merge_result = "bib_files/merge-result.bib"
-
-examples = file_parser.parse_bib(bib_examples_original, False)
-test = file_parser.parse_bib(bib_tests, True)
-merge_test = file_parser.parse_bib(bib_merge_test, True)
-
-# Generate file from the dictionary:
-file_generator.generate_bib(examples, bib_examples_generated, 15)
-
 
 def file_to_string(file_name):
     with open(file_name, encoding='utf-8') as file:
@@ -121,32 +106,48 @@ def test_files(directory_path) -> bool:
     return True
 
 
-if not os.listdir(get_working_directory_path()):
-    print("The working directory is empty!")
-elif test_files(get_working_directory_path()):
-    print("All files in the working directory seem correctly parsed and generated.")
+if __name__ == '__main__':
+    bib_examples_original = "bib_files/biblatex-examples.bib"
+    bib_examples_generated = "bib_files/biblatex-examples-generated.bib"
+    bib_examples_edited = "bib_files/biblatex-examples-edited.bib"
+    articles_examples = "bib_files/articles-examples.bib"
+    bib_tests = "bib_files/bibtests.bib"
+    bib_merge_test = "bib_files/bib-merge-test.bib"
+    merge_result = "bib_files/merge-result.bib"
+
+    examples = file_parser.parse_bib(bib_examples_original, False)
+    test = file_parser.parse_bib(bib_tests, True)
+    merge_test = file_parser.parse_bib(bib_merge_test, True)
+
+    # Generate file from the dictionary:
+    file_generator.generate_bib(examples, bib_examples_generated, 15)
+
+    if not os.listdir(get_working_directory_path()):
+        print("The working directory is empty!")
+    elif test_files(get_working_directory_path()):
+        print("All files in the working directory seem correctly parsed and generated.")
 
 
-print_differences(bib_examples_original, bib_examples_generated)
+    print_differences(bib_examples_original, bib_examples_generated)
 
-# test filtering/searching
-displayfile = search(examples, "english")
-file_generator.generate_bib(displayfile, "bib_files/newfile.bib", 15)
+    # test filtering/searching
+    displayfile = search(examples, "english")
+    file_generator.generate_bib(displayfile, "bib_files/newfile.bib", 15)
 
-batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
-cleanup.cleanup(examples)
-file_generator.generate_bib(examples, bib_examples_edited, 15)
+    batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
+    cleanup.cleanup(examples)
+    file_generator.generate_bib(examples, bib_examples_edited, 15)
 
-print_differences(bib_examples_generated, bib_examples_edited)
+    print_differences(bib_examples_generated, bib_examples_edited)
 
-articles = sub_bib.sub_bib_entry_types(test, ["article"])
-file_generator.generate_bib(articles, articles_examples, 15)
+    articles = sub_bib.sub_bib_entry_types(test, ["article"])
+    file_generator.generate_bib(articles, articles_examples, 15)
 
-file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
+    file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
 
-tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
-file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
+    tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
+    file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
 
-# testing grouping
-sortByReftype(examples, GroupingType.ZTOA)
-file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib", 15)
+    # testing grouping
+    sortByReftype(examples, GroupingType.ZTOA)
+    file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib", 15)

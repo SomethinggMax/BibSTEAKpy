@@ -127,7 +127,6 @@ if __name__ == '__main__':
     elif test_files(get_working_directory_path()):
         print("All files in the working directory seem correctly parsed and generated.")
 
-
     print_differences(bib_examples_original, bib_examples_generated)
 
     # test filtering/searching

@@ -35,8 +35,8 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
                     continue
                 if data == old_abbreviation:
                     fields[field_type] = new_abbreviation
-                elif "#" in data:
-                    data_list = data.split("#")
+                elif " # " in data:
+                    data_list = data.split(" # ")
                     final_data = ""
                     # Loop over all elements except the last one (to add the #s back)
                     for string in data_list[:-1]:
@@ -140,8 +140,8 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
                     continue
                 if data in strings_to_extend:
                     fields[field_type] = "{" + strings_to_extend[data] + "}"
-                elif "#" in data:
-                    data_list = data.split("#")
+                elif " # " in data:
+                    data_list = data.split(" # ")
                     final_data = ""
                     # Loop over all elements except the last one (to add the #s back)
                     for string in data_list[:-1]:

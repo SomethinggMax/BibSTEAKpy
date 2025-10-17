@@ -1,79 +1,52 @@
 from enum import Enum
-from objects import BibFile, Reference, String, Comment, Preamble
+from objects import BibFile, Reference, String, Comment, Preamble, Enclosure
 
 
 class Token(Enum):
     REF_TYPE = 1
     KEY = 2
-    DATA = 3
-    EXTRA = 4
+    FIELD_KEY = 3
+    VALUE = 4
+    QUOTATION_MARKS_ENCLOSURE = 5
+    BRACKETS_ENCLOSURE = 6
+    EXTRA = 7
 
 
 def parse_string(data):
     return data[1:-1]
 
 
-def parse_fields(data, remove_whitespace_in_fields):
-    fields = {}
-    field_type = ""
-    token = ""
-    remove_whitespace = False
-    curly_bracket_level = 0
-    double_quotation_level = 0
-    for line in data:
-        for char in line:
-            match char:
-                case "=":
-                    if curly_bracket_level == 0 and double_quotation_level == 0:
-                        field_type = token.strip().lower()
-                        token = ""
-                        continue
-                case ",":
-                    if curly_bracket_level == 0 and double_quotation_level == 0:
-                        fields[field_type] = token.strip()
-                        token = ""
-                        continue
-                case "\"":
-                    if curly_bracket_level == 0:
-                        if double_quotation_level == 0:
-                            double_quotation_level += 1
-                        else:
-                            double_quotation_level -= 1
-                case "{":
-                    curly_bracket_level += 1
-                case "}":
-                    curly_bracket_level -= 1
-                case "\n":
-                    if remove_whitespace_in_fields:
-                        remove_whitespace = True
-                        continue
-                case " ":
-                    if remove_whitespace:
-                        continue
-                case "#":
-                    # print("String concatenation not yet supported!")
-                    pass
-            if remove_whitespace:
-                remove_whitespace = False
-                token += " "
-            token += char
-    if token != "":
-        fields[field_type] = token.strip()
-    return fields
+def add_field(fields, field_type, field_value):
+    """
+    Adds new field, with given field type and value.
+    Raises error if the field already exists and the contents are not the same.
+    """
+    if field_type in fields and fields[field_type] != field_value:
+        raise ValueError(f"Bib file contains duplicate {field_type} "
+                         f"fields with different contents in a single reference!")
+    fields[field_type] = field_value
 
 
 def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
     result = BibFile(file_name)
 
-    with open(file_name, "r+") as file:
+    with open(file_name, encoding='utf-8') as file:
         token = ""
         comment = ""
         ref_type = ""
         key = ""
+        field_type = ""
+        fields = {}
+        ignore_next = False
+        remove_whitespace = False
         curly_bracket_level = 0
         token_type = Token.EXTRA
         for line in file:
             for char in line:
+                if ignore_next:
+                    ignore_next = False
+                    token += char
+                    continue
                 match char:
                     case "@":
                         if token_type == Token.EXTRA:
@@ -82,39 +55,89 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             token_type = Token.REF_TYPE
                             continue
                     case "{":
-                        curly_bracket_level += 1
                         if token_type == Token.REF_TYPE:
-                            ref_type = token.lower()
+                            ref_type = token
                             token = ""
                             token_type = Token.KEY
-                            if ref_type == "comment" or ref_type == "preamble":
-                                token_type = Token.DATA
+                            if ref_type.lower() == "comment" or ref_type.lower() == "preamble":
+                                token_type = Token.VALUE
                             continue
-                    case "}":
-                        curly_bracket_level -= 1
-                        if token_type == Token.DATA:
-                            if curly_bracket_level == 0:
-                                token = token.strip()
-                                if ref_type == "comment":
-                                    result.content.append(Comment(token))
-                                elif ref_type == "preamble":
-                                    result.content.append(Preamble(token))
-                                elif ref_type == "string":
-                                    result.content.append(String(key, parse_string(token)))
-                                else:
-                                    reference = Reference(comment, ref_type, key)
-                                    fields = parse_fields(token, remove_whitespace_in_fields)
-                                    for field, field_value in fields.items():
-                                        setattr(reference, field, field_value)
-                                    result.content.append(reference)
-                                token = ""
-                                token_type = Token.EXTRA
-                                continue
-                    case "," | "=":
+                        elif token_type == Token.VALUE:
+                            token_type = Token.BRACKETS_ENCLOSURE
+                            curly_bracket_level += 1
+                        elif token_type == Token.BRACKETS_ENCLOSURE:
+                            curly_bracket_level += 1
+                    case "=":
                         if token_type == Token.KEY:
                             key = token.strip()
                             token = ""
-                            token_type = Token.DATA
+                            token_type = Token.VALUE
                             continue
+                        elif token_type == Token.FIELD_KEY:
+                            field_type = token.strip()
+                            token = ""
+                            token_type = Token.VALUE
+                            continue
+                    case ",":
+                        if token_type == Token.KEY:
+                            key = token.strip()
+                            token = ""
+                            token_type = Token.FIELD_KEY
+                            continue
+                        elif token_type == Token.VALUE and ref_type.lower() != "comment":
+                            add_field(fields, field_type, token.strip())
+                            token = ""
+                            token_type = Token.FIELD_KEY
+                            continue
+                    case "\"":
+                        if token_type == Token.VALUE:
+                            token_type = Token.QUOTATION_MARKS_ENCLOSURE
+                        elif token_type == Token.QUOTATION_MARKS_ENCLOSURE:
+                            token_type = Token.VALUE
+                    case "\\":
+                        if token_type == Token.QUOTATION_MARKS_ENCLOSURE:
+                            ignore_next = True
+                    case "\n":
+                        if token_type == Token.VALUE:
+                            if remove_whitespace_in_fields:
+                                remove_whitespace = True
+                                continue
+                    case " ":
+                        if remove_whitespace:
+                            continue
+                    case "}":
+                        if token_type == Token.FIELD_KEY or token_type == Token.VALUE:
+                            token = token.strip()
+                            if ref_type.lower() == "comment":
+                                result.content.append(Comment(token))
+                            elif ref_type.lower() == "preamble":
+                                result.content.append(Preamble(token))
+                            elif ref_type.lower() == "string":
+                                if token.startswith("{") and token.endswith("}"):
+                                    enclosure = Enclosure.BRACKETS
+                                elif token.startswith("\"") and token.endswith("\""):
+                                    enclosure = Enclosure.QUOTATION_MARKS
+                                else:
+                                    raise ValueError(f"Bib file contains a string with invalid enclosure: {token}")
+                                result.content.append(String(comment, key, parse_string(token), enclosure))
+                            else:
+                                reference = Reference(comment, ref_type, key)
+                                if token.strip() != "":
+                                    add_field(fields, field_type, token.strip())
+                                for field, field_value in fields.items():
+                                    setattr(reference, field, field_value)
+                                result.content.append(reference)
+                            token = ""
+                            token_type = Token.EXTRA
+                            fields = {}
+                            continue
+                        elif token_type == Token.BRACKETS_ENCLOSURE:
+                            curly_bracket_level -= 1
+                            if curly_bracket_level == 0:
+                                token_type = Token.VALUE
+                if remove_whitespace:
+                    remove_whitespace = False
+                    token += " "
                 token += char
+    result.content.append(token)
     return result

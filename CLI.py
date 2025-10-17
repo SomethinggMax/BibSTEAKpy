@@ -2,7 +2,7 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge
+from utils import merge, cleanup
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
 import utils
@@ -39,7 +39,7 @@ CONFIG_FILE = "config.json"
 COMMANDS = [
     ("help", "Display the current menu"),
     ("load", "Load a particular file into the working directory"),
-    ("cd <directory>", "Changes the current working directory"),
+    ("cwd <directory>", "Changes the current working directory"),
     ("list", "See all the bib files in the working directory"),
     ("pwd", "Prints the working directory"),
     ("abb", "Display all abbreviations"),
@@ -67,6 +67,7 @@ COMMANDS = [
         "ord <filename> <field> [descending=False]",
         "Order the references based on a certain field",
     ),
+    ("clean <filename>", "Cleans file according to rules in config."),
     (
         "sub -e <filename> <new_filename>, <entry_types>",
         "Creates a sub .bib file with only specified entry " "types.",
@@ -251,7 +252,7 @@ class CLI(cmd.Cmd):
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
         )
 
-    def do_cd(self, wd_path):
+    def do_cwd(self, wd_path):
 
         try:
             if wd_path == "":
@@ -494,6 +495,31 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
+    def do_clean(self, arg):
+        try:
+            filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            cleanup.cleanup(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Cleanup has been done successfully!")
+
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
     def do_mer(self, args):
         try:
             argument_list = args.split()
@@ -574,6 +600,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_ord(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_clean(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):

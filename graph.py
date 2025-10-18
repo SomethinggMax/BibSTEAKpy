@@ -12,7 +12,7 @@ config.max_retries = 0
 config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
-def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_titles = []):
+def run_server(constructed_graph, base_nodes_titles = []):
     try:
         G = constructed_graph
         nodes = []
@@ -38,6 +38,9 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
                 
             else:   
                 nodes.append({"id": str(n), "label": label, "color": "#dccbb6"})
+                
+            # nodes.append({"id": str(n), "label": label, "color": "#dccbb6"})
+            
                 
                 
             
@@ -186,7 +189,7 @@ def run_server(constructed_graph, base_nodes_titles = [], first_neighbours_title
         
         
 def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
-    # SOLVE THIS
+    # SOLVE THIS !!!!!!!!!!!
     neighbour_node = GraphNode(base_node.get("title", "N/A"))
     neighbour_node.authors = [author['author']['display_name'] for author in base_node.get("authorships", [])]
     neighbour_node.year = base_node.get("publication_year", "N/A")
@@ -211,9 +214,20 @@ def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
         
     return second_neighbours
         
-def construct_node_title():
-    pass
+def construct_node_description(base_node: GraphNode):
+    title = base_node.title
+    year =  str(base_node.year)
+    authors = str(base_node.authors).replace("[", "").replace("]", "")
+    
+    return f"Title: {title} \n Publication Year: {year} \n Authors: {authors}" 
 
+def construct_work_description(work):
+    title = work.get("title", "N/A")
+    year = str(work.get("publication_year", "N/A"))
+    authors = str([author['author']['display_name'] for author in work.get("authorships", [])]).replace("[", "").replace("]", "")
+    
+    return f"Title: {title} \n Publication Year: {year} \n Authors: {authors}" 
+    
 
 def generate_graph(bib_file: BibFile):
     adjacency_list = defaultdict(list)
@@ -235,8 +249,7 @@ def generate_graph(bib_file: BibFile):
                     if w.get("title", "").strip().lower() == title.strip().lower() and str(w.get("publication_year", 0)) == str(year):
                         fetched_work = w
                         
-                base_nodes_titles.append("Title: " + fetched_work.get("title", "N/A") + 
-                                         "\n Publication Year: " + str(fetched_work.get("publication_year", "N/A")))
+                base_nodes_titles.append(construct_work_description(fetched_work))
                 
                 first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work)
                 
@@ -253,11 +266,10 @@ def generate_graph(bib_file: BibFile):
     G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
     for base_node, neighbours in adjacency_list.items():
         for neighbour in neighbours:    
-            G.add_edge("Title: " + base_node.title + "\n Publication Year: " + str(base_node.year), "Title: " + neighbour.title + "\n Publication Year: " + str(neighbour.year))
-        
+            G.add_edge(construct_node_description(base_node), construct_node_description(neighbour))
     try:
-        threading.Thread(target=run_server(G, base_nodes_titles, first_neighbours_titles), daemon=True).start()
-    # run_server()
+        threading.Thread(target=run_server(G, base_nodes_titles), daemon=True).start()
+      # run_server()
     except Exception:
         pass
         

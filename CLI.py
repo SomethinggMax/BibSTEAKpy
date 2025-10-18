@@ -479,7 +479,6 @@ class CLI(cmd.Cmd):
             else:
                 descending = False
 
-            # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)

@@ -16,12 +16,12 @@ import ast
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
 
-RESET = "\033[0m"
+RESET = "\033[0m"; RST = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
-MAGENTA = "\033[35m"
+MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
@@ -38,19 +38,19 @@ CONFIG_FILE = "config.json"
 
 COMMANDS = [
     ("help", "Display the current menu"),
-    ("load", "Load a particular file into the working directory"),
-    ("cwd <directory>", "Changes the current working directory"),
-    ("list", "See all the bib files in the working directory"),
-    ("pwd", "Prints the working directory"),
-    ("abb", "Display all abbreviations"),
+    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+    ("list", "Lists all the bib files in the current working directory"),
+    ("pwd", "Prints the current working directory"),
+    ("abb", "Display the abbreviations legend"),
     (
         "view <filename>",
-        "View the content of a certain .bib file from your chosen working directory",
+        "View the content of a certain .bib file from your current working directory",
     ),
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "rg <filename> <field>",
+        "gr <filename> <field>",
         "Group references of a bib file based on a certain field",
     ),
     (
@@ -179,9 +179,10 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands():
-    for command in COMMANDS:
-        print(command[0], (60 - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60):
+    commands = sorted(COMMANDS, key=lambda command: command[0])
+    for command in commands:
+        print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
 
@@ -370,7 +371,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
 
-    def do_rg(self, args):
+    def do_gr(self, args):
         try:
             filename, order = args.split()
 

@@ -1,8 +1,8 @@
-from objects import BibFile, Reference, Comment, String, Preamble
+from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
 
 
 def generate_bib(bib_file: BibFile, file_name, align_fields_position):
-    with open(file_name, "w") as file:
+    with open(file_name, "w", encoding="utf-8") as file:
         final_string = ""
 
         for entry in bib_file.content:
@@ -12,10 +12,15 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                 case Preamble():
                     final_string += "@preamble{" + entry.preamble + "}\n"
                 case String():
+                    if entry.comment_above_string != "":
+                        final_string += entry.comment_above_string + "\n"
                     string_start = "@string{" + entry.abbreviation
                     position_minus_length = align_fields_position - len(string_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0
-                    final_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
+                    if entry.enclosure == Enclosure.BRACKETS:
+                        final_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
+                    elif entry.enclosure == Enclosure.QUOTATION_MARKS:
+                        final_string += string_start + " " * padding_size + "= \"" + entry.long_form + "\"}\n"
                 case Reference():
                     if entry.comment_above_reference != "":
                         final_string += "\n"
@@ -29,5 +34,7 @@ def generate_bib(bib_file: BibFile, file_name, align_fields_position):
                         padding_size = position_minus_length if position_minus_length > 0 else 0
                         final_string += field_start + " " * padding_size + "= " + data + ",\n"
                     final_string += "}\n"
+                case _:
+                    final_string += entry
 
         file.write(final_string)

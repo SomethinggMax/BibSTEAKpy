@@ -1,6 +1,5 @@
 from objects import BibFile, Reference
 import utils.file_parser as file_parser
-import utils.file_generator as file_generator
 
 
 # Note for me: Account for the fact that all Reference objects
@@ -18,6 +17,6 @@ def order_by_field(file: BibFile, field: str, descending=False):
 
 # JUST FOR TESTING       
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("bibtests.bib", True)
+    test_file = file_parser.parse_bib("../bib_files/bibtests.bib", True)
     order_by_field(test_file, "author")
     print(test_file.references)

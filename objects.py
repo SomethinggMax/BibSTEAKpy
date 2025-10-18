@@ -1,4 +1,4 @@
-from typing import List, Union, Set
+from enum import Enum
 
 
 class BibFile(object):
@@ -13,18 +13,27 @@ class BibFile(object):
                 cite_keys.append(entry.cite_key)
         return cite_keys
 
-    def get_reference(self, cite_key):
+    def get_reference_by_key(self, cite_key):
         for entry in self.content:
             if type(entry) is Reference:
                 if entry.cite_key == cite_key:
                     return entry
 
+    def get_references(self):
+        return [entry for entry in self.content if type(entry) is Reference]
+
     def get_strings(self):
-        strings = []
+        return [entry for entry in self.content if type(entry) is String]
+
+    def get_comments(self):
+        return [entry for entry in self.content if type(entry) is Comment]
+
+    def get_preambles(self):
+        preambles = []
         for entry in self.content:
-            if type(entry) is String:
-                strings.append(entry)
-        return strings
+            if isinstance(entry, Preamble):
+                preambles.append(entry)
+        return preambles
 
     def __str__(self):
         return f"[File: {self.file_name} - content: {self.content}]"
@@ -43,10 +52,17 @@ class Preamble(object):
         self.preamble = preamble
 
 
+class Enclosure(Enum):
+    BRACKETS = 1
+    QUOTATION_MARKS = 2
+
+
 class String(object):
-    def __init__(self, abbreviation, long_form):
+    def __init__(self, comment_above_string, abbreviation, long_form, enclosure=Enclosure.QUOTATION_MARKS):
+        self.comment_above_string = comment_above_string
         self.abbreviation = abbreviation
         self.long_form = long_form
+        self.enclosure = enclosure
 
 
 class Reference(object):
@@ -61,9 +77,9 @@ class Reference(object):
     def __str__(self):
         # print the reference like a dictionary
         fields = self.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if key not in ["comment_above_reference", "entry_type"]]
+        field_strings = [f"{key}: {value}" for key, value in fields.items() if
+                         key not in ["comment_above_reference", "entry_type"]]
         return "\n".join(field_strings)
-        
 
     def __repr__(self):
         return self.__str__()

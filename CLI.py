@@ -483,7 +483,7 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(path, file, 15)
+            utils.file_generator.generate_bib(file, path, 15)
 
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")

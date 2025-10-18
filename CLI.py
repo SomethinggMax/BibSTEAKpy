@@ -275,6 +275,9 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Path Error: {e}")
             return None
+    def do_cd(self, wd_path):
+        self.do_cwd(wd_path)
+        return
 
     def do_help(self, arg):
         display_help_commands()
@@ -556,13 +559,15 @@ class CLI(cmd.Cmd):
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            if "not enough values to unpack" in str(e):
+            if "not enough values to unpack" or "too many values to unpack" in str(e):
                 print(
-                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "Argument error: Incorrect number of arguments. Please provide three arguments: <filename1> "
                     "<filename2> <new_filename>."
                 )
             else:
                 print(f"Argument error: {e}")
+        except FileNotFoundError as e:
+            print(f"File error: {os.path.basename(e.filename)} not found.")
         except Exception as e:
             print(f"Unexpected error: {e}")
 

@@ -2,7 +2,7 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge
+from utils import merge, cleanup
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
 
@@ -19,12 +19,12 @@ from graph import generate_graph
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
 
-RESET = "\033[0m"
+RESET = "\033[0m"; RST = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
-MAGENTA = "\033[35m"
+MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
@@ -41,19 +41,19 @@ CONFIG_FILE = "config.json"
 
 COMMANDS = [
     ("help", "Display the current menu"),
-    ("load", "Load a particular file into the working directory"),
-    ("cd <directory>", "Changes the current working directory"),
-    ("list", "See all the bib files in the working directory"),
-    ("pwd", "Prints the working directory"),
-    ("abb", "Display all abbreviations"),
+    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+    ("list", "Lists all the bib files in the current working directory"),
+    ("pwd", "Prints the current working directory"),
+    ("abb", "Display the abbreviations legend"),
     (
         "view <filename>",
-        "View the content of a certain .bib file from your chosen working directory",
+        "View the content of a certain .bib file from your current working directory",
     ),
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "rg <filename> <field>",
+        "gr <filename> <field>",
         "Group references of a bib file based on a certain field",
     ),
     (
@@ -70,6 +70,7 @@ COMMANDS = [
         "ord <filename> <field> [descending=False]",
         "Order the references based on a certain field",
     ),
+    ("clean <filename>", "Cleans file according to rules in config."),
     (
         "sub -e <filename> <new_filename>, <entry_types>",
         "Creates a sub .bib file with only specified entry " "types.",
@@ -200,9 +201,10 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands():
-    for command in COMMANDS:
-        print(command[0], (60 - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60):
+    commands = sorted(COMMANDS, key=lambda command: command[0])
+    for command in commands:
+        print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
 
@@ -273,7 +275,7 @@ class CLI(cmd.Cmd):
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
         )
 
-    def do_cd(self, wd_path):
+    def do_cwd(self, wd_path):
 
         try:
             if wd_path == "":
@@ -400,7 +402,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
 
-    def do_rg(self, args):
+    def do_gr(self, args):
         try:
             filename, order = args.split()
 
@@ -525,6 +527,31 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
+    def do_clean(self, arg):
+        try:
+            filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            cleanup.cleanup(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Cleanup has been done successfully!")
+
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
     def do_mer(self, args):
         try:
             argument_list = args.split()
@@ -630,6 +657,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_ord(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_clean(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):

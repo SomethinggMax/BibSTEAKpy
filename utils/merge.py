@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import sys
 import textwrap
@@ -13,9 +14,35 @@ from difflib import SequenceMatcher
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
 
-# Similarity thresholds for abstract comparison
-ABSTRACT_STRONG_MATCH = 0.9
-ABSTRACT_STRONG_MISMATCH = 0.5
+# Similarity thresholds for abstract comparison (configurable via config.json)
+DEFAULT_ABSTRACT_STRONG_MATCH = 0.9
+DEFAULT_ABSTRACT_STRONG_MISMATCH = 0.5
+
+def _load_config():
+    try:
+        with open('config.json', 'r', encoding='utf-8') as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+def _get_abstract_thresholds():
+    cfg = _load_config()
+    strong = cfg.get('abstract_strong_match', DEFAULT_ABSTRACT_STRONG_MATCH)
+    weak = cfg.get('abstract_strong_mismatch', DEFAULT_ABSTRACT_STRONG_MISMATCH)
+    try:
+        strong = float(strong)
+    except Exception:
+        strong = DEFAULT_ABSTRACT_STRONG_MATCH
+    try:
+        weak = float(weak)
+    except Exception:
+        weak = DEFAULT_ABSTRACT_STRONG_MISMATCH
+    # Clamp and ensure weak <= strong
+    strong = max(0.0, min(1.0, strong))
+    weak = max(0.0, min(1.0, weak))
+    if weak > strong:
+        weak = strong
+    return strong, weak
 
 # Pretty printing / CLI formatting
 PREFERRED_FIELD_ORDER = [
@@ -532,7 +559,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     has_abs_2 = bool(normalize_abstract_field(getattr(other_ref, 'abstract', None)))
 
                     if has_abs_1 and has_abs_2:
-                        if best_sim >= ABSTRACT_STRONG_MATCH:
+                        strong_thr, weak_thr = _get_abstract_thresholds()
+                        if best_sim >= strong_thr:
                             print(
                                 f"Auto-merging '{entry.cite_key}' + '{target_key}' (author/title match, abstract sim {best_sim:.2f})."
                             )
@@ -540,7 +568,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                             merged_bib_file.content.append(merged_reference)
                             consumed_bib2_keys.add(target_key)
                             continue
-                        elif best_sim <= ABSTRACT_STRONG_MISMATCH:
+                        elif best_sim <= weak_thr:
                             print(
                                 f"Keeping both for '{entry.cite_key}' and '{target_key}' (low abstract sim {best_sim:.2f})."
                             )

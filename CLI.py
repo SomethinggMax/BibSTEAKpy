@@ -3,6 +3,7 @@ import os
 import shutil
 import readline
 from utils import merge, cleanup
+from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
 import utils
@@ -50,7 +51,7 @@ COMMANDS = [
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "gr <filename> <field>",
+        "gr <filename> [descending=False]",
         "Group references of a bib file based on a certain field",
     ),
     (
@@ -373,15 +374,20 @@ class CLI(cmd.Cmd):
 
     def do_gr(self, args):
         try:
-            filename, order = args.split()
-
+            if len(args.split()) > 1:
+                filename, order = args.split()
+                order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
+            else:
+                filename = args
+                order = GroupingType.ATOZ
+                
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
             sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
-            print_in_green("Grouping by reference done successfully!")
+            print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except Exception as e:
             print(f"Unexpected error: {e}")

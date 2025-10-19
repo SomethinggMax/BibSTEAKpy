@@ -1,3 +1,5 @@
+@string{lncs = "Lecture Notes in Computer Science"}
+
 @article{test,
   auTHor       = "Charlie",
   title        = {{Bib}\TeX},
@@ -24,14 +26,15 @@
 @book{b09,
   auTHor       = "Mr. Fantastic",
   Title        = {A Boring Book},
+  volume       = 1,
   publisher    = "Publi DE",
   YEAR         = 2007,
 }
 
 @book{b88,
   auTHor       = "Miss. Bomb",
-  Title        = {A nice miss},
-  publisher    = "Publi NL",
+  Title        = {A "\nice\" miss\},
+  publisher    = "}P\"ubli NL",
   YEAR         = 2001,
 }
 
@@ -51,6 +54,16 @@
     type= {Thesis},
     title= {xBib : the language design and implementation of a transformation language},
     abstract= {BibTeX is one of the standards for managing lists of references for academic papers. But due to different publishers generating their BibTeX files, there is no universal standard and inconsistencies between similar items can emerge, leading to confusion and mistakes. In this paper, we propose a transformation language for BibTeX called xBib, that allows the user to create a bibliographic list that looks more professional and uniform. Using this language we design a tool that can be used to transform .bib files in a clear and simple manner.},
+}
+
+    @inproceedings{CoCoCoLa2025,
+    author = "Nhat and Vadim Zaytsev",
+     title = "{CoCoCoLa: Code Completion Control Language}",
+   booktitle = "{Proceedings of the 24th ACM SIGPLAN International Conference on Generative Programming: Concepts & Experiences (GPCE)}",
+      year = 2025,
+       month = jul,
+        note = "In print",
+     doi = "10.1145/3742876.3742883",
 }
 
 @comment{Visser2023,

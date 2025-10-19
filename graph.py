@@ -12,6 +12,51 @@ config.max_retries = 0
 config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
+
+def generate_graph(bib_file: BibFile):
+    adjacency_list = defaultdict(list)
+    base_nodes_titles = []
+    first_neighbours_titles = []
+    
+    for entry in bib_file.content:
+        if isinstance(entry, Reference):
+
+            fields = entry.get_fields()
+            title = fields['title'].replace("{", "").replace("}", "")
+            year = fields['year'].replace("{", "").replace("}", "")
+            
+            try:
+                fetched_work = None
+                results = Works().search(title).get() # Optimize this
+                for w in results:
+                    if w.get("title", "").strip().lower() == title.strip().lower() and str(w.get("publication_year", 0)) == str(year):
+                        fetched_work = w
+                        
+                base_nodes_titles.append(construct_work_description(fetched_work))
+                
+                first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work)
+                
+                for neighbour in first_neighbours:
+                    first_neighbours_titles.append(neighbour.get("title", "N/A"))
+                    second_neighbours = update_adjacency_neighbours(adjacency_list, neighbour)
+                    for sec_neighbour in second_neighbours:
+                        update_adjacency_neighbours(adjacency_list, sec_neighbour, 3)
+                        
+                        
+            except Exception as e:
+                print(e)
+
+    G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
+    for base_node, neighbours in adjacency_list.items():
+        for neighbour in neighbours:    
+            G.add_edge(construct_node_description(base_node), construct_node_description(neighbour))
+    try:
+        threading.Thread(target=run_server(G, base_nodes_titles), daemon=True).start()
+      # run_server()
+    except Exception:
+        pass
+
+
 def run_server(constructed_graph, base_nodes_titles = []):
     try:
         G = constructed_graph
@@ -229,49 +274,7 @@ def construct_work_description(work):
     return f"Title: {title} \n Publication Year: {year} \n Authors: {authors}" 
     
 
-def generate_graph(bib_file: BibFile):
-    adjacency_list = defaultdict(list)
-    keys = []
-    base_nodes_titles = []
-    first_neighbours_titles = []
-    
-    for entry in bib_file.content:
-        if isinstance(entry, Reference):
 
-            fields = entry.get_fields()
-            title = fields['title'].replace("{", "").replace("}", "")
-            year = fields['year'].replace("{", "").replace("}", "")
-            
-            try:
-                fetched_work = None
-                results = Works().search(title).get() # Optimize this
-                for w in results:
-                    if w.get("title", "").strip().lower() == title.strip().lower() and str(w.get("publication_year", 0)) == str(year):
-                        fetched_work = w
-                        
-                base_nodes_titles.append(construct_work_description(fetched_work))
-                
-                first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work)
-                
-                for neighbour in first_neighbours:
-                    first_neighbours_titles.append(neighbour.get("title", "N/A"))
-                    second_neighbours = update_adjacency_neighbours(adjacency_list, neighbour)
-                    for sec_neighbour in second_neighbours:
-                        update_adjacency_neighbours(adjacency_list, sec_neighbour, 3)
-                        
-                        
-            except Exception as e:
-                print(e)
-
-    G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
-    for base_node, neighbours in adjacency_list.items():
-        for neighbour in neighbours:    
-            G.add_edge(construct_node_description(base_node), construct_node_description(neighbour))
-    try:
-        threading.Thread(target=run_server(G, base_nodes_titles), daemon=True).start()
-      # run_server()
-    except Exception:
-        pass
         
 
 

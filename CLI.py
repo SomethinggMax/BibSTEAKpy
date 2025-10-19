@@ -54,10 +54,13 @@ COMMANDS = [
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "rg <filename> <field>",
+        "gr <filename> <field>",
         "Group references of a bib file based on a certain field",
     ),
-    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
+    (
+        "filter <filename> <field>, [value]",
+        "Displays references with a certain field (OPTIONAL: a value in that field)"
+    ),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
@@ -339,13 +342,13 @@ class CLI(cmd.Cmd):
             # get bibfileobj
             filename = args_split[0]
             bibfileobj = path_to_bibfileobj(filename)
-        
+
             field = args_split[1]
 
             if len(args_split) == 3:
                 value = args_split[2].lower()
-                newFile = filterByFieldValue(bibfileobj, field, value)
-                if newFile == -1:
+                array = filterByFieldValue(bibfileobj, field, value)
+                if array == -1:
                     print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
                 else:
                     self.do_view_array(array)
@@ -371,7 +374,7 @@ class CLI(cmd.Cmd):
             array = search(bibfileobj, searchterm)
             if array == -1:
                 print_in_green("No references match your search :(")
-            else: 
+            else:
                 self.do_view_array(array)
         except IndexError as e:
             print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
@@ -403,10 +406,14 @@ class CLI(cmd.Cmd):
 
     def do_gr(self, args):
         try:
-            filename, order = args.split()
-
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            if len(args.split()) > 1:
+                filename, order = args.split()
+                order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
+            else:
+                filename = args
+                order = GroupingType.ATOZ
+                
+            bib_file = path_to_bibfileobj(filename)
 
             sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)

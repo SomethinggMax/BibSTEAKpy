@@ -616,7 +616,7 @@ class CLI(cmd.Cmd):
             try:
                 files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
                 index = int(index_str)
-                print(f"You selected file {files[index-1][0]}")  
+                print(f"You selected the file: {files[index-1][0]}")  
                 file = (files[index-1])    
                 file_name = file[0]
                 path = os.path.join(get_working_directory_path(), file_name)

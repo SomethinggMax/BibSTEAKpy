@@ -54,7 +54,7 @@ COMMANDS = [
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "gr <filename> <field>",
+        "gr <filename> [descending=False]",
         "Group references of a bib file based on a certain field",
     ),
     (

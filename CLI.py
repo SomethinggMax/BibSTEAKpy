@@ -88,6 +88,10 @@ COMMANDS = [
         "mer -all <new_filename>",
         "Merge all bib files in the current working directory.",
     ),
+    (
+        "graph [k_regular=2]",
+        "Generates a directed K-regular graph of a bib file",
+    )
 ]
 
 
@@ -605,6 +609,11 @@ class CLI(cmd.Cmd):
             
             
     def do_graph(self, args):
+        if args:
+            k_regular = int(args)
+        else:
+            k_regular = 2
+        
         if get_working_directory_path() == '':
             print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
         else:
@@ -621,7 +630,7 @@ class CLI(cmd.Cmd):
                 file_name = file[0]
                 path = os.path.join(get_working_directory_path(), file_name)
                 bibfileobj = utils.file_parser.parse_bib(path, False)  
-                graph.generate_graph(bibfileobj)
+                graph.generate_graph(bibfileobj, k_regular)
                 
                 
             except ValueError:

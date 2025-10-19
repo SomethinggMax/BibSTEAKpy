@@ -1,10 +1,10 @@
-// static/graph.js
 (function (w) {
-  // --- helpers (unchanged) ---
+
   function truncateLabel(s, n) {
     if (!s) return s;
     return s.length <= n ? s : s.slice(0, n - 1) + "…";
   }
+
   function wrapByWords(text, maxPerLine) {
     if (!text) return "";
     const words = String(text).split(/\s+/);
@@ -93,11 +93,11 @@
         nodesDS.update({ id, label: next, _isShort: !n._isShort });
       });
 
-      // optional debug API
+      // debug
       w.Graph = { network, nodes: nodesDS, edges: edgesDS };
     });
   }
 
-  // expose a callable
+  // expose the callable
   w.GraphWidget = { init };
 })(window);

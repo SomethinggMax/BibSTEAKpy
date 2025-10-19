@@ -8,28 +8,27 @@ from objects import BibFile, Reference
 
 def filter_entry_types(file: BibFile, entry_types: list) -> list:
     """
-    Returns a list which contains References
+    Returns a grouped File object which contains References
     which have entry types in the passed entry_types list
     """
-    array = []
+    new_file = BibFile(file.file_name)
     for entry in file.content:
         if type(entry) is Reference:
             if entry.entry_type in entry_types:
-                array.append(entry)
-        # else:
-        #     # Always add all other types (string, comment and preamble)
-        #     array.append(entry)
-        #TODO: COMMENTS?
+                new_file.content.append(entry)
+        else:
+            # Always add all other types (string, comment and preamble)
+            new_file.content.append(entry)
 
-    return array
+    return new_file
 
 
 def filter_tags(file: BibFile, tags: list) -> list:
     """
-    Returns a list with all references that have a tag from the tags file
+    Returns a BibFile object with all references that have a tag from the tags list.
     :param file: the input file
     :param tags: a list of tags
-    :return: the output list
+    :return: the output file
     """
     with open('tags.json') as tags_data:
         tags_dict = json.load(tags_data)
@@ -39,17 +38,16 @@ def filter_tags(file: BibFile, tags: list) -> list:
         if tag in tags:
             relevant_cite_keys.update(cite_keys)
 
-    array = []
+    new_file = BibFile(file.file_name)
     for entry in file.content:
         if type(entry) is Reference:
             if entry.cite_key in relevant_cite_keys:
-                array.append(entry)
-        # else:
-        #     # Always add all other types (string, comment and preamble)
-        #     array.append(entry)
-        #TODO: COMMENTS?
+                new_file.content.append(entry)
+        else:
+            # Always add all other types (string, comment and preamble)
+            new_file.content.append(entry)
 
-    return array
+    return new_file
 
 
 # JUST FOR TESTING

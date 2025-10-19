@@ -33,7 +33,6 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
-
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
 
@@ -42,6 +41,7 @@ def print_in_yellow(arg):
 
 
 CONFIG_FILE = "config.json"
+TAGS_FILE = "tags.json" #TODO
 
 COMMANDS = [
     ("help", "Display the current menu"),
@@ -209,10 +209,10 @@ class CLI(cmd.Cmd):
             pass
 
     intro = f"""{MAGENTA}
-    _____  ___     _____ _______ ______         __  __       _____ __     ______ 
-    |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
-    | |_) |_| |__| (___    | |  | |__     /  \  | ' /      | |    | |      | |  
-    |  _ <| | '_ \___ \    | |  |  __|   / /\ \ |  <       | |    | |      | |  
+    _____    __     ____________ ______         __  __       _______      ______ 
+    |    \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
+    | |_) |_| |_ | (___    | |  | |__     /  \  | ' /      | |    | |      | |  
+    |    <| |  _ \___  \   | |  |  __|   / /\ \ |  <       | |    | |      | |  
     | |_) | | |_) |___) |  | |  | |____ / ____ \| . \      | |____| |____ _| |_ 
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
@@ -356,7 +356,6 @@ class CLI(cmd.Cmd):
         for item in args:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
         
-
     def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
@@ -486,13 +485,13 @@ class CLI(cmd.Cmd):
                 case "-ls":
                     with open ("tags.json") as tagsfile:
                         tags = json.load(tagsfile)
-                        for key, value in tags.items():
+                        for key, value in tags.items(): #TODO: if empty
                             print(f"{YELLOW}{key} {RESET}{value}") #TODO: pretty
                     return
                 case _:
                     print("Flag not supported!")
                     return
-        except IndexError as e: #TODO
+        except IndexError as e:
             print_in_yellow(f"Command is not complete, please check the amount of arguments.\nThe command can be invoked in two ways:\ntag -q <tag> <query> where <query> is a search or filter command\ntag -ls")
             return
         # except FileNotFoundError as e: #TODO
@@ -503,7 +502,13 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
+    #TODO
+    def do_untag(self, args):
+        return
 
+    """
+    Makes a sub .bib file from a selected list of entry types or tags
+    """
     def do_sub(self, args):
         try:
             argument_list = args.split(maxsplit=3)
@@ -516,20 +521,18 @@ class CLI(cmd.Cmd):
             match flag:
                 case "-e":
                     entry_types_list = ast.literal_eval(search_list)
-                    array = filter_entry_types(file, entry_types_list)
-                    self.do_view_array(array) #TODO: create new file? comments?
+                    sub_file = filter_entry_types(file, entry_types_list)
                 case "-t":
                     tags = ast.literal_eval(search_list)
-                    array = filter_tags(file, tags)
-                    self.do_view_array(array) #TODO same
+                    sub_file = filter_tags(file, tags)
                 case _:
                     print("Flag not supported!")
                     return
 
-            # new_path = os.path.join(get_working_directory_path(), new_filename)
-            # os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            # utils.file_generator.generate_bib(sub_file, new_path, 15)
-            # print_in_green("Sub operation done successfully!")
+            new_path = os.path.join(get_working_directory_path(), new_filename)
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            utils.file_generator.generate_bib(sub_file, new_path, 15)
+            print_in_green("Sub operation done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")

@@ -90,8 +90,8 @@ COMMANDS = [
     ),
     (
         "graph [k_regular=2]",
-        "Generates a directed K-regular graph of a bib file",
-    )
+        "Generates a directed K-regular graph of a bib file"
+    ),
 ]
 
 

@@ -1,3 +1,4 @@
+from enum import Enum
 
 
 class BibFile(object):
@@ -17,15 +18,15 @@ class BibFile(object):
             if type(entry) is Reference:
                 if entry.cite_key == cite_key:
                     return entry
-                
+
     def get_references(self):
         return [entry for entry in self.content if type(entry) is Reference]
 
     def get_strings(self):
         return [entry for entry in self.content if type(entry) is String]
-    
+
     def get_comments(self):
-         return [entry for entry in self.content if type(entry) is Comment]
+        return [entry for entry in self.content if type(entry) is Comment]
 
     def get_preambles(self):
         preambles = []
@@ -51,10 +52,17 @@ class Preamble(object):
         self.preamble = preamble
 
 
+class Enclosure(Enum):
+    BRACKETS = 1
+    QUOTATION_MARKS = 2
+
+
 class String(object):
-    def __init__(self, abbreviation, long_form):
+    def __init__(self, comment_above_string, abbreviation, long_form, enclosure=Enclosure.QUOTATION_MARKS):
+        self.comment_above_string = comment_above_string
         self.abbreviation = abbreviation
         self.long_form = long_form
+        self.enclosure = enclosure
 
 
 class Reference(object):
@@ -69,12 +77,18 @@ class Reference(object):
     def __str__(self):
         # print the reference like a dictionary
         fields = self.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if key not in ["comment_above_reference", "entry_type"]]
+        field_strings = [f"{key}: {value}" for key, value in fields.items() if
+                         key not in ["comment_above_reference", "entry_type"]]
         return "\n".join(field_strings)
-        
 
     def __repr__(self):
         return self.__str__()
+    
+
+class GraphNode(object):
+    def __init__(self, title):
+        self.title = title
+        self.year = "N/A"
 
 
 # We will explore these child objects in the future if 

@@ -12,11 +12,11 @@ def order_by_field(file: BibFile, field: str, descending=False):
     """
     references = [ref for ref in file.content if type(ref) is Reference]
     sorted_by_year = sorted(references, key=lambda ref: getattr(ref, field), reverse=descending)
-    file.references = sorted_by_year
+    file.content = sorted_by_year
 
 
 # JUST FOR TESTING       
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("bibtests.bib", True)
+    test_file = file_parser.parse_bib("../bib_files/bibtests.bib", True)
     order_by_field(test_file, "author")
     print(test_file.references)

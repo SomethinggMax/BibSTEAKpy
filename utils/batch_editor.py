@@ -13,9 +13,7 @@ def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new
             for field_type, data in fields.items():
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
-                if not fields_to_edit:
-                    fields[field_type] = data.replace(old_string, new_string)
-                elif field_type in fields_to_edit:
+                if not fields_to_edit or field_type in fields_to_edit:
                     fields[field_type] = data.replace(old_string, new_string)
     return bib_file
 
@@ -56,6 +54,70 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
                         final_data += stripped
 
                     fields[field_type] = final_data
+
+    return bib_file
+
+
+def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: String) -> BibFile:
+    """
+    Shortens all occurrences of the string long form and adds the String to the file if new.
+    :param bib_file: input BibFile object.
+    :param fields_to_edit: the fields to check for occurrences of the long form.
+    :param string: the String to shorten.
+    :return: output BibFile object.
+    """
+    existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
+    if string.abbreviation not in existing_string_dict:
+        bib_file.content.insert(0, string)
+    elif string.long_form != existing_string_dict[string.abbreviation]:
+        raise ValueError("Abbreviation is already in use with a different long form!")
+
+    for entry in bib_file.content:
+        if isinstance(entry, Reference):
+            fields = entry.get_fields()
+            for field_type, data in fields.items():
+                if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
+                    continue
+                if not fields_to_edit or field_type in fields_to_edit:
+                    number_of_occurrences = data.count(string.long_form)
+                    if number_of_occurrences == 0:
+                        continue
+                    print(f"Found {number_of_occurrences} occurrences of the long form!")
+
+                    def replace_string_and_return_count(old_string: str, new_string: str) -> int:
+                        updated_data = fields[field_type]
+                        count = updated_data.count(old_string)
+                        fields[field_type] = updated_data.replace(old_string, new_string)
+                        return count
+
+                    if data == "{" + string.long_form + "}" or data == "\"" + string.long_form + "\"":
+                        fields[field_type] = string.abbreviation
+                        number_of_occurrences -= 1
+                    else:
+                        number_of_occurrences -= replace_string_and_return_count(
+                            "{" + string.long_form + "}", "# " + string.abbreviation + " #")
+                        number_of_occurrences -= replace_string_and_return_count(
+                            "\"" + string.long_form + "\"", "# " + string.abbreviation + " #")
+                        number_of_occurrences -= replace_string_and_return_count(
+                            "{" + string.long_form, "# " + string.abbreviation + " {")
+                        number_of_occurrences -= replace_string_and_return_count(
+                            "\"" + string.long_form, "# " + string.abbreviation + " \"")
+                        number_of_occurrences -= replace_string_and_return_count(
+                            string.long_form + "}", "} # " + string.abbreviation)
+                        number_of_occurrences -= replace_string_and_return_count(
+                            string.long_form + "\"", "\" # " + string.abbreviation)
+                        if number_of_occurrences != 0:
+                            first_char = data[0]
+                            if first_char == "{":
+                                number_of_occurrences -= replace_string_and_return_count(
+                                    string.long_form, "} # " + string.abbreviation + " # {")
+                            elif first_char == "\"":
+                                number_of_occurrences -= replace_string_and_return_count(
+                                    string.long_form, "\" # " + string.abbreviation + " # \"")
+                            else:
+                                raise ValueError("Could not determine type of enclosure for field.")
+                    if number_of_occurrences != 0:
+                        raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
 
     return bib_file
 
@@ -107,7 +169,8 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
 
 # JUST FOR TESTING
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("../biblatex-examples.bib", True)
+    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib", True)
     batch_extend_strings(test_file, ["pup"])
+    batch_shorten_string(test_file, [], String("", "SF", "Science Fiction"))
     batch_rename_abbreviation(test_file, "cup", "camup")
-    file_generator.generate_bib(test_file, "extended-examples.bib", 15)
+    file_generator.generate_bib(test_file, "../bib_files/extended-examples.bib", 15)

@@ -1,40 +1,37 @@
 import cmd
 import os
 import shutil
-import json
 import readline
-from utils import merge
-
-if os.name == "nt" and not hasattr(readline, "backend"):
-    readline.backend = "unsupported"
-import utils.batch_editor as batch_editor
+from utils import merge, cleanup
+from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
-from pprint import pprint
-from utils.Reftype import sortByReftype
 import utils.abbreviations_exec as abbreviations_exec
+
 import utils
-from utils.order_by_field import *
 from utils.sub_bib import *
-from utils.file_parser import *
-from utils.file_generator import *
 from utils.Reftype import *
 from utils.order_by_field import *
-from utils.batch_editor import *
 from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
+import graph
+from graph import generate_graph
 
-RESET = "\033[0m"
+if os.name == "nt" and not hasattr(readline, "backend"):
+    readline.backend = "unsupported"
+
+RESET = "\033[0m"; RST = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
-MAGENTA = "\033[35m"
+MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
+
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -45,20 +42,22 @@ TAGS_FILE = "tags.json" #TODO
 
 COMMANDS = [
     ("help", "Display the current menu"),
-    ("load", "Load a particular file into the working directory"),
-    ("cd <directory>", "Changes the current working directory"),
-    ("list", "See all the bib files in the working directory"),
-    ("pwd", "Prints the working directory"),
-    ("abb", "Display all abbreviations"),
+    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+    ("list", "Lists all the bib files in the current working directory"),
+    ("pwd", "Prints the current working directory"),
+    ("abb", "Display the abbreviations legend"),
     (
         "view <filename>",
-        "View the content of a certain .bib file from your chosen working directory",
+        "View the content of a certain .bib file from your current working directory",
     ),
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
-    ("filter <filename> <field> [value=None]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
-    ("tag -q <tag> <query>", "Tags all references in a certain search or filter query"),
-    ("tag -ls", "Lists all existing tags"),
+    (
+        "rg <filename> <field>",
+        "Group references of a bib file based on a certain field",
+    ),
+    ("filter <filename> <field>, [value]", "Displays references with a certain field (OPTIONAL: a value in that field)"),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
@@ -69,6 +68,7 @@ COMMANDS = [
         "ord <filename> <field> [descending=False]",
         "Order the references based on a certain field",
     ),
+    ("clean <filename>", "Cleans file according to rules in config."),
     (
         "sub -e <filename> <new_filename>, <entry_types>",
         "Creates a sub .bib file with only specified entry " "types.",
@@ -99,6 +99,25 @@ def completer(text, state):
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
+            options = files
+        except Exception:
+            options = []
+    if state < len(options):
+        return options[state]
+    else:
+        return None
+
+
+
+def completer(text, state):
+    line = readline.get_line_buffer()
+    split_line = line.strip().split()
+    if len(split_line) <= 1:
+        options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
+    else:
+        try:
+            wd = get_working_directory_path()
+            files = [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
             options = files
         except Exception:
             options = []
@@ -180,9 +199,10 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands():
-    for command in COMMANDS:
-        print(command[0], (60 - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60):
+    commands = sorted(COMMANDS, key=lambda command: command[0])
+    for command in commands:
+        print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
 
@@ -257,7 +277,7 @@ class CLI(cmd.Cmd):
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
         )
 
-    def do_cd(self, wd_path):
+    def do_cwd(self, wd_path):
 
         try:
             if wd_path == "":
@@ -288,7 +308,16 @@ class CLI(cmd.Cmd):
         display_abbreviations()
 
     def do_quit(self, arg):
+        
+        try:
+            ui.shutdown()          # stops uvicorn
+        except Exception:
+            pass
+        
         print(f"{GREEN}Bye! - Shell closed{RESET}")
+        
+
+        
         return True  # returning True exits the loop
 
     def do_view(self, arg):
@@ -302,12 +331,12 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
-        
+
     def do_filter(self, args):
         try:
             args_split = args.split()
 
-            #get bibfileobj
+            # get bibfileobj
             filename = args_split[0]
             bibfileobj = path_to_bibfileobj(filename)
         
@@ -315,8 +344,8 @@ class CLI(cmd.Cmd):
 
             if len(args_split) == 3:
                 value = args_split[2].lower()
-                array = filterByFieldValue(bibfileobj, field, value)
-                if array == -1:
+                newFile = filterByFieldValue(bibfileobj, field, value)
+                if newFile == -1:
                     print_in_yellow(f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
                 else:
                     self.do_view_array(array)
@@ -332,7 +361,6 @@ class CLI(cmd.Cmd):
             print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
-                    
 
     def do_search(self, args):
         try:
@@ -356,6 +384,7 @@ class CLI(cmd.Cmd):
         for item in args:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
         
+
     def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
@@ -372,16 +401,17 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
 
-    def do_rg(self, args):
+    def do_gr(self, args):
         try:
             filename, order = args.split()
 
-            bib_file = path_to_bibfileobj(filename)
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
 
             sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
-            print_in_green("Grouping by reference done successfully!")
+            print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -552,11 +582,10 @@ class CLI(cmd.Cmd):
             else:
                 descending = False
 
-            # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(path, file, 15)
+            utils.file_generator.generate_bib(file, path, 15)
 
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
@@ -565,6 +594,31 @@ class CLI(cmd.Cmd):
                     f"Descending order by '{field}' field done successfully!"
                 )
 
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
+    def do_clean(self, arg):
+        try:
+            filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            cleanup.cleanup(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Cleanup has been done successfully!")
+
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
@@ -612,6 +666,31 @@ class CLI(cmd.Cmd):
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
+            
+            
+    def do_graph(self, args):
+        if get_working_directory_path() == '':
+            print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
+        else:
+            print(f"{BLUE}PLEASE CHOOSE ONE FILE FROM WD BY INDEX FOR GRAPH GENERATION{RESET}")
+            self.do_list("")
+            
+            index_str = input(f"{BLUE}Enter file index: {RESET}")
+            
+            try:
+                files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
+                index = int(index_str)
+                print(f"You selected file {files[index-1][0]}")  
+                file = (files[index-1])    
+                file_name = file[0]
+                path = os.path.join(get_working_directory_path(), file_name)
+                bibfileobj = utils.file_parser.parse_bib(path, False)  
+                graph.generate_graph(bibfileobj)
+                
+                
+            except ValueError:
+                print(f"{RED}Invalid index. Please enter a number.{RESET}")
+                
 
     def default(self, line):
         print("Command not found!")
@@ -647,6 +726,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_ord(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_clean(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_sub(self, text, line, begidx, endidx):

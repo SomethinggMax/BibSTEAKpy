@@ -23,6 +23,13 @@ def clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:
     return reference
 
 
+def remove_fields(reference: Reference, fields: [str]) -> Reference:
+    for field in fields:
+        if field in reference.get_fields():
+            delattr(reference, field)
+    return reference
+
+
 def cleanup(bib_file: BibFile):
     with open("config.json") as config:
         data = json.load(config)
@@ -30,6 +37,7 @@ def cleanup(bib_file: BibFile):
     # Default values.
     url = True
     doi = True
+    fields = []
 
     # Load values from config.
     for key, value in data.items():
@@ -37,9 +45,12 @@ def cleanup(bib_file: BibFile):
             url = value
         elif key == "use_doi":
             doi = value
+        elif key == "unnecessary_fields":
+            fields = value
 
     for entry in bib_file.content:
         if isinstance(entry, Reference):
+            remove_fields(entry, fields)
             clean_url_and_doi(entry, url, doi)
 
     return bib_file

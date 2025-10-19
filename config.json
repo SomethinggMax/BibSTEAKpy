@@ -1,5 +1,9 @@
 {
   "working_directory": "C:\\Users\\Gebruiker\\Downloads\\test",
   "use_url": false,
-  "use_doi": true
+  "use_doi": true,
+  "unnecessary_fields": [
+    "langidopts",
+    "volume"
+  ]
 }

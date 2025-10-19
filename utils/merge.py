@@ -4,6 +4,7 @@ import unicodedata
 from objects import BibFile, Reference, String
 from utils import batch_editor
 
+
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
 

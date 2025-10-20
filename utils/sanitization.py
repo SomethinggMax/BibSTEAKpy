@@ -1,10 +1,9 @@
 import re
 import unicodedata
 from difflib import SequenceMatcher
-from typing import Dict, Any, Iterable, Tuple, List
+from typing import Dict, Any, Iterable, Tuple, List, Optional
 import requests
 
-from objects import BibFile, Reference
 from utils.file_parser import *
 
 
@@ -14,16 +13,24 @@ def sanitize_bib_file(bib_file: BibFile):
         if type(entry) is Reference:
             fields = entry.get_fields()
             if fields['entry_type'] != 'set':
+                # if 'doi' in fields:
+                #     lookup = lookup_bibtex_fields_by_title(fields['doi'], '')
+                #     print('doi:')
+                #     print(lookup)
                 if 'author' in fields:
                     authors = _split_authors(fields['author'])
                     iterable = iter(authors)
                     first_author = next(iterable)
                     lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+                    print('author:')
+                    print(lookup)
                 elif 'editor' in fields:
                     authors = _split_authors(fields['editor'])
                     iterable = iter(authors)
                     first_author = next(iterable)
                     lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+                    print('editor:')
+                    print(lookup)
             if lookup:
                 for k, v in lookup.items():
                     if not k in fields:
@@ -98,7 +105,6 @@ def _search_crossref(session: requests.Session, query: str, timeout: float) -> D
 
 def _map_crossref_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
-
     # Get title
     title = (data.get("title") or None)[0]
     if title:
@@ -118,15 +124,6 @@ def _map_crossref_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
                 names.append(full)
     if names:
         result["author"] = " and ".join(names)
-
-    # Year(s)
-    for k in ("issued", "published-print", "published-online"):
-        date = data.get(k, {})
-        date_parts = date.get("date-parts", [])
-        if date_parts and date_parts[0]:
-            result[k] = int(date_parts[0][0])
-        else:
-            result[k] = None
 
     # Volume
     if data.get("volume"): result["volume"] = data["volume"]
@@ -153,7 +150,7 @@ def _search_dblp(session: requests.Session, query: str, timeout: float) -> Dict[
         data = [data]
     if not data:
         return None
-    data_info = data[0].get("info", [])
+    data_info = data[0].get("info", {})
     return _map_dblp_to_bib_dict(data_info)
 
 
@@ -188,8 +185,85 @@ def _map_dblp_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _search_datacite():
-    return None
+def _search_datacite(session: requests.Session, query: str, *, timeout: float) -> Optional[Dict[str, Any]]:
+    url = "https://api.datacite.org/dois"
+    params = {
+        "query": f'title:"{query}"',
+        "page[size]": 1,
+        "sort": "relevance"
+    }
+    r = session.get(url, params=params, timeout=timeout)
+    r.raise_for_status()
+    data = r.json()
+    items = data.get("data", [])
+    if not items:
+        return None
+    it = items[0].get("attributes", {})
+    return _map_datacite_to_bibtex(it)
+
+def _map_datacite_to_bibtex(data: Dict[str, Any]) -> Dict[str, Any]:
+    result: Dict[str, Any] = {}
+    # Title
+    titles = data.get("titles") or []
+    if titles:
+        result["title"] = (titles[0].get("title") or "").strip()
+
+    # Authors
+    creators = data.get("creators") or []
+    names = []
+    for c in creators:
+        name = c.get("name") or " ".join(filter(None, [c.get("givenName"), c.get("familyName")]))
+        if name:
+            names.append(name)
+    if names:
+        result["author"] = " and ".join(names)
+
+    # Year/Month
+    if data.get("publicationYear"):
+        result["year"] = data.get("publicationYear")
+
+    # Container / publisher
+    if data.get("container"):
+        # Some DataCite records include a container title
+        title = data["container"].get("title")
+        if title:
+            result["_container"] = title
+    if data.get("publisher"):
+        result["publisher"] = data["publisher"]
+
+    # Type hint
+    rtg = (data.get("types") or {}).get("resourceTypeGeneral")
+    if rtg:
+        result["_type_hint"] = str(rtg).lower()
+
+    # Volume/Issue/Pages (occasionally in 'container' or 'relatedIdentifiers'—often missing)
+    biblio = data.get("biblio", {})  # not standard; keep as placeholder if present
+    if biblio.get("volume"): result["volume"] = biblio["volume"]
+    if biblio.get("issue"): result["number"] = biblio["issue"]
+
+    # DOI/URL/ISSN/ISBN
+    if data.get("doi"): result["doi"] = data["doi"]
+    if data.get("url"): result["url"] = data["url"]
+    # Identifiers can include ISBN/ISSN
+    for ident in data.get("identifiers") or []:
+        if ident.get("identifierType", "").upper() == "ISBN":
+            result["isbn"] = ident.get("identifier")
+        if ident.get("identifierType", "").upper() == "ISSN":
+            result["issn"] = ident.get("identifier")
+
+    # Subjects -> keywords
+    subs = data.get("subjects") or []
+    if subs:
+        result["keywords"] = ", ".join([s.get("subject") for s in subs if s.get("subject")])
+
+    # Descriptions -> abstract
+    desc = data.get("descriptions") or []
+    for d in desc:
+        if d.get("description"):
+            result["abstract"] = d["description"]
+            break
+
+    return result
 
 
 def _search_openalex():
@@ -292,5 +366,4 @@ def is_same_paper(
     combined, title_score, author_score = match_score(query_title, query_authors, candidate, title_weight)
     return combined >= threshold
 
-
-file = parse_bib("biblatex-examples.bib", True)
+print(lookup_bibtex_fields_by_title('10.2307/1919439', ''))

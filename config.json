@@ -1,5 +1,9 @@
 {
-  "working_directory": "/home/edwinmt/BibSTEAKpy",
-  "theme": "light",
-  "user": "John"
+  "working_directory": "",
+  "use_url": false,
+  "use_doi": true,
+  "unnecessary_fields": [
+    "langidopts",
+    "volume"
+  ]
 }

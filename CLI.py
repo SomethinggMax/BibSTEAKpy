@@ -3,8 +3,10 @@ import os
 import shutil
 import readline
 from utils import merge, cleanup
+from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
+
 import utils
 from utils.sub_bib import *
 from utils.Reftype import *
@@ -12,16 +14,18 @@ from utils.order_by_field import *
 from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
+import graph
+from graph import generate_graph
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
 
-RESET = "\033[0m"
+RESET = "\033[0m"; RST = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
-MAGENTA = "\033[35m"
+MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
@@ -38,19 +42,19 @@ CONFIG_FILE = "config.json"
 
 COMMANDS = [
     ("help", "Display the current menu"),
-    ("load", "Load a particular file into the working directory"),
-    ("cwd <directory>", "Changes the current working directory"),
-    ("list", "See all the bib files in the working directory"),
-    ("pwd", "Prints the working directory"),
-    ("abb", "Display all abbreviations"),
+    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+    ("list", "Lists all the bib files in the current working directory"),
+    ("pwd", "Prints the current working directory"),
+    ("abb", "Display the abbreviations legend"),
     (
         "view <filename>",
-        "View the content of a certain .bib file from your chosen working directory",
+        "View the content of a certain .bib file from your current working directory",
     ),
     ("quit", "Close the BibSteak CLI"),
     ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "rg <filename> <field>",
+        "gr <filename> [descending=False]",
         "Group references of a bib file based on a certain field",
     ),
     (
@@ -84,6 +88,10 @@ COMMANDS = [
         "mer -all <new_filename>",
         "Merge all bib files in the current working directory.",
     ),
+    (
+        "graph [k_regular=2]",
+        "Generates a directed K-regular graph of a bib file"
+    ),
 ]
 
 
@@ -98,6 +106,25 @@ def completer(text, state):
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
+            options = files
+        except Exception:
+            options = []
+    if state < len(options):
+        return options[state]
+    else:
+        return None
+
+
+
+def completer(text, state):
+    line = readline.get_line_buffer()
+    split_line = line.strip().split()
+    if len(split_line) <= 1:
+        options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
+    else:
+        try:
+            wd = get_working_directory_path()
+            files = [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
             options = files
         except Exception:
             options = []
@@ -179,9 +206,10 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands():
-    for command in COMMANDS:
-        print(command[0], (60 - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60):
+    commands = sorted(COMMANDS, key=lambda command: command[0])
+    for command in commands:
+        print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
 
@@ -286,7 +314,16 @@ class CLI(cmd.Cmd):
         display_abbreviations()
 
     def do_quit(self, arg):
+        
+        try:
+            ui.shutdown()          # stops uvicorn
+        except Exception:
+            pass
+        
         print(f"{GREEN}Bye! - Shell closed{RESET}")
+        
+
+        
         return True  # returning True exits the loop
 
     def do_view(self, arg):
@@ -373,17 +410,22 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Unexpected error: {e}")
 
-    def do_rg(self, args):
+    def do_gr(self, args):
         try:
-            filename, order = args.split()
-
+            if len(args.split()) > 1:
+                filename, order = args.split()
+                order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
+            else:
+                filename = args
+                order = GroupingType.ATOZ
+                
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
             sortByReftype(bib_file, order)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
 
-            print_in_green("Grouping by reference done successfully!")
+            print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -481,11 +523,10 @@ class CLI(cmd.Cmd):
             else:
                 descending = False
 
-            # print(type(entry_types))
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(path, file, 15)
+            utils.file_generator.generate_bib(file, path, 15)
 
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
@@ -574,6 +615,36 @@ class CLI(cmd.Cmd):
             print(f"File error: {os.path.basename(e.filename)} not found.")
         except Exception as e:
             print(f"Unexpected error: {e}")
+            
+            
+    def do_graph(self, args):
+        if args:
+            k_regular = int(args)
+        else:
+            k_regular = 2
+        
+        if get_working_directory_path() == '':
+            print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
+        else:
+            print(f"{BLUE}PLEASE CHOOSE ONE FILE FROM WD BY INDEX FOR GRAPH GENERATION{RESET}")
+            self.do_list("")
+            
+            index_str = input(f"{BLUE}Enter file index: {RESET}")
+            
+            try:
+                files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
+                index = int(index_str)
+                print(f"You selected the file: {files[index-1][0]}")  
+                file = (files[index-1])    
+                file_name = file[0]
+                path = os.path.join(get_working_directory_path(), file_name)
+                bibfileobj = utils.file_parser.parse_bib(path, False)  
+                graph.generate_graph(bibfileobj, k_regular)
+                
+                
+            except ValueError:
+                print(f"{RED}Invalid index. Please enter a number.{RESET}")
+                
 
     def default(self, line):
         print("Command not found!")

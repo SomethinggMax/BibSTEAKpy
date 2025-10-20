@@ -12,7 +12,7 @@ def order_by_field(file: BibFile, field: str, descending=False):
     """
     references = [ref for ref in file.content if type(ref) is Reference]
     sorted_by_year = sorted(references, key=lambda ref: getattr(ref, field), reverse=descending)
-    file.references = sorted_by_year
+    file.content = sorted_by_year
 
 
 # JUST FOR TESTING       

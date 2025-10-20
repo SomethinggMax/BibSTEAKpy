@@ -19,3 +19,12 @@ permissionstest.bib
 /bib_files/extended-examples.bib
 /bib_files/article+collection-examples.bib
 /new-generated-temporary-test-file.bib
+config.json
+output.bib
+bib_files/bibtests.bib
+bib_files/merge_test_a.bib
+bib_files/bibtests.bib
+bib_files/merge_test_b.bib
+bib_files/merge_test2_a.bib
+bib_files/merge_test2_b.bib
+bib_files/examples_vadim/

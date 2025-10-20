@@ -1,3 +1,30 @@
+import os
+import sys
+
+
+ANSI = {
+    'reset': '\x1b[0m',
+    'dim': '\x1b[2m',
+    'bold': '\x1b[1m',
+    'red': '\x1b[31m',
+    'green': '\x1b[32m',
+    'yellow': '\x1b[33m',
+}
+
+
+def supports_color() -> bool:
+    try:
+        return sys.stdout.isatty() and not os.environ.get('NO_COLOR')
+    except Exception:
+        return False
+
+
+def colorize(text: str, color: str) -> str:
+    if not supports_color() or color not in ANSI:
+        return text
+    return f"{ANSI[color]}{text}{ANSI['reset']}"
+
+
 def show_lines(lines: [str]):
     # Print the prompt
     for line in lines:

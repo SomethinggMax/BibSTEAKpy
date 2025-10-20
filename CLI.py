@@ -1,27 +1,19 @@
 import cmd
 import os
 import shutil
-import json
 import readline
 from utils import merge
 
 if os.name == 'nt' and not hasattr(readline, 'backend'):
     readline.backend = 'unsupported'
-import utils.batch_editor as batch_editor
 import utils.file_generator as file_generator
-from pprint import pprint
-from utils.GroupByRefType import groupByRefType
 import utils.abbreviations_exec as abbreviations_exec
 import utils
-from utils.order_by_field import *
 from utils.sub_bib import *
-from utils.file_parser import *
-from utils.file_generator import *
 from utils.GroupByRefType import *
 from utils.order_by_field import *
-from utils.batch_editor import *
 from utils.abbreviations_exec import *
-from utils.sanitization import sanitize_bib_file
+from utils.enrichment import sanitize_bib_file
 import ast
 
 RESET = "\033[0m"
@@ -425,6 +417,7 @@ class CLI(cmd.Cmd):
                 print(f"Argument error: {e}")
         except Exception as e:
             print(f"Unexpected error: {e}")
+
     def do_san(self, arg):
         filename = arg
         path = os.path.join(get_working_directory_path(), filename)

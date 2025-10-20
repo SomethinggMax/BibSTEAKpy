@@ -1,9 +1,9 @@
 import re
 import unicodedata
 
+import interface_handler
 from objects import BibFile, Reference, String
 from utils import batch_editor
-
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
 AUTHOR_SEPARATOR_RE = re.compile(r'\s+and\s+', re.IGNORECASE)
@@ -67,12 +67,13 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
             if data != reference_2_fields[field_type]:
-                print(
-                    f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':")
-                print(f"1. '{data}'")
-                print(f"2. '{reference_2_fields[field_type]}'")
-                choice = input('Choose which to keep (1 or 2): ')
-                if choice == '2':
+                interface_handler.show_lines([
+                    f"Conflict in field '{field_type}' for reference key '{reference_1.cite_key}' and '{reference_2.cite_key}':",
+                    f"1. '{data}'",
+                    f"2. '{reference_2_fields[field_type]}'"
+                ])
+                choice = interface_handler.get_selection('Choose which to keep (1 or 2): ', 2)
+                if choice == 2:
                     data = reference_2_fields[field_type]
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
@@ -98,24 +99,24 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
         elif file_2_strings[string.abbreviation] == string.long_form:
             string_list.append(string)
         else:
-            print(f"Conflict with string abbreviation '{string.abbreviation}'!")
-            print("You can select an abbreviation to rename.")
-            print(f"1: {string.long_form}")
-            print(f"2: {file_2_strings[string.abbreviation]}")
-            choice = input("Enter your choice (1 or 2): ")
-            new_abbreviation = input(f"Now input the new abbreviation for '{string.long_form}'. "
-                                     f"(Old abbreviation: '{string.abbreviation}'): ")
-            if choice == '1':
+            interface_handler.show_lines([
+                f"Conflict with string abbreviation '{string.abbreviation}'!",
+                "You can select an abbreviation to rename.",
+                f"1: {string.long_form}",
+                f"2: {file_2_strings[string.abbreviation]}"
+            ])
+            choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+            new_abbreviation = interface_handler.get_input(f"Now input the new abbreviation for '{string.long_form}'. "
+                                                           f"(Old abbreviation: '{string.abbreviation}'): ")
+            if choice == 1:
                 old_abbreviation = string.abbreviation
                 batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
                 string_list.append([x for x in bib_file_1.get_strings() if x.abbreviation == new_abbreviation][0])
                 string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == old_abbreviation][0])
-            elif choice == '2':
+            elif choice == 2:
                 batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
                 string_list.append(string)  # The unchanged string from file 1.
                 string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == new_abbreviation][0])
-            else:
-                raise ValueError("Invalid choice. Please enter 1 or 2.")
     return bib_file_1, bib_file_2, string_list
 
 
@@ -165,31 +166,30 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                 ]
                 if candidate_keys:
                     target_key = candidate_keys[0]
-                    print("References seem to be similar based on author/title normalization.")
-                    print("Please compare the following references:")
-                    print(f"Reference 1 (from first file):\n{entry}\n")
-                    print(f"Reference 2 (from second file):\n{bib2_reference_by_key[target_key]}\n")
-                    print("Choose where to merge or skip:")
-                    print("1: Merge references")
-                    print("2: Keep both references")
-                    choice = input("Enter your choice (1 or 2): ")
-                    if choice == '1':
-                        print(
+                    interface_handler.show_lines([
+                        "References seem to be similar based on author/title normalization.",
+                        "Please compare the following references:",
+                        f"Reference 1 (from first file):\n{entry}\n",
+                        f"Reference 2 (from second file):\n{bib2_reference_by_key[target_key]}\n",
+                        "Choose where to merge or skip:",
+                        "1: Merge references",
+                        "2: Keep both references"
+                    ])
+                    choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+                    if choice == 1:
+                        interface_handler.show_lines([
                             f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
-                        )
+                        ])
                         merged_reference = merge_reference(entry, bib2_reference_by_key[target_key])
                         merged_bib_file.content.append(merged_reference)
                         consumed_bib2_keys.add(target_key)
                         continue
-                    elif choice == '2':
-                        print(f"Skipping merge for '{entry.cite_key}'. Keeping both entries.")
+                    elif choice == 2:
+                        interface_handler.show_lines([f"Skipping merge for '{entry.cite_key}'. Keeping both entries."])
                         merged_bib_file.content.append(entry)
                         merged_bib_file.content.append(bib2_reference_by_key[target_key])
                         consumed_bib2_keys.add(target_key)
                         continue
-                    else:
-                        raise ValueError("Invalid choice. Please enter 1 or 2.")
-
             merged_bib_file.content.append(entry)
 
     # Add remaining references from bib file 2.

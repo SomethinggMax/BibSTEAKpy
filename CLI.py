@@ -303,6 +303,9 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Path Error: {e}")
             return None
+    def do_cd(self, wd_path):
+        self.do_cwd(wd_path)
+        return
 
     def do_help(self, arg):
         display_help_commands()
@@ -580,7 +583,9 @@ class CLI(cmd.Cmd):
                     path = os.path.join(get_working_directory_path(), file_name)
                     bib_file = utils.file_parser.parse_bib(path, False)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
-                utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
+                # Write output inside the configured working directory
+                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                utils.file_generator.generate_bib(merged_bib_file, out_path, 15)
 
             else:
                 file_name_1, file_name_2, new_file_name = args.split()
@@ -592,18 +597,22 @@ class CLI(cmd.Cmd):
                 bib_file_2 = utils.file_parser.parse_bib(path_2, False)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
-                utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+                # Write output inside the configured working directory
+                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                utils.file_generator.generate_bib(merge_result, out_path, 15)
 
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            if "not enough values to unpack" in str(e):
+            if "not enough values to unpack" in str(e) or "too many values to unpack" in str(e):
                 print(
-                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "Argument error: Incorrect number of arguments. Please provide three arguments: <filename1> "
                     "<filename2> <new_filename>."
                 )
             else:
                 print(f"Argument error: {e}")
+        except FileNotFoundError as e:
+            print(f"File error: {os.path.basename(e.filename)} not found.")
         except Exception as e:
             print(f"Unexpected error: {e}")
             

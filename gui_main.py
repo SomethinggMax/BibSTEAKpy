@@ -9,6 +9,8 @@ from utils.abbreviations_exec import execute_abbreviations
 from utils.file_parser import parse_bib
 from utils.file_generator import generate_bib
 from utils.merge import *
+import subprocess
+from merge_ui import Merge
 
 files = {}
 selected_file = None
@@ -17,6 +19,8 @@ selected_files: set[str] = set()
 all_selected_files: bool = False
 selected_references: set = set()
 all_selected_references: bool = False
+merge = None
+
 
 PRIMARY_COLOR = "#CCE0D4"
 SECONDARY_COLOR = "#9AC1A9"
@@ -25,11 +29,22 @@ SUCCESS_COLOR = "#5D9874"
 # ERROR_COLOR = "#EF4444"
 
 
+def config():
+    config_path = "config.json"
+    if not os.path.exists(config_path):
+        with open(config_path, "w") as f:
+            json.dump({}, f)
+        return {}
+    try:
+        with open(config_path, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+
 def get_working_directory_path():
-    with open("config.json", "r") as f:
-        config = json.load(f)
-        working_directory_path = config["working_directory"]
-        return working_directory_path
+    config_file = config()
+    return config_file.get("working_directory")
     
 
 def load_all_files_from_storage():
@@ -277,25 +292,28 @@ def on_maximize_click():
     reload_after_edit()
 
 def on_merge_click():
-    global selected_file, selected_ref, selected_files
+    global merge
     if not selected_files or len(selected_files) < 2:
         ui.notify("Please select at least two files to merge", color="red")
         return
     selected_files_list = list(selected_files)
-    merged_bib = files[selected_files_list[0]]
+    merge.start(selected_files_list, files, merge_files)
 
-    for filename in selected_files_list[1:]:
-        bib_to_merge = files[filename]
-        merged_bib = merge_files(merged_bib, bib_to_merge)
+def _on_merge_done(merged_bib, selected_files_list):
 
     dialog = ui.dialog()
     with dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-80"):
         ui.label("Enter a name for the merged file").classes("font-bold mb-2")
         name_input = ui.input(label="Merged file name").classes("w-full")
+        def confirm():
+            choose_merge_name(name_input.value, merged_bib, selected_files_list, dialog)
         with ui.row().classes("justify-end gap-2 mt-4"):
             ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
-            ui.button("Merge",on_click=lambda: choose_merge_name(name_input.value, merged_bib, selected_files_list, dialog), color=SECONDARY_COLOR).style("text-transform: none;")
+            ui.button("Merge", on_click=confirm, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
+    
+def _on_merge_error(msg: str):
+    ui.notify(msg, color="red")
 
 def choose_merge_name(name, merged_bib, selected_files_list, dialog):
     global selected_file, selected_ref, selected_files
@@ -328,10 +346,7 @@ def on_filter_click():
     total_refs = len(references)
 
     if 0 < num_selected < total_refs:
-        ui.notify(
-            "Some references are selected, but filter will apply to all references in the file", 
-            color="orange"
-        )
+        ui.notify("Some references are selected, but filter will apply to all references in the file", color="orange")
 
     with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-64"):
         ui.label("Sort References").classes("font-bold text-lg mb-2")
@@ -403,20 +418,94 @@ def reload_after_edit():
             else:
                 selected_ref = None
 
+
+def open_abbreviations_json():
+    file_path = os.path.abspath("abbreviations.json")
+
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump({}, f, indent=2)
+
+    try:
+        if os.name == "nt":
+            os.startfile(file_path)
+        elif os.name == "posix":
+            subprocess.run(["xdg-open", file_path], check=False)
+        else:
+            ui.notify("Unsupported to open automatically", color="orange")
+            return
+        ui.notify("abbreviations.json is being opened", color="green")
+    except Exception as e:
+        ui.notify(f"Could not open file: {e}", color="red")
+
+
+def save_settings(directory_input):
+    path = directory_input.value.strip()
+    if not path:
+        ui.notify("Please enter a valid path.", color="red")
+        return
+
+    os.makedirs(path, exist_ok=True)
+    config_path = "config.json"
+    try:
+        config_file = json.load(open(config_path)) if os.path.exists(config_path) else {}
+    except json.JSONDecodeError:
+        config_file = {}
+    config_file["working_directory"] = path
+    with open(config_path, "w") as f:
+        json.dump(config_file, f, indent=2)
+
+    ui.notify(f"Configuration saved! Directory: {path}", color="green")
+    ui.timer(1.5, lambda: ui.run_javascript('window.location.href = "/"'))
+
+@ui.page("/setup")
+def setup_page():
+    with ui.column().classes("items-center w-full"):
+        ui.label("Setup").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(f"color: {SUCCESS_COLOR};")
+
+        with ui.column().classes("w-[700px] mx-auto p-6 bg-gray-100 rounded-2xl shadow-lg"):
+            ui.label("Minimize or maximize").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
+                with ui.column().classes("gap-3"):
+                    ui.checkbox("Abbreviate/expand").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+                    with ui.row().classes("items-center gap-2 ml-6"):
+                        ui.image("icons/customize_rules.png").classes("w-7 h-7")
+                        ui.button("Customize rules", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                with ui.column().classes("gap-5 ml-30"):
+                    ui.checkbox("Hide/unhide URL").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+                    ui.checkbox("Hide/unhide DOI").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+
+            ui.label("Merge Bib files").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.column().classes("gap-3 mt-3 ml-2"):
+                ui.checkbox("Utilize URL").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+                ui.checkbox("Utilize DOI").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+
+            ui.separator().classes("my-6")
+            ui.label("Working Directory").classes("font-bold text-lg mb-2")
+            directory_input = ui.input(label="Path to the working directory").classes("w-full")
+
+        with ui.row().classes("justify-end mt-6"):
+            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(directory_input)).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
+
 @ui.page('/')
 def main_page():
-    """
-    Handles the creation of the columns: FILES, REFERENCES and BIBTEX CONTENT
-    """
-    global files_col, refs_col, bib_col
+    global files_col, refs_col, bib_col, merge
+
+    wd = get_working_directory_path()
+    if not wd:
+        ui.notify("No working directory found. Please configure it first.", color="orange")
+        ui.run_javascript('window.location.href = "/setup"')
+        return
+
     load_all_files_from_storage()
-    with ui.column().classes("w-screen h-screen m-0 p-0"):
-        with ui.row().classes('w-full h-full gap-4 p-4'):
-            files_col = ui.column().classes('p-4 bg-gray-100 rounded shadow w-90')
-            refs_col = ui.column().classes('p-4 bg-gray-100 rounded shadow flex-1 min-w-[420px]')
-            bib_col = ui.column().classes('p-4 bg-gray-100 rounded shadow flex-1 min-w-[300px]')
+    with ui.row().classes("w-full h-full gap-4 p-4 justify-between overflow-hidden"):
+        files_col = ui.column().classes('p-4 bg-gray-100 rounded shadow overflow-y-auto w-[25%]')
+        refs_col = ui.column().classes('p-4 bg-gray-100 rounded shadow overflow-y-auto w-[35%]')
+        bib_col = ui.column().classes('p-4 bg-gray-100 rounded shadow overflow-y-auto w-[35%]')
     populate_files()
 
+    merge = Merge(on_done=_on_merge_done, on_error=_on_merge_error)
+    merge.init_ui()
 
 def start_gui():
     ui.run()

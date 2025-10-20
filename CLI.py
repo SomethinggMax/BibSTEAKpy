@@ -41,18 +41,28 @@ CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json" #TODO
 
 COMMANDS = [
+    #CLI related
+    (f"{MAGENTA}CLI related", f"{RESET}"),
     ("help", "Display the current menu"),
+    ("quit", "Close the BibSteak CLI"),
+
+    #directory related
+    (f"{MAGENTA}File management", f"{RESET}"),
     ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
     ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
     ("list", "Lists all the bib files in the current working directory"),
     ("pwd", "Prints the current working directory"),
+
+    #viewing stuff
+    (f"{MAGENTA}View", f"{RESET}"),
     ("abb", "Display the abbreviations legend"),
     (
         "view <filename>",
         "View the content of a certain .bib file from your current working directory",
     ),
-    ("quit", "Close the BibSteak CLI"),
-    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
+    
+    #ordering files
+    (f"{MAGENTA}Ordering of files", f"{RESET}"),
     (
         "ord -t <filename> [descending=False]",
         "Order references of a bib file based on reftype",
@@ -61,25 +71,40 @@ COMMANDS = [
         "ord -f <filename> <field> [descending=False]",
         "Order the references based on a certain field",
     ),
+    
+    #tagging
+    (f"{MAGENTA}Tagging and creation of sub .bibs", f"{RESET}"),
+    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
     (
-        "filter <filename> <field>, [value]",
+        "filter <filename> <field> [value=None]",
         "Displays references with a certain field (OPTIONAL: a value in that field)"
     ),
+    ("tag -q <tag> <query>", "Tags a subset of references using a query. Queries can either be a filter or search command"),
+    ("tag -ls", "Displays all tagged references"),
+    ("untag -q <tag> <query>", "Untags a subset of references using a query. Queries can either be a filter or search command"),
+    ("untag -ls <citekey list>", "Untags a subset of references by citekey"),
+    (
+        "sub -t <filename> <new filename> <tags list>",
+        "Creates a .bib file containing only the references with specified tags.",
+    ),
+    (
+        "sub -e <filename> <new filename> <entrytypes>",
+        "Creates a .bib file containing only the specified entrytypes.",
+    ),
+    
+    
+    #minimize, maximize, clean
+    (f"{MAGENTA}Cleaning", f"{RESET}"),
+    ("clean <filename>", "Cleans file according to rules in config."),
     ("exp <filename>", "Expand all abbreviations in the file"),
     ("col <filename>", "Collapse all abbreviations in the file"),
     (
         "br <filename> <fields> <old string> <new string>",
         "Replace all occurrences in given fields",
     ),
-    ("clean <filename>", "Cleans file according to rules in config."),
-    (
-        "sub -e <filename> <new_filename>, <entry_types>",
-        "Creates a sub .bib file with only specified entry " "types.",
-    ),
-    (
-        "sub -t <filename> <new_filename>, <tags>",
-        "Creates a sub .bib file with only references with specified " "tags.",
-    ),
+    
+    #merging
+    (f"{MAGENTA}Merging", f"{RESET}"),
     (
         "mer <filename1> <filename2> <new_filename>",
         "Merge the references from two bib files into one file.",
@@ -109,7 +134,6 @@ def completer(text, state):
         return options[state]
     else:
         return None
-
 
 
 def completer(text, state):
@@ -203,8 +227,7 @@ def load_file_to_storage(source_path):
 
 
 def display_help_commands(space_length = 60):
-    commands = sorted(COMMANDS, key=lambda command: command[0])
-    for command in commands:
+    for command in COMMANDS:
         print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
@@ -387,7 +410,6 @@ class CLI(cmd.Cmd):
         for item in args:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
         
-
     def do_br(self, args):
         try:
             filename, fields, old_string, new_string = args.split()
@@ -573,7 +595,86 @@ class CLI(cmd.Cmd):
 
     #TODO
     def do_untag(self, args):
-        return
+        try:
+            arguments = args.split()
+            flag = arguments[0]
+
+            match flag:
+                case "-q":
+                    tag = arguments[1]
+                    query = arguments[2:]
+                    array = []
+                    
+                    bibfileobj = path_to_bibfileobj(query[1])
+
+                    match query[0]:
+                        case "search":
+                            array = search(bibfileobj, query[2])
+                        case "filter":
+                            if len(query) == 3:
+                                array = filterByFieldExistence(bibfileobj, query[2])
+                            elif len(query) == 4:
+                                array = filterByFieldValue(bibfileobj, query[2], query[3])
+                            else:
+                                print("Invalid query given!")
+                                return
+                        case _:
+                            print_in_yellow("Invalid query! Check your spelling")
+                            return
+
+                    #no queries returned, tell the user
+                    if array == -1:
+                        print("Query returns no matches! No tags have been added") 
+                        return
+                    
+                    #get cite_keys only
+                    newarr = [ref.cite_key for ref in array] 
+                    with open("tags.json", "r+") as tagsfile:
+                        #remove tags
+                        tags = json.load(tagsfile)
+                        if tag in tags.keys():
+                            for citekey in tags[tag]:
+                                if citekey in newarr:
+                                    newarr.remove(citekey)
+                        else: 
+                            print_in_yellow("Tag not found in the tags file. Check your spelling.")
+                            return
+                        
+                        #TODO: remove fully empty tags
+                        tags[tag] = newarr
+                        
+                        tagsfile.seek(0) #go to beginning of file
+                        tagsfile.truncate(0)
+                        json.dump(tags, tagsfile, indent=4) #replace content
+                    print_in_green("Successfully removed tags!")
+                    return
+                case "-ls":
+                    tag = arguments[1]
+                    citekeylist = arguments[2]
+
+                    tags = json.load(tagsfile)
+                    if tag in tags.keys():
+                        for citekey in tags[tag]:
+                            if citekey in citekeylist:
+                              #TODO: remove tag
+                              return
+                    else: 
+                        print_in_yellow("Tag not found in the tags file. Check your spelling.")
+                        return
+                    return
+                case _:
+                    print("Flag not supported!")
+                    return
+        except IndexError as e:
+            print_in_yellow(f"Command is not complete, please check the amount of arguments.\nThe command can be invoked in two ways:\nuntag -q <tag> <query> where <query> is a search or filter command\nuntag -ls <tag> <citekey list>")
+            return
+        # except FileNotFoundError as e: #TODO
+        #     print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
+        #     with open("tags.json", "w+") as tagsfile:
+        #         json.dump({}, tagsfile)
+        #     print_in_green("Try and run the command again")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
 
     """
     Makes a sub .bib file from a selected list of entry types or tags

@@ -133,7 +133,7 @@ if __name__ == '__main__':
     displayfile = search(examples, "english")
     file_generator.generate_bib(displayfile, "bib_files/newfile.bib", 15)
 
-    batch_editor.batch_replace(examples, [], "pup", "Princeton University Press")
+    batch_editor.batch_replace(examples, [], "Cambridge", "Cam")
     cleanup.cleanup(examples)
     file_generator.generate_bib(examples, bib_examples_edited, 15)
 

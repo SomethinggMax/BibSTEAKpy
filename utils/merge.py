@@ -527,7 +527,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     target_key = best_key
                     other_ref = bib2_index[target_key]
                     print(
-                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (matched DOI)."
+                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm})."
                     )
                     merged_reference = merge_reference(entry, other_ref)
                     merged_bib_file.content.append(merged_reference)
@@ -562,7 +562,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         strong_thr, weak_thr = _get_abstract_thresholds()
                         if best_sim >= strong_thr:
                             print(
-                                f"Auto-merging '{entry.cite_key}' + '{target_key}' (author/title match, abstract sim {best_sim:.2f})."
+                                f"Auto-merging '{entry.cite_key}' + '{target_key}' (by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f})."
                             )
                             merged_reference = merge_reference(entry, other_ref)
                             merged_bib_file.content.append(merged_reference)
@@ -570,7 +570,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                             continue
                         elif best_sim <= weak_thr:
                             print(
-                                f"Keeping both for '{entry.cite_key}' and '{target_key}' (low abstract sim {best_sim:.2f})."
+                                f"Keeping both for '{entry.cite_key}' and '{target_key}' (by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f})."
                             )
                             merged_bib_file.content.append(entry)
                             merged_bib_file.content.append(other_ref)
@@ -580,7 +580,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     # Otherwise, ask user
                     print("References seem similar based on author/title normalization.")
                     if has_abs_1 and has_abs_2:
-                        print(f"Abstract similarity: {best_sim:.2f}")
+                        strong_thr, weak_thr = _get_abstract_thresholds()
+                        print(f"Abstract similarity: {best_sim:.2f} (strong {strong_thr:.2f}, weak {weak_thr:.2f})")
                     print("Please compare the following references:")
                     print_reference_comparison(entry, other_ref, width=110)
                     print("Choose where to merge or skip:")
@@ -589,7 +590,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     choice = input("Enter your choice (1 or 2): ")
                     if choice == '1':
                         print(
-                            f"Merging '{entry.cite_key}' with '{target_key}' based on normalized author/title match."
+                            f"Merging '{entry.cite_key}' with '{target_key}' (by user choice after author+title match)."
                         )
                         merged_reference = merge_reference(entry, other_ref)
                         merged_bib_file.content.append(merged_reference)
@@ -625,7 +626,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                     best_key = key
                         target_key = best_key
                         other_ref = bib2_index[target_key]
-                        print("References share the same trusted URL; please confirm merge.")
+                        print(f"References share the same trusted URL; please confirm merge. URL key: {url_key}")
                         print_reference_comparison(entry, other_ref, width=110)
                         print("Choose where to merge or skip:")
                         print("1: Merge references")
@@ -633,7 +634,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         choice = input("Enter your choice (1 or 2): ")
                         if choice == '1':
                             print(
-                                f"Merging '{entry.cite_key}' with '{target_key}' based on URL match."
+                                f"Merging '{entry.cite_key}' with '{target_key}' (by user choice after URL match: {url_key})."
                             )
                             merged_reference = merge_reference(entry, other_ref)
                             merged_bib_file.content.append(merged_reference)

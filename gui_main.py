@@ -1,6 +1,8 @@
 from nicegui import ui
 import os
 import json
+
+import interface_handler
 import utils.file_parser as file_parser
 import re
 import pprint
@@ -505,10 +507,12 @@ def main_page():
     populate_files()
 
     merge = Merge(on_done=_on_merge_done, on_error=_on_merge_error)
-    merge.init_ui()
+    interface_handler.set_merge_object(merge)
+
 
 def start_gui():
     ui.run()
+
 
 if __name__ in {"__main__", "__mp_main__"}:
     start_gui()

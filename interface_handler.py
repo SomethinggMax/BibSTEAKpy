@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -10,6 +11,18 @@ ANSI = {
     'green': '\x1b[32m',
     'yellow': '\x1b[33m',
 }
+
+with open('config.json') as config:
+    config_data = json.load(config)
+    user_interface = config_data.get("user_interface", "CLI")
+
+merge_object = None
+
+
+def set_merge_object(obj):
+    global merge_object
+    merge_object = obj
+    merge_object.init_ui()
 
 
 def supports_color() -> bool:
@@ -26,9 +39,13 @@ def colorize(text: str, color: str) -> str:
 
 
 def show_lines(lines: [str]):
-    # Print the prompt
-    for line in lines:
-        print(line)
+    if user_interface == "CLI":
+        # Print the prompt
+        for line in lines:
+            print(line)
+    elif user_interface == "GUI":
+        for line in lines:
+            merge_object.print_hook(line)
 
 
 def get_selection(prompt: str, number_of_options: int) -> int:
@@ -38,15 +55,19 @@ def get_selection(prompt: str, number_of_options: int) -> int:
     :param number_of_options: The number of options the user can choose.
     :return: the choice as an integer.
     """
-    while True:
-        choice = input(prompt)
-        try:
-            choice = int(choice)
-            if choice < 1 or choice > number_of_options:
-                raise ValueError
-            return choice
-        except ValueError:
-            print(f"Invalid input: input an integer in the range from 1 to {number_of_options}")
+    if user_interface == "CLI":
+        while True:
+            choice = input(prompt)
+            try:
+                choice = int(choice)
+                if choice < 1 or choice > number_of_options:
+                    raise ValueError
+                return choice
+            except ValueError:
+                print(f"Invalid input: input an integer in the range from 1 to {number_of_options}")
+    elif user_interface == "GUI":
+        if merge_object is not None:
+            return merge_object.input_hook(prompt)
 
 
 def get_input(prompt: str) -> str:
@@ -55,5 +76,8 @@ def get_input(prompt: str) -> str:
     :param prompt: The prompt to ask the user for the input.
     :return: the input from the user.
     """
-    user_input = input(prompt)
+    if user_interface == "CLI":
+        user_input = input(prompt)
+    elif user_interface == "GUI":
+        user_input = merge_object.input_hook(prompt)
     return user_input

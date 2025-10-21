@@ -1,6 +1,7 @@
 {
   "abstract_strong_match": 0.9,
   "abstract_strong_mismatch": 0.5,
+  "user_interface": "GUI",
   "working_directory": "",
   "use_url": false,
   "use_doi": true,

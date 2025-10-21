@@ -159,17 +159,14 @@ class Merge:
         with self._prompt_dialog, ui.card().classes('p-4 bg-gray-100 rounded shadow w-[1200px]'):
             if kind == 'field_conflict':
                 header = next((l for l in reversed(ctx) if l.startswith('Conflict in field')), 'Resolve conflict')
-                opt1 = next((l for l in reversed(ctx) if l.strip().startswith('1.')), '1. Option 1')
-                opt2 = next((l for l in reversed(ctx) if l.strip().startswith('2.')), '2. Option 2')
+                opt1 = ''
+                for line in ctx:
+                    opt1 += line + "\n"
 
                 ui.label(header).classes('font-bold text-lg mb-3')
                 with ui.row().classes('gap-4 w-full items-stretch'):
                     with ui.column().classes('flex-1 min-w-0'):
-                        ui.label('Value from reference 1').classes('font-semibold mb-1')
                         full_code_block(opt1)
-                    with ui.column().classes('flex-1 min-w-0'):
-                        ui.label('Value from reference 2').classes('font-semibold mb-1')
-                        full_code_block(opt2)
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button('Keep 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes(
                         'q-btn--no-uppercase')

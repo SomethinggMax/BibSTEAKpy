@@ -1,6 +1,5 @@
 import json
-
-from objects import BibFile, Reference
+from objects import BibFile, Reference, String, Comment
 
 
 def clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:
@@ -30,6 +29,22 @@ def remove_fields(reference: Reference, fields: [str]) -> Reference:
     return reference
 
 
+def remove_comments(bib_file: BibFile):
+    for entry in bib_file.content:
+        if isinstance(entry, Reference):
+            entry.comment_above_reference = ""
+        elif isinstance(entry, String):
+            entry.comment_above_string = ""
+        elif isinstance(entry, str):
+            bib_file.content.remove(entry)
+
+
+def remove_comment_entries(bib_file: BibFile):
+    for entry in bib_file.content:
+        if isinstance(entry, Comment):
+            bib_file.content.remove(entry)
+
+
 def cleanup(bib_file: BibFile):
     with open("config.json") as config:
         data = json.load(config)
@@ -37,6 +52,9 @@ def cleanup(bib_file: BibFile):
     # Default values.
     url = True
     doi = True
+    comments = True
+    comment_entries = True
+
     fields = []
 
     # Load values from config.
@@ -45,8 +63,17 @@ def cleanup(bib_file: BibFile):
             url = value
         elif key == "use_doi":
             doi = value
+        elif key == "comments":
+            comments = value
+        elif key == "comment_entries":
+            comment_entries = value
         elif key == "unnecessary_fields":
             fields = value
+
+    if not comments:
+        remove_comments(bib_file)
+    if not comment_entries:
+        remove_comment_entries(bib_file)
 
     for entry in bib_file.content:
         if isinstance(entry, Reference):

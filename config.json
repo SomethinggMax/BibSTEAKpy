@@ -1,7 +1,7 @@
 {
   "abstract_strong_match": 0.9,
   "abstract_strong_mismatch": 0.5,
-  "working_directory": "C:\\Users\\tabre\\Desktop\\storage",
+  "working_directory": "",
   "use_url": false,
   "use_doi": true,
   "unnecessary_fields": [

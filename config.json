@@ -3,10 +3,13 @@
   "abstract_strong_mismatch": 0.5,
   "user_interface": "GUI",
   "working_directory": "",
+  "user_interface": "CLI",
   "use_url": false,
   "use_doi": true,
   "comments": true,
   "comment_entries": true,
+  "lowercase_entry_types": false,
+  "lowercase_fields": false,
   "unnecessary_fields": [
     "langidopts",
     "volume"

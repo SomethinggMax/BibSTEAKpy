@@ -16,6 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
+from history import commit
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -303,6 +304,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Path Error: {e}")
             return None
+        
     def do_cd(self, wd_path):
         self.do_cwd(wd_path)
         return
@@ -421,10 +423,11 @@ class CLI(cmd.Cmd):
                 
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
+            print(bib_file.file_name)
 
-            sortByReftype(bib_file, order)
+            sortByReftype(bib_file, order); commit(bib_file)
+            
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
-
             print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except Exception as e:

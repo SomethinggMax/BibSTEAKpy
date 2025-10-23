@@ -1,7 +1,6 @@
-import json
 import os
 import sys
-
+from utils import json_loader
 
 ANSI = {
     'reset': '\x1b[0m',
@@ -12,9 +11,8 @@ ANSI = {
     'yellow': '\x1b[33m',
 }
 
-with open('config.json') as config:
-    config_data = json.load(config)
-    user_interface = config_data.get("user_interface", "CLI")
+config = json_loader.load_config()
+user_interface = config.get("user_interface", "CLI")
 
 merge_object = None
 

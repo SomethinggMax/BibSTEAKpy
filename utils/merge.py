@@ -1,11 +1,10 @@
-import json
 import re
 import textwrap
 import unicodedata
 from urllib.parse import urlparse
 import interface_handler
 from objects import BibFile, Reference, String
-from utils import batch_editor
+from utils import batch_editor, json_loader
 from difflib import SequenceMatcher
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -16,16 +15,8 @@ DEFAULT_ABSTRACT_STRONG_MATCH = 0.9
 DEFAULT_ABSTRACT_STRONG_MISMATCH = 0.5
 
 
-def _load_config():
-    try:
-        with open('config.json', 'r', encoding='utf-8') as f:
-            return json.load(f) or {}
-    except Exception:
-        return {}
-
-
 def _get_abstract_thresholds():
-    cfg = _load_config()
+    cfg = json_loader.load_config()
     strong = cfg.get('abstract_strong_match', DEFAULT_ABSTRACT_STRONG_MATCH)
     weak = cfg.get('abstract_strong_mismatch', DEFAULT_ABSTRACT_STRONG_MISMATCH)
     try:

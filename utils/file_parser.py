@@ -27,10 +27,10 @@ def add_field(fields, field_type, field_value):
     fields[field_type] = field_value
 
 
-def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
-    result = BibFile(file_name)
+def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
+    result = BibFile(file_path)
 
-    with open(file_name, encoding='utf-8') as file:
+    with open(file_path, encoding='utf-8') as file:
         token = ""
         comment = ""
         ref_type = ""

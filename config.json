@@ -3,6 +3,7 @@
   "abstract_strong_mismatch": 0.5,
   "user_interface": "CLI",
   "working_directory": "",
+  "user_interface": "CLI",
   "use_url": false,
   "use_doi": true,
   "comments": true,

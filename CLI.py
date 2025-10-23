@@ -725,7 +725,7 @@ class CLI(cmd.Cmd):
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_rg(self, text, line, begidx, endidx):
+    def complete_gr(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_br(self, text, line, begidx, endidx):

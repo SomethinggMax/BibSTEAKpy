@@ -489,6 +489,7 @@ class CLI(cmd.Cmd):
             argument_list = args.split(maxsplit=3)
             flag, filename, new_filename = argument_list[:3]
             search_list = argument_list[3:][0]
+            print(search_list)
             path = os.path.join(get_working_directory_path(), filename)
             new_filename = check_extension(new_filename)
             file = utils.file_parser.parse_bib(path, True)

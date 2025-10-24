@@ -16,6 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
+from manage_history import commit, redo, undo
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -207,8 +208,8 @@ def load_file_to_storage(source_path):
 
 
 def display_help_commands(space_length = 60):
-    commands = sorted(COMMANDS, key=lambda command: command[0])
-    for command in commands:
+    ordered_commands = sorted(COMMANDS, key=lambda command: command[0])
+    for command in ordered_commands:
         print(command[0], (space_length - len(command[0])) * " ", command[1])
 
     print("")
@@ -303,6 +304,7 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Path Error: {e}")
             return None
+        
     def do_cd(self, wd_path):
         self.do_cwd(wd_path)
         return
@@ -363,6 +365,7 @@ class CLI(cmd.Cmd):
                     print_in_yellow(f"No references found with a field named {WHITE}{field}")
                 else:
                     self.do_view_bibfile_obj(newFile)
+                    
         except IndexError as e:
             print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
         except FileNotFoundError as e:
@@ -403,7 +406,7 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
 
             batch_editor.batch_replace(bib_file, fields, old_string, new_string)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
 
@@ -422,9 +425,9 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
-            sortByReftype(bib_file, order)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
-
+            sortByReftype(bib_file, order); 
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            
             print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except Exception as e:
@@ -442,7 +445,7 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
 
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
 
@@ -467,7 +470,7 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
 
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
 
@@ -526,14 +529,12 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
             order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(file, path, 15)
+            utils.file_generator.generate_bib(file, path, 15); commit(file)
 
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
             else:
-                print_in_green(
-                    f"Descending order by '{field}' field done successfully!"
-                )
+                print_in_green(f"Descending order by '{field}' field done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -550,7 +551,7 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
 
             cleanup.cleanup(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
 
@@ -644,6 +645,57 @@ class CLI(cmd.Cmd):
                 
             except ValueError:
                 print(f"{RED}Invalid index. Please enter a number.{RESET}")
+                
+    def do_undo(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            undo(bib_file, step)
+            
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+        
+        
+    def do_redo(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            redo(bib_file, step)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+            
+            
                 
 
     def default(self, line):

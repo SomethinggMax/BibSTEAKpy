@@ -4,8 +4,8 @@ from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
 ALIGN_FIELDS_POSITION = 20
 
 
-def generate_bib(bib_file: BibFile, file_name, align_fields_position=ALIGN_FIELDS_POSITION):
-    with open(file_name, "w", encoding="utf-8") as file:
+def generate_bib(bib_file: BibFile, file_path, align_fields_position=ALIGN_FIELDS_POSITION):
+    with open(file_path, "w", encoding="utf-8") as file:
         final_string = ""
 
         for entry in bib_file.content:

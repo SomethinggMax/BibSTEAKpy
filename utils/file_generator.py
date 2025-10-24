@@ -1,7 +1,10 @@
 from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
 
 
-def generate_bib(bib_file: BibFile, file_name, align_fields_position):
+ALIGN_FIELDS_POSITION = 20
+
+
+def generate_bib(bib_file: BibFile, file_name, align_fields_position=ALIGN_FIELDS_POSITION):
     with open(file_name, "w", encoding="utf-8") as file:
         final_string = ""
 

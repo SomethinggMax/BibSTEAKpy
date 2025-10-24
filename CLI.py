@@ -16,7 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import commit, redo, undo
+from manage_history import commit, redo, undo, initialise_history
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -405,8 +405,10 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             batch_editor.batch_replace(bib_file, fields, old_string, new_string)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
 
@@ -425,8 +427,11 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             sortByReftype(bib_file, order); 
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
+            
             
             print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
@@ -444,8 +449,10 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
 
@@ -469,8 +476,10 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
 
@@ -528,8 +537,11 @@ class CLI(cmd.Cmd):
 
             path = os.path.join(get_working_directory_path(), filename)
             file = utils.file_parser.parse_bib(path, True)
+            
+            initialise_history(file)
             order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(file, path, 15); commit(file)
+            utils.file_generator.generate_bib(file, path, 15)
+            commit(file)
 
             if descending == False:
                 print_in_green(f"Ascending order by '{field}' field done successfully!")
@@ -550,8 +562,10 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15); commit(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15) 
+            commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
 

@@ -736,6 +736,7 @@ class CLI(cmd.Cmd):
                 print(f"Unexpected error: {e}")
                 return None
             
+            
     def do_history(self, args):
         try:
             filename = args

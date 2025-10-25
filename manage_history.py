@@ -5,8 +5,6 @@
 import os, json
 import time
 import json
-import networkx as nx
-import matplotlib.pyplot as plt
 import rich
 
 from objects import BibFile
@@ -170,7 +168,7 @@ def redo(bibfile: BibFile, step=1):
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
     
     if not os.path.isdir(hist_dir_path):
-        print_in_yellow("There is no history to undo - please commit a change first!")
+        print_in_yellow("There is no history to redo - please commit a change first!")
         return 
     
     tracker = get_json_object(tracker_file_path)
@@ -214,30 +212,6 @@ def checkout(bibfile: BibFile, commit_hash: str):
         json_str= json.dumps(tracker, indent=2)
         tracker_file.write(json_str)
         tracker_file.close()
-    
-
-def view_graph(tracker_file_path):
-    with open(tracker_file_path, encoding="utf-8") as f:
-        adj = json.load(f)["parent_to_childs"]
-
-    G = nx.DiGraph((p, c) for p, kids in adj.items() for c in kids)
-
-    # pick a root (in-degree 0) and layer by shortest-path
-    root = next((n for n in G if G.in_degree(n) == 0), next(iter(G)))
-    depth = nx.shortest_path_length(G, source=root)
-    for n, d in depth.items():
-        G.nodes[n]["layer"] = d
-
-    # horizontal 
-    pos = nx.multipartite_layout(G, subset_key="layer")
-
-    # rotate 90 so layers are vertical 
-    pos = {n: (y, -x) for n, (x, y) in pos.items()}
-
-    nx.draw(G, pos, with_labels=True, arrows=True)
-    plt.gca().invert_yaxis()  # put root near the top
-    plt.tight_layout()
-    plt.show()
     
     
 def history(bibfile: BibFile):

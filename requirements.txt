@@ -1,0 +1,14 @@
+# We should slowly build our requirements file/files
+# Maybe we should also separate them? 
+# For example, requirements for CLI/GUI
+
+# Requirements for TUI History Graph Visualisation
+rich==14.2.0
+textual==6.4.0
+
+# Citation Graph Visualisation
+networkx==3.4.2
+pyalex==0.18
+nicegui==2.24.2
+
+

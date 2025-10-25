@@ -42,60 +42,75 @@ def print_in_yellow(arg):
 
 CONFIG_FILE = "config.json"
 
-COMMANDS = [
-    ("help", "Display the current menu"),
-    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
-    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
-    ("list", "Lists all the bib files in the current working directory"),
-    ("pwd", "Prints the current working directory"),
-    ("abb", "Display the abbreviations legend"),
-    (
-        "view <filename>",
-        "View the content of a certain .bib file from your current working directory",
-    ),
-    ("quit", "Close the BibSteak CLI"),
-    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
-    (
-        "gr <filename> [descending=False]",
-        "Group references of a bib file based on a certain field",
-    ),
-    (
-        "filter <filename> <field>, [value]",
-        "Displays references with a certain field (OPTIONAL: a value in that field)"
-    ),
-    ("exp <filename>", "Expand all abbreviations in the file"),
-    ("col <filename>", "Collapse all abbreviations in the file"),
-    (
-        "br <filename> <fields> <old string> <new string>",
-        "Replace all occurrences in given fields",
-    ),
-    (
-        "ord <filename> <field> [descending=False]",
-        "Order the references based on a certain field",
-    ),
-    ("clean <filename>", "Cleans file according to rules in config."),
-    (
-        "sub -e <filename> <new_filename>, <entry_types>",
-        "Creates a sub .bib file with only specified entry " "types.",
-    ),
-    (
-        "sub -t <filename> <new_filename>, <tags>",
-        "Creates a sub .bib file with only references with specified " "tags.",
-    ),
-    (
-        "mer <filename1> <filename2> <new_filename>",
-        "Merge the references from two bib files into one file.",
-    ),
-    (
-        "mer -all <new_filename>",
-        "Merge all bib files in the current working directory.",
-    ),
-    (
-        "graph [k_regular=2]",
-        "Generates a directed K-regular graph of a bib file"
-    ),
-]
+COMMANDS = {
+    "BASE COMMANDS" : [
+        ("help", "Display the current menu"),
+        ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+        ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+        ("list", "Lists all the bib files in the current working directory"),
+        ("pwd", "Prints the current working directory"),
+        ("abb", "Display the abbreviations legend"),
+        (
+            "view <filename>",
+            "View the content of a certain .bib file from your current working directory",
+        ),
+        ("quit", "Close the BibSteak CLI"),
 
+
+    ],
+    
+    "FUNCTIONAL COMMANDS": [
+        ("exp <filename>", "Expand all abbreviations in the file"),
+        ("col <filename>", "Collapse all abbreviations in the file"),
+        (
+            "br <filename> <fields> <old string> <new string>",
+            "Replace all occurrences in given fields",
+        ),
+        (
+            "ord <filename> <field> [descending=False]",
+            "Order the references based on a certain field",
+        ),
+        ("clean <filename>", "Cleans file according to rules in config."),
+        (
+            "sub -e <filename> <new_filename>, <entry_types>",
+            "Creates a sub .bib file with only specified entry " "types.",
+        ),
+        (
+            "sub -t <filename> <new_filename>, <tags>",
+            "Creates a sub .bib file with only references with specified " "tags.",
+        ),
+        (
+            "mer <filename1> <filename2> <new_filename>",
+            "Merge the references from two bib files into one file.",
+        ),
+        (
+            "mer -all <new_filename>",
+            "Merge all bib files in the current working directory.",
+        ),
+        (
+            "graph [k_regular=2]",
+            "Generates a directed K-regular graph of a bib file"
+        ),
+        ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
+        (
+            "gr <filename> [descending=False]",
+            "Group references of a bib file based on a certain field",
+        ),
+        (
+            "filter <filename> <field>, [value]",
+            "Displays references with a certain field (OPTIONAL: a value in that field)"
+        ),
+    ],
+    
+    "VERSION CONTROL COMMANDS: ": [
+        ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
+        ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
+        ("checkout <filename> <commit_hask>", "Checkout to a historic version of the file indexed by the commit_hash"),
+        ("del <filename>", "Delete all the history logs for a file"),
+        
+    ]
+}
+    
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -208,10 +223,14 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands(space_length = 60):
-    ordered_commands = sorted(COMMANDS, key=lambda command: command[0])
-    for command in ordered_commands:
-        print(command[0], (space_length - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60, indent = 2):
+    for category, commands in COMMANDS.items():
+        print(category)
+        ordered_commands = sorted(commands, key=lambda command: command[0])
+        for command in ordered_commands:
+            print(indent * " ", command[0], (space_length - len(command[0])) * " ", command[1])
+            
+        print("")
 
     print("")
 

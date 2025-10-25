@@ -1,0 +1,12 @@
+vars:
+  workdir: "/abs/path/to/wd"
+  file: "/abs/path/to/a/file"
+
+steps:
+  - "cwd ${workdir}"
+  - "load ${workdir}/${file}"
+  - "config use_url true"
+  - "clean ${file}"
+  - "exp ${file}"
+  - "ord ${file} year true"
+  - "view ${file}"

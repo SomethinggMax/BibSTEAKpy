@@ -4,9 +4,11 @@
 # TODO: Make sure hashes do not collide
 # TODO: Handle exceptions in the CLI and success/failure messages
 
+from textual import on
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
 from rich.text import Text
+from datetime import datetime
 
 
 import os, json
@@ -30,7 +32,11 @@ MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
-DEFAULT_JSON = {"parent_to_childs": {}, "child_to_parent": {}, "BOTTOM": "None", "TOP": "None", "current_parent": "None"}
+DEFAULT_JSON = {"parent_to_childs": {}, "child_to_parent": {}, "BOTTOM": "None", "TOP": "None", "current_parent": "None", "timestamp": {}}
+
+def timestamp_local():
+    # local time, timezone-aware; safe for filenames (no colons)
+    return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -65,7 +71,10 @@ def initialise_history(bibfile: BibFile):
     if not has_file:
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             commit_name = f"{token_hex(16)}"
+            tracker["timestamp"][commit_name] = timestamp_local()
+            
             tracker["current_parent"] = commit_name
+            tracker["timestamp"][commit_name] = timestamp_local()
             commit_file_path = os.path.join(hist_dir_path, commit_name)
             file_generator.generate_bib(bibfile, commit_file_path, True)
             
@@ -102,6 +111,7 @@ def commit(bibfile: BibFile):
       
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             commit_name = f"{token_hex(16)}"
+            tracker["timestamp"][commit_name] = timestamp_local()
             
             parent = tracker.get("current_parent", "__root__")  
             tracker.setdefault("current_parent", parent)
@@ -306,45 +316,57 @@ def history(bibfile: BibFile):
     parent_root = tracker["BOTTOM"]
     current_parent = tracker["current_parent"]
     
+    
     adj_list = tracker["parent_to_childs"]
     
     class Demo(App):
         BINDINGS = [("q", "quit", "Quit")]  # press q to quit
+        
 
         def compose(self) -> ComposeResult:
-            tree = Tree(parent_root)
+            if parent_root == current_parent:
+                tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
+            else:
+                tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
+                
             tree.root.expand()
             
             for child in adj_list[tracker["BOTTOM"]]:
-                tree.root.add(child).expand()
+                if child == current_parent:
+                    tree.root.add(Text(child, "blue"), data = f"Commit Time: {tracker['timestamp'][child]}").expand()
+                else:
+                    tree.root.add(Text(child, "white"), data = f"Commit Time: {tracker['timestamp'][child]}").expand()
                 
             for child in tree.root.children:
-                add(adj_list, child)
-            
-            
-            # tree.add("something")
-            
-            
-            
-            # src = tree.root.add("src").expand()
-            # core = src.add("core").expand()
-            # core.add_leaf("util.py").expand()
-            # src.add_leaf("app.py").expand()
-            # tree.root.add_leaf(Text("project", style="bold cyan")).expand()
-            # tree.root.add_leaf(here).expand()
+                update_tree(adj_list, child, tracker, current_parent)
             
             yield tree
             
+        
+        @on(Tree.NodeSelected)
+        def show_data(self, event: Tree.NodeSelected) -> None:
+            self.notify(str(event.node.data or "(no data)"))  # popup with the node's data
             
+        @on(Tree.NodeCollapsed)
+        def keep_open(self, event: Tree.NodeCollapsed) -> None:
+            event.stop()           
+            event.node.expand()    # reopen instantly
+                    
     Demo().run()
     
-def add(adj_list, parent):
+    
+def update_tree(adj_list, parent, tracker, current_parent):
     if label_from_node(parent) in adj_list:
         for child_name in adj_list[label_from_node(parent)]:
-            parent.add(child_name).expand()
+            if child_name == current_parent:
+                parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
+            else:
+                parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
+                
+                
             
         for child in parent.children:
-            add(adj_list, child)
+            update_tree(adj_list, child, tracker, current_parent)
             
     
             

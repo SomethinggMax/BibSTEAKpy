@@ -16,7 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history2 import commit, redo, undo, initialise_history, checkout, history
+from manage_history import commit, redo, undo, initialise_history, checkout, history
 from test_tree import test_tree
 
 if os.name == "nt" and not hasattr(readline, "backend"):

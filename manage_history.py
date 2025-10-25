@@ -1,27 +1,22 @@
 
-# TODO: Detect no file changes
-# TODO: Timestamp
 # TODO: Make sure hashes do not collide
-# TODO: Handle exceptions in the CLI and success/failure messages
+# TODO: Better handle exceptions in the CLI and success/failure messages
 
+import os, json
+import time
+import json
+import networkx as nx
+import matplotlib.pyplot as plt
+import rich
+
+from objects import BibFile
+from utils import file_generator, file_parser
+from secrets import token_hex
 from textual import on
 from textual.app import App, ComposeResult
 from textual.widgets import Tree
 from rich.text import Text
 from datetime import datetime
-
-
-import os, json
-import time
-from objects import BibFile
-from utils import file_generator, file_parser
-from secrets import token_hex
-import json
-import networkx as nx
-import matplotlib.pyplot as plt
-import rich
-# from rich.tree import Tree
-# from rich import print
 
 RESET = "\033[0m"; RST = "\033[0m"
 RED = "\033[31m"
@@ -38,8 +33,14 @@ def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
     return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
 
+
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
+   
+   
+def print_in_green(arg):
+    print(f"{GREEN}{arg}{RESET}")
+   
     
 def get_json_object(tracker_file_path):
     with open(tracker_file_path, "r", encoding="utf-8") as tracker_file:
@@ -47,6 +48,7 @@ def get_json_object(tracker_file_path):
         tracker_file.close()
         
     return tracker
+
 
 def initialise_history(bibfile: BibFile):
     file_path = bibfile.file_name
@@ -132,10 +134,6 @@ def commit(bibfile: BibFile):
     else:
         print_in_yellow("No changes detected.")
         
-    # view_graph(tracker_file_path)
-    # print_graph(bibfile)
-        
-     
 
 def undo(bibfile: BibFile, step=1):
     file_path = bibfile.file_name
@@ -163,7 +161,6 @@ def undo(bibfile: BibFile, step=1):
             
     else:
         print_in_yellow("Reached the bottom of the history! - Cannot undo anymore")
-    
     
 
 def redo(bibfile: BibFile, step=1):
@@ -243,58 +240,6 @@ def view_graph(tracker_file_path):
     plt.show()
     
     
-# def history(bibfile: BibFile):
-    
-#     file_path = bibfile.file_name
-#     file_name = file_path.split("\\")[-1]
-    
-#     # Ensure there exists a history and hist_filename directory structure
-#     os.makedirs("history", exist_ok=True)
-#     hist_dir_path = os.path.join("history", f"hist_{file_name}")
-#     os.makedirs(hist_dir_path, exist_ok=True)
-    
-    
-#     # Ensure that there is a tracker file
-#     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
-#     if not os.path.isfile(tracker_file_path):
-#         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
-#             json.dump(DEFAULT_JSON, tracker_file, ensure_ascii=False, indent=2)
-    
-#     # Do commit
-#     tracker = get_json_object(tracker_file_path)
-#     parent_root = tracker["BOTTOM"]
-#     current_parent = tracker["current_parent"]
-    
-    
-#     def dict_to_tree(d, label="root"):
-#         t = Tree(label)
-#         for k, v in d.items():
-#             if isinstance(v, dict):
-#                 t.add(dict_to_tree(v, str(k)))
-#             else:
-#                 t.add(f"{k}: {v}")
-#         return t
-
-#         data = {"src": {"core": {"util.py": None}, "app.py": None}, "README.md": None}
-#         print(dict_to_tree(data, "project"))
-        
-        
-#     adj_list = tracker["parent_to_childs"]
-#     t = Tree(parent_root, guide_style="green", highlight=True)
-#     add_to_tree(adj_list, t, t, current_parent)
-    
-    
-#     # for p, childs in adj.items():
-#     #     for c in childs:
-#     #         print(c)
-        
-#     # t = Tree(label)
-#     # john = t.add("John")
-#     # john.add("Max")
-#     # t.add(f"{p}: {c}" for p, childs in adj.items() for c in childs)
-#     rich.print(t)
-    
-    
 def history(bibfile: BibFile):
     file_path = bibfile.file_name
     file_name = file_path.split("\\")[-1]
@@ -369,36 +314,11 @@ def update_tree(adj_list, parent, tracker, current_parent):
             update_tree(adj_list, child, tracker, current_parent)
             
     
-            
-    
 def label_from_node(node) -> str:
     lab = node.label
     return lab.plain if isinstance(lab, Text) else str(lab)
         
-   
-def add_to_tree(adj_list, t, parent, current_parent: str):
-    
-    # return t
-    if parent.label in adj_list:
-        for child in adj_list[parent.label]:
-            if child == current_parent:
-                parent.add(child, style="bold blue")
-            else:
-                parent.add(child, style="white")
         
-        for child in parent.children:
-            add_to_tree(adj_list, t, child, current_parent)
-            # child.add("something")
-        
-    return t
-        
-    
-    
-    
-# def same_commit(last_commit: BibFile, current_commit: BibFile) -> bool:
-#     return False
-    
-    
 def same_commit(bib_file1: BibFile, bib_file2: BibFile):
     same_r = same_references(bib_file1, bib_file2)
     same_c = same_comments(bib_file1, bib_file2)
@@ -481,8 +401,26 @@ def same_strings(bib_file1: BibFile, bib_file2:BibFile):
     return string_entries2 == string_entries1
     
     
+def delete_history(bibfile: BibFile): 
+    file_path = bibfile.file_name
+    file_name = file_path.split("\\")[-1]
     
-
+    # Ensure there exists a history and hist_filename directory structure
+    hist_dir_path = os.path.join("history", f"hist_{file_name}")
+    if not os.path.isdir(hist_dir_path):
+        print_in_yellow("There is no history delete for this file")
+        return 
+    
+    for root, dirs, files in os.walk(hist_dir_path, topdown=False):
+        for f in files:
+            os.remove(os.path.join(root, f))
+        for d in dirs:
+            os.rmdir(os.path.join(root, d))
+            
+    os.rmdir(hist_dir_path)
+    print_in_green(f"History Directory of {file_name} deleted successfuly!")
+    
+    
 
     
     

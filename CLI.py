@@ -16,7 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import commit, redo, undo, initialise_history, checkout, history
+from manage_history import commit, redo, undo, initialise_history, checkout, history, delete_history
 from test_tree import test_tree
 
 if os.name == "nt" and not hasattr(readline, "backend"):
@@ -753,7 +753,24 @@ class CLI(cmd.Cmd):
         except Exception as e:
                 print(f"Unexpected error: {e}")
                 return None
-        
+            
+            
+    def do_del(self, args):
+        try:
+            filename = args
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            delete_history(bib_file)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None    
                 
 
     def default(self, line):

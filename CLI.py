@@ -16,7 +16,8 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import commit, redo, undo, initialise_history
+from manage_history2 import commit, redo, undo, initialise_history, checkout, history
+from test_tree import test_tree
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -710,6 +711,48 @@ class CLI(cmd.Cmd):
                 return None
             
             
+    def do_checkout(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 2:
+                filename = argument_list[0]
+                commit_hash = argument_list[1]
+            else:
+                print("Not enough arguments!")
+                return
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            checkout(bib_file, commit_hash)
+            print_in_green(f"Checkout done successfully to commit: {commit_hash}")
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+            
+    def do_history(self, args):
+        try:
+            filename = args
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            history(bib_file)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+        
                 
 
     def default(self, line):
@@ -726,6 +769,8 @@ class CLI(cmd.Cmd):
             ]
         except Exception:
             return []
+        
+    
 
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)

@@ -9,6 +9,8 @@
   "comment_entries": true,
   "lowercase_entry_types": false,
   "lowercase_fields": false,
+  "braces_enclosure": false,
+  "quotation_marks_enclosure": false,
   "unnecessary_fields": [
     "langidopts",
     "volume"

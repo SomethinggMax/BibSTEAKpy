@@ -17,7 +17,7 @@ import ast
 import graph
 from graph import generate_graph
 from manage_history import commit, redo, undo, initialise_history, checkout, history, delete_history
-from test_tree import test_tree
+
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -66,10 +66,6 @@ COMMANDS = {
             "br <filename> <fields> <old string> <new string>",
             "Replace all occurrences in given fields",
         ),
-        (
-            "ord <filename> <field> [descending=False]",
-            "Order the references based on a certain field",
-        ),
         ("clean <filename>", "Cleans file according to rules in config."),
         (
             "sub -e <filename> <new_filename>, <entry_types>",
@@ -102,7 +98,7 @@ COMMANDS = {
         ),
     ],
     
-    "VERSION CONTROL COMMANDS: ": [
+    "VERSION CONTROL COMMANDS": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
         ("checkout <filename> <commit_hask>", "Checkout to a historic version of the file indexed by the commit_hash"),
@@ -224,14 +220,12 @@ def load_file_to_storage(source_path):
 
 def display_help_commands(space_length = 60, indent = 2):
     for category, commands in COMMANDS.items():
-        print(category)
+        print(f"{MAGENTA}{category}{RESET}")
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
-            print(indent * " ", command[0], (space_length - len(command[0])) * " ", command[1])
+            print(command[0], (space_length - len(command[0])) * " ", command[1])
+        print("\n")
             
-        print("")
-
-    print("")
 
 
 def display_abbreviations():
@@ -435,51 +429,23 @@ class CLI(cmd.Cmd):
 
     def do_ord(self, args):
         try:
-            
             arguments = args.split()
-            flag = arguments[0]
 
-            match flag:
-                case "-t":
+            if len(arguments) > 1:
+                filename, order = arguments[0], arguments[1]
+                order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
+            else:
+                filename = arguments[0]
+                order = GroupingType.ATOZ
+                
+            bib_file = path_to_bibfileobj(filename)
 
-                    if len(arguments) > 2:
-                        filename, order = arguments[1], arguments[2]
-                        order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
-                    else:
-                        filename = arguments[1]
-                        order = GroupingType.ATOZ
-                        
-                    bib_file = path_to_bibfileobj(filename)
-
-                    initialise_history(bib_file)
+            initialise_history(bib_file)
             sortByReftype(bib_file, order); 
-                    utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
             commit(bib_file)
-            
-            
-                    print_in_green(f"Grouping by reference done successfully in {order.name} order")
-                case "-f":
-                    def str_to_bool(s: str) -> bool:
-                        return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
-
-                    filename = arguments[1]
-                    field = arguments[2]
-                    if len(arguments) == 4:
-                        descending = str_to_bool(arguments[3])
-                    else:
-                        descending = False
-
-                    path = os.path.join(get_working_directory_path(), filename)
-                    file = utils.file_parser.parse_bib(path, True)
-                    order_by_field(file, field, descending)
-                    utils.file_generator.generate_bib(file, path, 15)
-
-                    if descending == False:
-                        print_in_green(f"Ascending order by '{field}' field done successfully!")
-                    else:
-                        print_in_green(
-                            f"Descending order by '{field}' field done successfully!"
-                        )
+    
+            print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
         except IndexError as e:
              print(f"Unexpected error: {e}")
@@ -717,37 +683,6 @@ class CLI(cmd.Cmd):
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path, 15)
             print_in_green("Sub operation done successfully!")
-
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-
-    def do_ord(self, args):
-        try:
-
-            def str_to_bool(s: str) -> bool:
-                return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
-
-            args_split = args.split()
-            filename = args_split[0]
-            field = args_split[1]
-            if len(args_split) == 3:
-                descending = str_to_bool(args_split[2])
-            else:
-                descending = False
-
-            path = os.path.join(get_working_directory_path(), filename)
-            file = utils.file_parser.parse_bib(path, True)
-            
-            initialise_history(file)
-            order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(file, path, 15)
-            commit(file)
-
-            if descending == False:
-                print_in_green(f"Ascending order by '{field}' field done successfully!")
-            else:
-                print_in_green(f"Descending order by '{field}' field done successfully!")
 
         except Exception as e:
             print(f"Unexpected error: {e}")

@@ -9,12 +9,12 @@ from objects import BibFile, Reference
 def filter_entry_types(file: BibFile, entry_types: list) -> list:
     """
     Returns a grouped File object which contains References
-    which have entry types in the passed entry_types list
+    which have entry types in the entry_types list
     """
     new_file = BibFile(file.file_name)
     for entry in file.content:
         if type(entry) is Reference:
-            if entry.entry_type in entry_types:
+            if entry.entry_type.lower() in entry_types:
                 new_file.content.append(entry)
         else:
             # Always add all other types (string, comment and preamble)

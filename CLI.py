@@ -16,6 +16,8 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
+from manage_history import commit, redo, undo, initialise_history, checkout, history, delete_history
+from test_tree import test_tree
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -40,81 +42,75 @@ def print_in_yellow(arg):
 CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json" #TODO
 
-COMMANDS = [
-    #CLI related
-    (f"{MAGENTA}CLI related", f"{RESET}"),
-    ("help", "Display the current menu"),
-    ("quit", "Close the BibSteak CLI"),
+COMMANDS = {
+    "BASE COMMANDS" : [
+        ("help", "Display the current menu"),
+        ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
+        ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+        ("list", "Lists all the bib files in the current working directory"),
+        ("pwd", "Prints the current working directory"),
+        ("abb", "Display the abbreviations legend"),
+        (
+            "view <filename>",
+            "View the content of a certain .bib file from your current working directory",
+        ),
+        ("quit", "Close the BibSteak CLI"),
 
-    #directory related
-    (f"{MAGENTA}File management", f"{RESET}"),
-    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
-    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
-    ("list", "Lists all the bib files in the current working directory"),
-    ("pwd", "Prints the current working directory"),
 
-    #viewing stuff
-    (f"{MAGENTA}View", f"{RESET}"),
-    ("abb", "Display the abbreviations legend"),
-    (
-        "view <filename>",
-        "View the content of a certain .bib file from your current working directory",
-    ),
+    ],
     
-    #ordering files
-    (f"{MAGENTA}Ordering of files", f"{RESET}"),
-    (
-        "ord -t <filename> [descending=False]",
-        "Order references of a bib file based on reftype",
-    ),
-    (
-        "ord -f <filename> <field> [descending=False]",
-        "Order the references based on a certain field",
-    ),
+    "FUNCTIONAL COMMANDS": [
+        ("exp <filename>", "Expand all abbreviations in the file"),
+        ("col <filename>", "Collapse all abbreviations in the file"),
+        (
+            "br <filename> <fields> <old string> <new string>",
+            "Replace all occurrences in given fields",
+        ),
+        (
+            "ord <filename> <field> [descending=False]",
+            "Order the references based on a certain field",
+        ),
+        ("clean <filename>", "Cleans file according to rules in config."),
+        (
+            "sub -e <filename> <new_filename>, <entry_types>",
+            "Creates a sub .bib file with only specified entry " "types.",
+        ),
+        (
+            "sub -t <filename> <new_filename>, <tags>",
+            "Creates a sub .bib file with only references with specified " "tags.",
+        ),
+        (
+            "mer <filename1> <filename2> <new_filename>",
+            "Merge the references from two bib files into one file.",
+        ),
+        (
+            "mer -all <new_filename>",
+            "Merge all bib files in the current working directory.",
+        ),
+        (
+            "graph [k_regular=2]",
+            "Generates a directed K-regular graph of a bib file"
+        ),
+        ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
+        (
+            "gr <filename> [descending=False]",
+            "Group references of a bib file based on a certain field",
+        ),
+        (
+            "filter <filename> <field>, [value]",
+            "Displays references with a certain field (OPTIONAL: a value in that field)"
+        ),
+    ],
     
-    #tagging
-    (f"{MAGENTA}Tagging and creation of sub .bibs", f"{RESET}"),
-    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
-    (
-        "filter <filename> <field> [value=None]",
-        "Displays references with a certain field (OPTIONAL: a value in that field)"
-    ),
-    ("tag -q <tag> <query>", "Tags a subset of references using a query. Queries can either be a filter or search command"),
-    ("tag -ls", "Displays all tagged references"),
-    ("untag -q <tag> <query>", "Untags a subset of references using a query. Queries can either be a filter or search command"),
-    ("untag -ls <citekey list>", "Untags a subset of references by citekey"),
-    (
-        "sub -t <filename> <new filename> <tags list>",
-        "Creates a .bib file containing only the references with specified tags.",
-    ),
-    (
-        "sub -e <filename> <new filename> <entrytypes>",
-        "Creates a .bib file containing only the specified entrytypes.",
-    ),
+    "VERSION CONTROL COMMANDS: ": [
+        ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
+        ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
+        ("checkout <filename> <commit_hask>", "Checkout to a historic version of the file indexed by the commit_hash"),
+        ("del <filename>", "Delete all the history logs for a file"),
+        
+    ]
+}
     
-    
-    #minimize, maximize, clean
-    (f"{MAGENTA}Cleaning", f"{RESET}"),
-    ("clean <filename>", "Cleans file according to rules in config."),
-    ("exp <filename>", "Expand all abbreviations in the file"),
-    ("col <filename>", "Collapse all abbreviations in the file"),
-    (
-        "br <filename> <fields> <old string> <new string>",
-        "Replace all occurrences in given fields",
-    ),
-    
-    #merging
-    (f"{MAGENTA}Merging", f"{RESET}"),
-    (
-        "mer <filename1> <filename2> <new_filename>",
-        "Merge the references from two bib files into one file.",
-    ),
-    (
-        "mer -all <new_filename>",
-        "Merge all bib files in the current working directory.",
-    ),
-]
-
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -226,9 +222,14 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands(space_length = 60):
-    for command in COMMANDS:
-        print(command[0], (space_length - len(command[0])) * " ", command[1])
+def display_help_commands(space_length = 60, indent = 2):
+    for category, commands in COMMANDS.items():
+        print(category)
+        ordered_commands = sorted(commands, key=lambda command: command[0])
+        for command in ordered_commands:
+            print(indent * " ", command[0], (space_length - len(command[0])) * " ", command[1])
+            
+        print("")
 
     print("")
 
@@ -326,6 +327,10 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print(f"Path Error: {e}")
             return None
+        
+    def do_cd(self, wd_path):
+        self.do_cwd(wd_path)
+        return
 
     def do_help(self, arg):
         display_help_commands()
@@ -418,8 +423,10 @@ class CLI(cmd.Cmd):
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             batch_editor.batch_replace(bib_file, fields, old_string, new_string)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
 
@@ -444,9 +451,12 @@ class CLI(cmd.Cmd):
                         
                     bib_file = path_to_bibfileobj(filename)
 
-                    sortByReftype(bib_file, order)
+                    initialise_history(bib_file)
+            sortByReftype(bib_file, order); 
                     utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
-
+            commit(bib_file)
+            
+            
                     print_in_green(f"Grouping by reference done successfully in {order.name} order")
                 case "-f":
                     def str_to_bool(s: str) -> bool:
@@ -487,8 +497,10 @@ class CLI(cmd.Cmd):
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
 
@@ -511,8 +523,10 @@ class CLI(cmd.Cmd):
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
 
@@ -708,6 +722,36 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
+    def do_ord(self, args):
+        try:
+
+            def str_to_bool(s: str) -> bool:
+                return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
+
+            args_split = args.split()
+            filename = args_split[0]
+            field = args_split[1]
+            if len(args_split) == 3:
+                descending = str_to_bool(args_split[2])
+            else:
+                descending = False
+
+            path = os.path.join(get_working_directory_path(), filename)
+            file = utils.file_parser.parse_bib(path, True)
+            
+            initialise_history(file)
+            order_by_field(file, field, descending)
+            utils.file_generator.generate_bib(file, path, 15)
+            commit(file)
+
+            if descending == False:
+                print_in_green(f"Ascending order by '{field}' field done successfully!")
+            else:
+                print_in_green(f"Descending order by '{field}' field done successfully!")
+
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
 
     def do_clean(self, arg):
         try:
@@ -719,8 +763,10 @@ class CLI(cmd.Cmd):
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
 
+            initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15) 
+            commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
 
@@ -751,7 +797,9 @@ class CLI(cmd.Cmd):
                         continue
                     bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
-                utils.file_generator.generate_bib(merged_bib_file, new_file_name, 15)
+                # Write output inside the configured working directory
+                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                utils.file_generator.generate_bib(merged_bib_file, out_path, 15)
 
             else:
                 file_name_1, file_name_2, new_file_name = args.split()
@@ -763,23 +811,32 @@ class CLI(cmd.Cmd):
                 bib_file_2 = utils.file_parser.parse_bib(path_2, False)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
-                utils.file_generator.generate_bib(merge_result, new_file_name, 15)
+                # Write output inside the configured working directory
+                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                utils.file_generator.generate_bib(merge_result, out_path, 15)
 
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            if "not enough values to unpack" in str(e):
+            if "not enough values to unpack" in str(e) or "too many values to unpack" in str(e):
                 print(
-                    "Argument error: Not enough arguments provided. Please provide three arguments: <filename1> "
+                    "Argument error: Incorrect number of arguments. Please provide three arguments: <filename1> "
                     "<filename2> <new_filename>."
                 )
             else:
                 print(f"Argument error: {e}")
+        except FileNotFoundError as e:
+            print(f"File error: {os.path.basename(e.filename)} not found.")
         except Exception as e:
             print(f"Unexpected error: {e}")
             
             
     def do_graph(self, args):
+        if args:
+            k_regular = int(args)
+        else:
+            k_regular = 2
+        
         if get_working_directory_path() == '':
             print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
         else:
@@ -791,16 +848,127 @@ class CLI(cmd.Cmd):
             try:
                 files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
                 index = int(index_str)
-                print(f"You selected file {files[index-1][0]}")  
+                print(f"You selected the file: {files[index-1][0]}")  
                 file = (files[index-1])    
                 file_name = file[0]
                 path = os.path.join(get_working_directory_path(), file_name)
                 bibfileobj = utils.file_parser.parse_bib(path, False)  
-                graph.generate_graph(bibfileobj)
+                graph.generate_graph(bibfileobj, k_regular)
                 
                 
             except ValueError:
                 print(f"{RED}Invalid index. Please enter a number.{RESET}")
+                
+    def do_undo(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            undo(bib_file, step)
+            
+        except ValueError as e:
+            print(f"Argument error: {e}")
+            return None
+        except FileNotFoundError as e:
+            print(f"File error: {e.filename} not found.")
+            return None
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+        
+        
+    def do_redo(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            redo(bib_file, step)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+            
+            
+    def do_checkout(self, args):
+        try:
+            argument_list = args.split()
+            if len(argument_list) == 2:
+                filename = argument_list[0]
+                commit_hash = argument_list[1]
+            else:
+                print("Not enough arguments!")
+                return
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            checkout(bib_file, commit_hash)
+            print_in_green(f"Checkout done successfully to commit: {commit_hash}")
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+            
+            
+    def do_history(self, args):
+        try:
+            filename = args
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            history(bib_file)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+            
+            
+    def do_del(self, args):
+        try:
+            filename = args
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            delete_history(bib_file)
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None    
                 
 
     def default(self, line):
@@ -817,6 +985,8 @@ class CLI(cmd.Cmd):
             ]
         except Exception:
             return []
+        
+    
 
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
@@ -830,7 +1000,7 @@ class CLI(cmd.Cmd):
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_rg(self, text, line, begidx, endidx):
+    def complete_gr(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_br(self, text, line, begidx, endidx):

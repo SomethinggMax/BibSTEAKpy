@@ -1,11 +1,25 @@
-from pyalex import Works, config
-from nicegui import ui
+import sys, time, threading, json, pprint
+import networkx as nx
 from objects import BibFile, Reference, String, GraphNode
 from collections import defaultdict
-import pprint
-import threading
-import networkx as nx
-import json
+from pyalex import Works, config
+from nicegui import ui, app
+
+stop_event = threading.Event()
+RESET = "\033[0m"; RST = "\033[0m"
+YELLOW = "\033[33m"
+
+def show_status():
+    dots = 0
+    while not stop_event.is_set():
+            sys.stdout.write(f"{YELLOW}\rLOADING GRAPH {'.' * dots}{(6 - dots) * ' '}{RESET}")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            dots = (dots + 1) % 6
+    
+    print("Graph loaded! - Check your browser")
+    
+
 
 # pyalex.config.email = "tabreafabian0@gmail.com"
 config.max_retries = 0
@@ -13,10 +27,12 @@ config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
 
-def generate_graph(bib_file: BibFile):
+def generate_graph(bib_file: BibFile, k_regular: int):
     adjacency_list = defaultdict(list)
     base_nodes_titles = []
-    first_neighbours_titles = []
+    
+    t = threading.Thread(target=show_status, daemon=True)
+    t.start()
     
     for entry in bib_file.content:
         if isinstance(entry, Reference):
@@ -31,31 +47,32 @@ def generate_graph(bib_file: BibFile):
                 for w in results:
                     if w.get("title", "").strip().lower() == title.strip().lower() and str(w.get("publication_year", 0)) == str(year):
                         fetched_work = w
+                        break
                         
                 base_nodes_titles.append(construct_work_description(fetched_work))
                 
-                first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work)
+                first_neighbours = update_adjacency_neighbours(adjacency_list, fetched_work, k_regular)
                 
-                for neighbour in first_neighbours:
-                    first_neighbours_titles.append(neighbour.get("title", "N/A"))
-                    second_neighbours = update_adjacency_neighbours(adjacency_list, neighbour)
-                    for sec_neighbour in second_neighbours:
-                        update_adjacency_neighbours(adjacency_list, sec_neighbour, 3)
-                        
+                for first_neighbour in first_neighbours:
+                    second_neighbours = update_adjacency_neighbours(adjacency_list, first_neighbour, k_regular)
+                    for second_neighbours in second_neighbours:
+                        update_adjacency_neighbours(adjacency_list, second_neighbours, k_regular)
                         
             except Exception as e:
-                print(e)
+                print("Unexpected exception: ", e)
 
-    G = nx.DiGraph([("(John, 2024)","(Marie et al., 2017)")])
+    Graph = nx.DiGraph()
+    
     for base_node, neighbours in adjacency_list.items():
         for neighbour in neighbours:    
-            G.add_edge(construct_node_description(base_node), construct_node_description(neighbour))
+            Graph.add_edge(construct_node_description(base_node), construct_node_description(neighbour))
+            
     try:
-        threading.Thread(target=run_server(G, base_nodes_titles), daemon=True).start()
-      # run_server()
-    except Exception:
-        pass
-
+        stop_event.set()
+        threading.Thread(target=run_server(Graph, base_nodes_titles), daemon=True).start()
+    except Exception as e:
+        print("Unexpected exception: ", e)
+        
 
 def run_server(constructed_graph, base_nodes_titles = []):
     try:
@@ -69,195 +86,87 @@ def run_server(constructed_graph, base_nodes_titles = []):
         for n in G.nodes():
             in_degree = G.in_degree(n)
             out_degree = G.out_degree(n)
-            
             label = f"{n}\n(cited by: {in_degree}, cites: {out_degree})"
             
             if n in base_set:
-                nodes.append({"id": str(n), "label": label, "color": "#c47e63"})
-            
+                 nodes.append({"id": str(n), "label": label, "color": "#c47e63"})
             elif n in first_set:
                 nodes.append({"id": str(n), "label": label, "color": "#819a90"})
-                
             elif n in second_set:
                 nodes.append({"id": str(n), "label": label, "color": "#3c649f"})
-                
             else:   
                 nodes.append({"id": str(n), "label": label, "color": "#dccbb6"})
                 
             # nodes.append({"id": str(n), "label": label, "color": "#dccbb6"})
             
-                
-                
-            
-            # if "marie" in str(n).lower() or "marie" in label.lower():
-            #     n["color"] = {"background": "#2ecc71", "border": "#1e824c"}
-
-        # nodes = [{"id": str(n), "label": str(n)} for n in G.nodes()]
-        # edges = [{"from": str(u), "to": str(v)} for u, v in G.edges()]
-        edges = [{"from": u, "to": v, "arrows": "to", "label": str(G[u][v].get('weight', '')), "font": {
-            "color": "red",        # color of the label text
-            # optional extras:
-            "background": "white", # rectangle background behind text
+        edges = [{"from": u, "to": v, "arrows": "to", "label": str(G[u][v].get('weight', '')), 
+        "font": {
+            "color": "red",        
+            "background": "white", 
             "strokeWidth": 3,
             "strokeColor": "black"
-        }} for u, v in G.edges()]
+            }} for u, v in G.edges()]
         
         nodes_json = json.dumps(nodes)
         edges_json = json.dumps(edges)
 
         @ui.page('/')
         def page():
-
+            app.add_static_files('/static', 'static')  
             ui.html('<div id="graph" style="width:autodv; height:autodv"]></div>')
-            
-            ui.run_javascript(f"""
-            (function () {{
-            function truncateLabel(s, n) {{
-                if (!s) return s;
-                if (s.length <= n) return s;
-                return s.slice(0, n - 1) + "…";
-            }}
-
-            function wrapByWords(text, maxPerLine) {{
-                if (!text) return "";
-                const words = String(text).split(/\\s+/);
-                let line = "", out = [];
-                for (const w of words) {{
-                if ((line + " " + w).trim().length > maxPerLine) {{
-                    out.push(line.trim());
-                    line = w;
-                }} else {{
-                    line += " " + w;
-                }}
-                }}
-                if (line.trim()) out.push(line.trim());
-                return out.join("\\n"); // vis-network uses \\n for new lines
-            }}
-
-            // Prepare datasets with short/long labels and tooltips
-            const rawNodes = {nodes_json};
-            const nodes = rawNodes.map(n => {{
-                const titleOnly   = String(n.id);                    // your academic title is in n.id (or use another field if needed)
-                const statsLine   = n.label.split("\\n").slice(1).join("\\n"); // keep your (cited by, cites) part
-                const wrappedFull = wrapByWords(titleOnly, 32);      // multi-line full label
-                const shortTitle  = truncateLabel(titleOnly, 48);    // short, single-line + …
-                const shortLabel  = shortTitle + (statsLine ? "\\n" + statsLine : "");
-                const longLabel   = wrappedFull + (statsLine ? "\\n" + statsLine : "");
-                
-                return {{
-                id: n.id,
-                label: shortLabel,          // start collapsed
-                title: titleOnly,           // full on hover
-                _shortLabel: shortLabel,    // custom fields we will toggle
-                _longLabel:  longLabel,
-                _isShort: true,
-                shape: "circle",                // box allows wrapping nicely with widthConstraint
-                color:  n.color || {{ background: '#27AE60', border: '#66BB6A' }}
-                }};
-            }});
-
-            const edges = {edges_json};
-
-            function render() {{
-                const container = document.getElementById('graph');
-                const data = {{
-                nodes: new vis.DataSet(nodes),
-                edges: new vis.DataSet(edges)
-                }};
-                
-            const options = {{
-                physics: {{ 
-                enabled: true,
-                stabilization: false,
-                solver: 'repulsion',
-                repulsion: {{
-                    nodeDistance: 1500,     // push components apart
-                    springLength: 300,
-                    springConstant: 0.03,
-                    damping: 0.09,
-                    centralGravity: 0.0    // avoid pulling everything to the center
-                }}
-
-                }},
-                interaction: {{ hover: true, dragNodes: true, zoomView: true, zoomSpeed: 0.6, navigationButtons: true, dragView: true}},
-                // edges: {{ length: 250, width: 15}},
-                edges: {{width: 15}},
-                
-                nodes: {{
-                    shape: "circle",
-                    shadow: {{ enabled: true, size: 15, x: 7, y: 7 }},
-                    margin: 120,
-                    size: 80,
-                    widthConstraint: {{ maximum: 180 }},   // wrap to this width
-                    font: {{
-                    // 'multi' isn't required for wrapping; \\n handles new lines
-                    // you can tweak size or face if you want
-                    size: 12,
-     
-                    }}
-                }}
-                }};
-                
-                const network = new vis.Network(container, data, options);
-
-                // Toggle expand/collapse on double-click
-                network.on("doubleClick", params => {{
-                if (!params.nodes || !params.nodes.length) return;
-                const id = params.nodes[0];
-                const n = data.nodes.get(id);
-                if (!n) return;
-                if (n._isShort) {{
-                    data.nodes.update({{ id, label: n._longLabel, _isShort: false }});
-                }} else {{
-                    data.nodes.update({{ id, label: n._shortLabel, _isShort: true }});
-                }}
-                }});
-            }}
-
-            if (window.vis) {{ render(); }}
-            else {{
-                const s = document.createElement('script');
-                s.src = 'https://unpkg.com/vis-network/standalone/umd/vis-network.min.js';
-                s.onload = render;
-                document.head.appendChild(s);
-            }}
-            }})();
-            """)
+            ui.add_head_html('<script src="/static/graph.js"></script>')
+            ui.run_javascript(f'GraphWidget.init("#graph", {nodes_json}, {edges_json});')
 
         ui.run(port=8090, reload=False) 
         # ui.run(native=True, reload=False)  # opens a native window via PyWebView
         # s = socket.socket(); s.bind(('', 0)); port = s.getsockname()[1]; s.close()
         # ui.run(host='127.0.0.1', port=port, reload=False)
         
-    except (KeyboardInterrupt, SystemExit):
-        print("some exception")
+    except (KeyboardInterrupt):
+        print(f"Graph Simulation Terminated!")
+    except Exception as e:
+        print(e)
         
         
-def update_adjacency_neighbours(adjacency_list, base_node, max = 5):
-    # SOLVE THIS !!!!!!!!!!!
-    neighbour_node = GraphNode(base_node.get("title", "N/A"))
-    neighbour_node.authors = [author['author']['display_name'] for author in base_node.get("authorships", [])]
-    neighbour_node.year = base_node.get("publication_year", "N/A")
+def update_adjacency_neighbours(adjacency_list, base_work, max = 5):
+    # Make this faster
+    base_node = None
+    is_key = False
     
-    
-    second_id_refs = base_node.get("referenced_works", [])
-    second_neighbours = []
-    
-    if len(second_id_refs) > 0:
-        joined = "|".join(second_id_refs)
-        second_neighbours = Works().filter(openalex=joined).sort(cited_by_count="desc").select(["id", "title", "publication_year", "authorships", "referenced_works"]).get(per_page=15)
-        second_neighbours = second_neighbours[:max]
+    for node_object in adjacency_list.keys():
+        if node_object.title == base_work.get("title", "N/A") and node_object.year == base_work.get("publication_year", "N/A"):
+            base_node = node_object
+            is_key = True
+            break
         
-        for second_neighbour in second_neighbours:
-            node2 = GraphNode(second_neighbour.get("title", "N/A"))
-            node2.authors = [author['author']['display_name'] for author in second_neighbour.get("authorships", [])]
-            node2.year = second_neighbour.get("publication_year", "N/A")
-            adjacency_list[neighbour_node].append(node2)
+    if is_key == False:
+        base_node = GraphNode(base_work.get("title", "N/A"))
+        base_node.authors = [author['author']['display_name'] for author in base_work.get("authorships", [])]
+        base_node.year = base_work.get("publication_year", "N/A")
+    
+    neighbours_ids = base_work.get("referenced_works", [])[:10] # Improve this
+    neighbours = []
+    
+    if len(neighbours_ids) > 0:
+        try:
+            joined = "|".join(neighbours_ids)
+            neighbours = Works().filter(openalex=joined).sort(cited_by_count="desc").select(["id", "title", "publication_year", "authorships", "referenced_works"]).get(per_page=15)
+            neighbours = neighbours[:max]
             
+            for second_neighbour in neighbours:
+                neighbour_node = GraphNode(second_neighbour.get("title", "N/A"))
+                neighbour_node.authors = [author['author']['display_name'] for author in second_neighbour.get("authorships", [])]
+                neighbour_node.year = second_neighbour.get("publication_year", "N/A")
+                
+                adjacency_list[base_node].append(neighbour_node)
+                
+        except Exception as e:
+            print(e)
     else:
-        adjacency_list[neighbour_node] = []
+        adjacency_list[base_node] = []
         
-    return second_neighbours
+    return neighbours
+
         
 def construct_node_description(base_node: GraphNode):
     title = base_node.title
@@ -265,6 +174,7 @@ def construct_node_description(base_node: GraphNode):
     authors = str(base_node.authors).replace("[", "").replace("]", "")
     
     return f"Title: {title} \n Publication Year: {year} \n Authors: {authors}" 
+
 
 def construct_work_description(work):
     title = work.get("title", "N/A")

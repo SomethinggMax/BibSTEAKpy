@@ -6,15 +6,39 @@ def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new
     """
     Searches the references for occurrences of the old_string and replaces them with the new_string.
     Only searches the fields given in the fields_to_edit parameter, or all if empty.
+    Also replaces the long_form of string definitions, does not replace string abbreviations.
     """
     for entry in bib_file.content:
+        if type(entry) is String:
+            entry.long_form = entry.long_form.replace(old_string, new_string)
         if type(entry) is Reference:
             fields = entry.get_fields()
             for field_type, data in fields.items():
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
                 if not fields_to_edit or field_type in fields_to_edit:
-                    fields[field_type] = data.replace(old_string, new_string)
+                    if "#" not in data:
+                        if "\"" in data or "{" in data:
+                            fields[field_type] = data.replace(old_string, new_string)
+                    else:
+                        data_list = data.split(" # ")
+                        final_data = ""
+                        # Loop over all elements except the last one (to add the #s back)
+                        for string in data_list[:-1]:
+                            stripped = string.strip()
+                            if "\"" in stripped or "{" in stripped:
+                                final_data += stripped.replace(old_string, new_string) + " # "
+                            else:
+                                final_data += stripped + " # "
+
+                        # Add the final part of the string.
+                        stripped = data_list[-1].strip()
+                        if "\"" in stripped or "{" in stripped:
+                            final_data += stripped.replace(old_string, new_string)
+                        else:
+                            final_data += stripped
+
+                        fields[field_type] = final_data
     return bib_file
 
 
@@ -35,8 +59,8 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
                     continue
                 if data == old_abbreviation:
                     fields[field_type] = new_abbreviation
-                elif "#" in data:
-                    data_list = data.split("#")
+                elif " # " in data:
+                    data_list = data.split(" # ")
                     final_data = ""
                     # Loop over all elements except the last one (to add the #s back)
                     for string in data_list[:-1]:
@@ -54,7 +78,6 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
                         final_data += stripped
 
                     fields[field_type] = final_data
-
     return bib_file
 
 
@@ -82,7 +105,6 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: Strin
                     number_of_occurrences = data.count(string.long_form)
                     if number_of_occurrences == 0:
                         continue
-                    print(f"Found {number_of_occurrences} occurrences of the long form!")
 
                     def replace_string_and_return_count(old_string: str, new_string: str) -> int:
                         updated_data = fields[field_type]
@@ -118,7 +140,6 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: Strin
                                 raise ValueError("Could not determine type of enclosure for field.")
                     if number_of_occurrences != 0:
                         raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
-
     return bib_file
 
 
@@ -140,8 +161,8 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
                     continue
                 if data in strings_to_extend:
                     fields[field_type] = "{" + strings_to_extend[data] + "}"
-                elif "#" in data:
-                    data_list = data.split("#")
+                elif " # " in data:
+                    data_list = data.split(" # ")
                     final_data = ""
                     # Loop over all elements except the last one (to add the #s back)
                     for string in data_list[:-1]:
@@ -163,7 +184,6 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
     # Remove the strings (what an abomination).
     bib_file.content = [x for x in bib_file.content if
                         not isinstance(x, String) or (abbreviations and x.abbreviation not in abbreviations)]
-
     return bib_file
 
 

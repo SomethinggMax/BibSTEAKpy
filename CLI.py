@@ -74,7 +74,7 @@ COMMANDS = {
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
-            "br <filename> <old string> <new string> [fieldslist=emptyList]",
+            "br <filename> <old string> <new string> [fieldslist=None]",
             "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
         ),
         ("clean <filename>", "Cleans file according to rules in config."),
@@ -450,7 +450,6 @@ class CLI(cmd.Cmd):
 
     def do_br(self, args):
         try:
-
             arguments = args.split()
 
             if len(arguments) == 3:
@@ -458,6 +457,8 @@ class CLI(cmd.Cmd):
                 fields = []
             elif len(arguments) == 4:
                 filename, old_string, new_string, fields = args.split()
+            else:
+                raise ValueError()
 
             #get and save history of file
             bib_file = path_to_bibfileobj(filename)
@@ -472,9 +473,7 @@ class CLI(cmd.Cmd):
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(
-                f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <fieldslist> <old string> <new string>"
-            )
+            print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <fieldslist> <old string> <new string>")
         except PermissionError as e:
             print_in_yellow(
                 f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied"

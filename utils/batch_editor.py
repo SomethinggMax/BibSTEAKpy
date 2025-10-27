@@ -9,13 +9,18 @@ def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new
     Also replaces the long_form of string definitions, does not replace string abbreviations.
     """
     for entry in bib_file.content:
+        #keep strings
         if type(entry) is String:
             entry.long_form = entry.long_form.replace(old_string, new_string)
+
+
         if type(entry) is Reference:
             fields = entry.get_fields()
             for field_type, data in fields.items():
+                #simply keep comments, entry types and citekeys
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
+                #we either look through all fields OR if the specific field type is found we also go ahead
                 if fields_to_edit == [] or field_type in fields_to_edit:
                     if "#" not in data:
                         if "\"" in data or "{" in data:

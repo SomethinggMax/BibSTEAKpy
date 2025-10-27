@@ -426,13 +426,12 @@ class CLI(cmd.Cmd):
 
     def do_search(self, args):
         try:
-            print(args)
             filename, searchterm = args.split()
             bibfileobj = path_to_bibfileobj(filename)
 
             array = search(bibfileobj, searchterm)
             if array == -1:
-                print_in_green("No references match your search :(")
+                print_in_green("No references match your search :(") #TODO: diff colour?
             else:
                 self.do_view_array(array)
         except IndexError as e:
@@ -473,7 +472,7 @@ class CLI(cmd.Cmd):
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <fieldslist> <old string> <new string>")
+            print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <old string> <new string> [fieldslist=None]")
         except PermissionError as e:
             print_in_yellow(
                 f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied"

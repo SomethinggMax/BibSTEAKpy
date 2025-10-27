@@ -60,15 +60,13 @@ def change_field_enclosure(reference: Reference, start_enclosure: str, end_enclo
     for field_type, data in reference.get_fields().items():
         if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
             continue
-        if not data.startswith('"') and not data.startswith('{'):
-            continue
         if ' # ' in data:
             continue
         new_data = remove_enclosure(data)
+        if new_data == data:
+            continue
         if not new_data.isdigit():
             new_data = start_enclosure + new_data + end_enclosure
-        if data != new_data and (new_data.startswith('"{') and new_data.endswith('}"')):
-            print(f"Old: {data}, new: {new_data}")
         setattr(reference, field_type, new_data)
 
 
@@ -111,7 +109,6 @@ def remove_enclosure(field_value: str) -> str:
 
         if braces_level != 0:
             if x > 3:
-                print(f"Invalid braces for field value: '{field_value}', returning original value.")
                 return field_value  # Give up on changing anything and just return the original value.
             result = "{" + result + "}"  # Add a pair of braces and hope it fixes the problem.
         else:

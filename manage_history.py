@@ -128,7 +128,6 @@ def commit(bibfile: BibFile):
             tracker_file.write(json_str)
             tracker_file.close()
         
-
     else:
         print_in_yellow("No changes detected.")
         

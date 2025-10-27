@@ -16,7 +16,7 @@ def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new
             for field_type, data in fields.items():
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
-                if not fields_to_edit or field_type in fields_to_edit:
+                if fields_to_edit == [] or field_type in fields_to_edit:
                     if "#" not in data:
                         if "\"" in data or "{" in data:
                             fields[field_type] = data.replace(old_string, new_string)

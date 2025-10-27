@@ -318,9 +318,13 @@ class CLI(cmd.Cmd):
 
             print_in_green(f"Directory successfully set to {wd_path}")
 
+        except ValueError as e:
+            print_in_yellow(f"{e}")
+            return
+        except FileNotFoundError as e:
+            print_in_yellow(f"{e}. In case you used quotation marks, try it without.")
         except Exception as e:
-            print(f"Path Error: {e}")
-            return None
+            print_in_yellow(f"{RED}An unexpected error occured!{YELLOW}{e}")
         
     def do_cd(self, wd_path):
         self.do_cwd(wd_path)

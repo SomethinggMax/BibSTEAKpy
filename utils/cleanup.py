@@ -141,8 +141,6 @@ def convert_symbols(reference: Reference):
             continue
         for key, value in bibtex_to_unicode.items():
             data = data.replace(key, value)
-        if "\\" in data and "http" not in data and "www" not in data and "10.10" not in data:
-            print(f"Data containing '\\': {data}")
 
 
 def clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:

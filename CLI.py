@@ -857,6 +857,18 @@ class CLI(cmd.Cmd):
             else:
                 print("Not enough arguments!")
                 return
+            
+            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+                return
+            
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+            
+            if not os.path.isfile(checkout_path):
+                print_in_yellow(f"Commit hash for file {filename} is not valid")
+                return
+                
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             checkout(bib_file, commit_hash)
@@ -871,14 +883,52 @@ class CLI(cmd.Cmd):
         except Exception as e:
                 print(f"Unexpected error: {e}")
                 return None
-
-
+            
+    def do_comment(self, args):
+        try:
+            argument_list = args.split(maxsplit = 2)
+            if len(argument_list) == 3:
+                filename = argument_list[0]
+                commit_hash = argument_list[1]
+                checkout_comment = argument_list[2]
+            else:
+                print_in_yellow("Not enough arguments!")
+                return
+            
+            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+                return
+            
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+            
+            if not os.path.isfile(checkout_path):
+                print_in_yellow(f"Commit hash for file {filename} is not valid")
+                return
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            comment(bib_file, commit_hash, checkout_comment)
+            print_in_green(f"Commenting done successfuly")
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+        
+        
+            
+            
     def do_history(self, args):
         try:
             filename = args
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
-            
             history(bib_file)
 
         except ValueError as e:

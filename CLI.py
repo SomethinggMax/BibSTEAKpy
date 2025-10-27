@@ -357,17 +357,20 @@ class CLI(cmd.Cmd):
         
         return True  # returning True exits the loop
 
+    #TODO: pretty up?
+    #TODO: store all files as preprocessed bibfiles in this cli?
     def do_view(self, arg):
         try:
             path = os.path.join(get_working_directory_path(), arg)
             with open(path, "r") as f:
                 for line in f:
-                    print(f"{YELLOW}|>  {RESET}", line, end="")
-
+                    print(f"", line, end="")
             print("\n")
+        except FileNotFoundError as e:
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found!")
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_in_yellow(f"Unexpected error: {e}")
+            return
 
     def do_filter(self, args):
         try:

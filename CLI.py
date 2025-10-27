@@ -299,9 +299,10 @@ class CLI(cmd.Cmd):
             return None
 
     def do_pwd(self, arg):
-        print(
-            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
-        )
+        if get_working_directory_path() != '':
+            print(f"The current working directory is {CYAN}'{get_working_directory_path()}'")
+        else:
+            print_in_yellow("No working directory is selected")
 
     def do_cwd(self, args):
 

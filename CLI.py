@@ -192,30 +192,32 @@ def load_file_to_storage(source_path):
         if extension == ".bib":
             shutil.copy(source_path, destination_path)
 
-            print(f"{GREEN}File '{filename}' loaded into the storage successfuly!")
+            print_in_green(f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfuly!")
         else:
             if extension == "":
-                raise ValueError("File has no extension. Only .bib files are allowed.")
+                raise ValueError("File has no extension! Only .bib files are allowed.")
             else:
                 raise ValueError(
-                    f"Invalid file extension: '{extension}'. Only .bib files are allowed."
+                    f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed."
                 )
 
     except ValueError as e:
-        print(f"File Type Error: {e}")
-        return None
+        print_in_yellow(f"{e}")
+        return
     except FileNotFoundError as e:
-        print(f"File Not Found Error: {e.filename} not found.")
-        return None
+        print_in_yellow(f"File Not Found: {CYAN}'{e.filename}'")
+        return 
     except PermissionError as e:
-        print(f"Permission Error: Permission to access '{e.filename}' was denied.")
-        return None
+        print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied.")
+        return
     except shutil.SameFileError as e:
-        print(f"File Error: Source and destination represents the same file.")
-        return None
+        print_in_yellow(f"File Error: File already loaded to current working directory.")
+        return
+    except OSError as e:
+        print_in_yellow(f"Invalid argument!")
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
+        print_in_yellow(f"Unexpected error: {e}")
+        return
 
 
 def display_help_commands(space_length = 60, indent = 2):
@@ -272,7 +274,10 @@ class CLI(cmd.Cmd):
 
     # commands
     def do_load(self, arg):
-        load_file_to_storage(arg)
+        if len(arg) >= 1:
+            load_file_to_storage(arg)
+        else:
+            print_in_yellow("Give a path to a file as an argument")
 
     def do_list(self, arg):
         try:
@@ -281,7 +286,7 @@ class CLI(cmd.Cmd):
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
-                    print(f"Bib files in {folder_path}")
+                    print(f"{BLUE}Bib files in {folder_path}:")
                     for file, index in files:
                         print(f"{BLUE}[{index}] {RESET}", file)
                 else:
@@ -298,7 +303,9 @@ class CLI(cmd.Cmd):
             f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
         )
 
-    def do_cwd(self, wd_path):
+    def do_cwd(self, args):
+
+        wd_path = args.split()[0]
 
         try:
             if wd_path == "":

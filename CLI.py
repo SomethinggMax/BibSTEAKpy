@@ -43,7 +43,7 @@ def print_in_yellow(arg):
 CONFIG_FILE = "config.json"
 
 COMMANDS = {
-    "BASE COMMANDS" : [
+    f"{MAGENTA}BASE COMMANDS{RESET}" : [
         ("help", "Display the current menu"),
         ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
         ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
@@ -59,7 +59,7 @@ COMMANDS = {
 
     ],
     
-    "FUNCTIONAL COMMANDS": [
+    f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
@@ -102,7 +102,7 @@ COMMANDS = {
         ),
     ],
     
-    "VERSION CONTROL COMMANDS: ": [
+    f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
         ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
@@ -227,12 +227,14 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands(space_length = 60, indent = 2):
+def display_help_commands(space_length = 60, indent = 0):
+    print("")
+    
     for category, commands in COMMANDS.items():
         print(category)
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
-            print(indent * " ", command[0], (space_length - len(command[0])) * " ", command[1])
+            print(f"{MAGENTA}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
             
         print("")
 

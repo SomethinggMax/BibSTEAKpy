@@ -35,8 +35,10 @@ def colorize(text: str, color: str) -> str:
         return text
     return f"{ANSI[color]}{text}{ANSI['reset']}"
 
+
 def print_msg(text: str):
     show_lines([text])
+
 
 def show_lines(lines: [str]):
     if user_interface == "CLI":
@@ -105,6 +107,7 @@ def prompt_reference_comparison(ref1_text: str, ref2_text: str, header: str = "P
         resp = merge_object.prompt_reference_comparison(header, ref1_text, ref2_text, option1, option2)
         return 1 if str(resp).strip() == '1' else 2
 
+
 def prompt_field_conflict(field_name: str, value1: str, value2: str, header: str | None = None) -> int:
     title = header or f"Conflict in field '{field_name}'"
     if user_interface == "CLI":
@@ -118,6 +121,7 @@ def prompt_field_conflict(field_name: str, value1: str, value2: str, header: str
         resp = merge_object.prompt_field_conflict(title, value1, value2)
         return 1 if str(resp).strip() == '1' else 2
 
+
 def prompt_abbreviation_conflict(long1: str, long2: str, abbr: str) -> int:
     header = f"Conflict with string abbreviation '{abbr}'!"
     if user_interface == "CLI":
@@ -126,7 +130,8 @@ def prompt_abbreviation_conflict(long1: str, long2: str, abbr: str) -> int:
     elif user_interface == "GUI":
         resp = merge_object.prompt_abbreviation_conflict(header, long1, long2)
         return 1 if str(resp).strip() == '1' else 2
-    
+
+
 def prompt_text_input(prompt: str, default: str = "") -> str:
     if user_interface == "CLI":
         return input(prompt)

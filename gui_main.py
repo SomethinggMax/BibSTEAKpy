@@ -47,7 +47,7 @@ def config():
 def get_working_directory_path():
     config_file = config()
     return config_file.get("working_directory")
-    
+
 
 def load_all_files_from_storage():
     """
@@ -70,8 +70,8 @@ def load_all_files_from_storage():
                 loaded[filename] = []
     files = loaded
 
-def populate_files():
 
+def populate_files():
     """
     Populates the column for FILES with the FILES in 
     the directory and the corresponding buttons
@@ -81,7 +81,7 @@ def populate_files():
         with ui.row().classes("items-center justify-between w-full mb-5"):
             # the header of the files column
             ui.label("Files").classes("font-bold text-lg")
-            #display of the select all button
+            # display of the select all button
             with ui.column().classes("items-center gap-1"):
                 ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", toggle_select_all_files)
                 ui.label("Select All").classes("font-bold text-xs")
@@ -89,7 +89,7 @@ def populate_files():
         if not files:
             ui.label("(no .bib files found)")
 
-        #display of selection choice (using checkboxes)    
+        # display of selection choice (using checkboxes)
         for filename in files:
             with ui.row().classes("items-center w-full gap-2"):
                 checkbox = ui.checkbox(on_change=lambda e, fn=filename: toggle_file_selection(fn, e.value))
@@ -98,9 +98,10 @@ def populate_files():
                 btn_classes = "flex-1 text-left"
                 if filename == selected_file:
                     btn_classes += " bg-gray-300"
-                ui.button(filename, on_click=lambda e, fn=filename: on_file_click(fn), color=SECONDARY_COLOR).classes(btn_classes).style("text-transform: none;")
+                ui.button(filename, on_click=lambda e, fn=filename: on_file_click(fn), color=SECONDARY_COLOR).classes(
+                    btn_classes).style("text-transform: none;")
 
-        #display of the bar at the bottom
+        # display of the bar at the bottom
         with files_col:
             with ui.row().classes("items-center justify-between p-5 bg-gray-200 rounded-lg shadow-inner w-full mt-10"):
                 with ui.column().classes("items-center gap-1"):
@@ -115,7 +116,6 @@ def populate_files():
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/batchReplace.png").classes("w-5 h-5 cursor-pointer mt-1").on("click")
                     ui.label("Batch\nReplace").classes("font-bold text-xs text-center whitespace-pre-line")
-
 
 
 def toggle_file_selection(filename: str, checked: bool):
@@ -172,7 +172,9 @@ def populate_refs_for_file(filename: str):
                     ui.image("icons/filter.png").classes("w-6 h-6 cursor-pointer").on("click", on_filter_click)
                     ui.label("Filter").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", lambda: toggle_select_all_references(filename))
+                    ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click",
+                                                                                      lambda: toggle_select_all_references(
+                                                                                          filename))
                     ui.label("Select All").classes("font-bold text-xs")
 
         bib_file = files[filename]
@@ -184,12 +186,14 @@ def populate_refs_for_file(filename: str):
             short_label = f"{author} ({year}): {title}"
 
             with ui.row().classes("items-center w-full gap-2"):
-                checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
+                checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(
+                    f"accent-color: {SUCCESS_COLOR};")
                 checkbox.value = ref in selected_references
                 btn_classes = "flex-1 text-left"
                 if ref is selected_ref:
                     btn_classes += " bg-gray-300"
-                ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color = SECONDARY_COLOR).classes(btn_classes).style("text-transform: none;")
+                ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color=SECONDARY_COLOR).classes(
+                    btn_classes).style("text-transform: none;")
 
 
 def toggle_reference_selection(ref, checked: bool):
@@ -242,6 +246,7 @@ def populate_bib_for_ref(ref):
                 "text-sm w-full whitespace-pre-wrap break-words"
             )
 
+
 def on_file_click(filename: str):
     """
     Toggles the display of the REFERENCE column with 
@@ -265,6 +270,7 @@ def on_ref_click(ref: dict):
     selected_ref = ref
     populate_refs_for_file(selected_file)
     populate_bib_for_ref(ref)
+
 
 def on_minimize_click():
     if not selected_files:
@@ -293,6 +299,7 @@ def on_maximize_click():
     ui.notify(f"Maximized abbreviations for {len(selected_files)} file(s)", color="green")
     reload_after_edit()
 
+
 def on_merge_click():
     global merge
     if not selected_files or len(selected_files) < 2:
@@ -301,21 +308,25 @@ def on_merge_click():
     selected_files_list = list(selected_files)
     merge.start(selected_files_list, files, merge_files)
 
-def _on_merge_done(merged_bib, selected_files_list):
 
+def _on_merge_done(merged_bib, selected_files_list):
     dialog = ui.dialog()
     with dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-80"):
         ui.label("Enter a name for the merged file").classes("font-bold mb-2")
         name_input = ui.input(label="Merged file name").classes("w-full")
+
         def confirm():
             choose_merge_name(name_input.value, merged_bib, selected_files_list, dialog)
+
         with ui.row().classes("justify-end gap-2 mt-4"):
             ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
             ui.button("Merge", on_click=confirm, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
-    
+
+
 def _on_merge_error(msg: str):
     ui.notify(msg, color="red")
+
 
 def choose_merge_name(name, merged_bib, selected_files_list, dialog):
     global selected_file, selected_ref, selected_files
@@ -335,6 +346,7 @@ def choose_merge_name(name, merged_bib, selected_files_list, dialog):
     dialog.close()
     ui.notify(f"Merged {len(selected_files_list)} files into '{merged_filename}'", color="green")
     reload_after_edit()
+
 
 def on_filter_click():
     if not selected_file:
@@ -364,6 +376,7 @@ def on_filter_click():
         )
         with ui.row().classes("justify-end gap-2 mt-4"):
             ui.button("Cancel", on_click=lambda: dialog.close(), color=PRIMARY_COLOR).style("text-transform: none;")
+
             def apply_sort():
                 descending = order_dropdown.value == "Descending"
                 order_by_field(bib_file, field_dropdown.value, descending=descending)
@@ -372,24 +385,24 @@ def on_filter_click():
                 ui.notify(
                     f"References sorted by {field_dropdown.value} ({'descending' if descending else 'ascending'})"
                 )
+
             ui.button("Apply", on_click=apply_sort, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
-    
+
 
 def order_by_field(file: BibFile, field: str, descending=False):
     references = [ref for ref in file.content if isinstance(ref, Reference)]
-    
+
     def get_field_safe(ref, field):
         value = getattr(ref, field, None)
         return value if value is not None else ""
-    
+
     sorted_refs = sorted(references, key=lambda ref: get_field_safe(ref, field), reverse=descending)
     remaining_entries = [e for e in file.content if not isinstance(e, Reference)]
     file.content = remaining_entries + sorted_refs
 
 
 def save_bib_file(filename: str, bib_file):
-
     wd = get_working_directory_path()
     path = os.path.join(wd, filename)
     try:
@@ -401,6 +414,7 @@ def save_bib_file(filename: str, bib_file):
     except Exception as e:
         print(f"Error saving {filename}: {e}")
         ui.notify(f"Error saving {filename}: {e}", color="red")
+
 
 def reload_after_edit():
     global selected_file, selected_ref
@@ -460,24 +474,32 @@ def save_settings(directory_input):
     ui.notify(f"Configuration saved! Directory: {path}", color="green")
     ui.timer(1.5, lambda: ui.run_javascript('window.location.href = "/"'))
 
+
 @ui.page("/setup")
 def setup_page():
     with ui.column().classes("items-center w-full"):
-        ui.label("Setup").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(f"color: {SUCCESS_COLOR};")
+        ui.label("Setup").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(
+            f"color: {SUCCESS_COLOR};")
 
         with ui.column().classes("w-[700px] mx-auto p-6 bg-gray-100 rounded-2xl shadow-lg"):
-            ui.label("Minimize or maximize").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            ui.label("Minimize or maximize").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(
+                f"border-color: {SECONDARY_COLOR};")
             with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
                 with ui.column().classes("gap-3"):
-                    ui.checkbox("Abbreviate/expand").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+                    ui.checkbox("Abbreviate/expand").classes("text-md font-semibold").style(
+                        f"accent-color: {SUCCESS_COLOR};")
                     with ui.row().classes("items-center gap-2 ml-6"):
                         ui.image("icons/customize_rules.png").classes("w-7 h-7")
-                        ui.button("Customize rules", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                        ui.button("Customize rules", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes(
+                            "text-xs px-3 py-1 rounded-md").style("text-transform: none;")
                 with ui.column().classes("gap-5 ml-30"):
-                    ui.checkbox("Hide/unhide URL").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
-                    ui.checkbox("Hide/unhide DOI").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+                    ui.checkbox("Hide/unhide URL").classes("text-md font-semibold").style(
+                        f"accent-color: {SUCCESS_COLOR};")
+                    ui.checkbox("Hide/unhide DOI").classes("text-md font-semibold").style(
+                        f"accent-color: {SUCCESS_COLOR};")
 
-            ui.label("Merge Bib files").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            ui.label("Merge Bib files").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(
+                f"border-color: {SECONDARY_COLOR};")
             with ui.column().classes("gap-3 mt-3 ml-2"):
                 ui.checkbox("Utilize URL").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
                 ui.checkbox("Utilize DOI").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
@@ -487,7 +509,9 @@ def setup_page():
             directory_input = ui.input(label="Path to the working directory").classes("w-full")
 
         with ui.row().classes("justify-end mt-6"):
-            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(directory_input)).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
+            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(directory_input)).classes(
+                "px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
+
 
 @ui.page('/')
 def main_page():

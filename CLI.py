@@ -16,8 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import commit, redo, undo, initialise_history, checkout, history, delete_history
-
+from history_manager import commit, redo, undo, initialise_history, checkout, history, delete_history, comment
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -43,7 +42,7 @@ CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json" #TODO
 
 COMMANDS = {
-    "BASE COMMANDS" : [
+    f"{MAGENTA}BASE COMMANDS{RESET}" : [
         ("help", "Display the current menu"),
         ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
         ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
@@ -58,8 +57,8 @@ COMMANDS = {
 
 
     ],
-
-    "FUNCTIONAL COMMANDS": [
+    
+    f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
@@ -97,13 +96,17 @@ COMMANDS = {
             "Displays references with a certain field (OPTIONAL: a value in that field)"
         ),
     ],
-
-    "VERSION CONTROL COMMANDS": [
+    
+    f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
-        ("checkout <filename> <commit_hask>", "Checkout to a historic version of the file indexed by the commit_hash"),
+        ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
         ("del <filename>", "Delete all the history logs for a file"),
-
+        ("history <filename>", "Show the historic commit graph"),
+        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
+        
+        
+        
     ]
 }
 
@@ -218,14 +221,15 @@ def load_file_to_storage(source_path):
         return None
 
 
-def display_help_commands(space_length = 60, indent = 2):
+def display_help_commands(space_length = 60, indent = 0):
+    print("")
+    
     for category, commands in COMMANDS.items():
         print(f"{MAGENTA}{category}{RESET}")
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
-            print(command[0], (space_length - len(command[0])) * " ", command[1])
-        print("\n")
-
+            print(f"{MAGENTA}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
+            
 
 
 def display_abbreviations():
@@ -853,7 +857,6 @@ class CLI(cmd.Cmd):
             else:
                 print("Not enough arguments!")
                 return
-
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             checkout(bib_file, commit_hash)
@@ -875,6 +878,7 @@ class CLI(cmd.Cmd):
             filename = args
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
+            
             history(bib_file)
 
         except ValueError as e:

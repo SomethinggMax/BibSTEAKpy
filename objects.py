@@ -63,6 +63,9 @@ class String(object):
         self.abbreviation = abbreviation
         self.long_form = long_form
         self.enclosure = enclosure
+        
+    def get_fields(self):
+        return vars(self)
 
 
 class Reference(object):

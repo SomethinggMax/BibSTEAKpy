@@ -105,7 +105,6 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: Strin
                     number_of_occurrences = data.count(string.long_form)
                     if number_of_occurrences == 0:
                         continue
-                    print(f"Found {number_of_occurrences} occurrences of the long form!")
 
                     def replace_string_and_return_count(old_string: str, new_string: str) -> int:
                         updated_data = fields[field_type]

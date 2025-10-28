@@ -1,6 +1,8 @@
-from nicegui import ui
+from nicegui import ui, app
 import os
 import json
+
+import interface_handler
 import utils.file_parser as file_parser
 import re
 import pprint
@@ -11,6 +13,7 @@ from utils.file_generator import generate_bib
 from utils.merge import *
 import subprocess
 from merge_ui import Merge
+import asyncio
 
 files = {}
 selected_file = None
@@ -20,7 +23,7 @@ all_selected_files: bool = False
 selected_references: set = set()
 all_selected_references: bool = False
 merge = None
-
+connected_users = 0
 
 PRIMARY_COLOR = "#CCE0D4"
 SECONDARY_COLOR = "#9AC1A9"
@@ -505,10 +508,33 @@ def main_page():
     populate_files()
 
     merge = Merge(on_done=_on_merge_done, on_error=_on_merge_error)
-    merge.init_ui()
+    interface_handler.user_interface = "GUI"
+    interface_handler.set_merge_object(merge)
+
+
+@app.on_connect
+async def _on_connect(client):
+    await ui.context.client.connected()
+    global connected_users
+    connected_users += 1
+    print(f'Client connected. Total: {connected_users}')
+    
+
+@app.on_disconnect
+async def _on_disconnect(client):
+    global connected_users
+    connected_users -= 1
+    print(f'Client disconnected. Total: {connected_users}')
+    await asyncio.sleep(1)
+    if connected_users == 0:
+        print('There are no active browser windows so the gui will close')
+        app.shutdown()
+        os._exit(0)
+
 
 def start_gui():
     ui.run()
+
 
 if __name__ in {"__main__", "__mp_main__"}:
     start_gui()

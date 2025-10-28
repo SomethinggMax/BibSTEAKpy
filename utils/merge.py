@@ -409,7 +409,7 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
             f"Now input the new abbreviation for '{string.long_form}'. (Old abbreviation: '{string.abbreviation}'): ",
             default=string.abbreviation,
             )
-            
+
             if choice == 1:
                 old_abbreviation = string.abbreviation
                 batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
@@ -419,6 +419,8 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
                 batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
                 string_list.append(string)  # The unchanged string from file 1.
                 string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == new_abbreviation][0])
+            else:
+                raise ValueError("Invalid choice. Please enter 1 or 2.")
     return bib_file_1, bib_file_2, string_list
 
 
@@ -597,7 +599,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                 "2: Keep both references"
                             ])
                             choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
-                        
+
                         if choice == 1:
                             interface_handler.show_lines([
                                 f"Merging '{entry.cite_key}' with '{target_key}' "
@@ -624,12 +626,14 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
 
     return merged_bib_file
 
+
 def _render_reference_block(ref: Reference) -> str:
     lines = []
     for name in _ordered_field_names(ref):
         v = _stringify_field_value(getattr(ref, name, ''))
         lines.append(f"{name}: {v}")
     return '\n'.join(lines) if lines else '(empty)'
+
 
 def _prompt_ref_merge_decision(ref1: Reference, ref2: Reference) -> int:
     is_gui = getattr(interface_handler, 'user_interface', 'CLI') == 'GUI'
@@ -652,6 +656,7 @@ def _prompt_ref_merge_decision(ref1: Reference, ref2: Reference) -> int:
             "2: Keep both references"
         ])
         return interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+
 
 def _prompt_field_conflict_choice(field_name: str, v1, v2, reference_1: Reference, reference_2: Reference) -> int:
     is_gui = getattr(interface_handler, 'user_interface', 'CLI') == 'GUI'

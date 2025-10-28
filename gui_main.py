@@ -1,7 +1,6 @@
 from nicegui import ui, app
 import os
 import json
-
 import interface_handler
 import utils.file_parser as file_parser
 import re
@@ -518,7 +517,7 @@ async def _on_connect(client):
     global connected_users
     connected_users += 1
     print(f'Client connected. Total: {connected_users}')
-    
+
 
 @app.on_disconnect
 async def _on_disconnect(client):

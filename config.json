@@ -1,7 +1,17 @@
 {
+  "abstract_strong_match": 0.9,
+  "abstract_strong_mismatch": 0.5,
+  "user_interface": "CLI",
   "working_directory": "",
+  "convert_special_symbols": true,
   "use_url": false,
   "use_doi": true,
+  "comments": true,
+  "comment_entries": true,
+  "lowercase_entry_types": false,
+  "lowercase_fields": false,
+  "braces_enclosure": false,
+  "quotation_marks_enclosure": false,
   "unnecessary_fields": [
     "langidopts",
     "volume"

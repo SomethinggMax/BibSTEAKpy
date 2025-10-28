@@ -142,7 +142,9 @@ class Merge:
 
     def _show_prompt(self, req):
         def full_code_block(text):
-            return ui.code(text or '(empty)', language='text').classes('text-sm w-full whitespace-pre-wrap break-words bg-white p-2 rounded border').style('max-width: 100%;')
+            return (ui.code(text or '(empty)', language='text')
+                    .classes('text-sm w-full whitespace-pre-wrap break-words bg-white p-2 rounded border')
+                    .style('max-width: 100%;'))
 
         def close_with(value):
             req['response'] = value
@@ -199,7 +201,7 @@ class Merge:
                 if val1 is None or val2 is None:
                     val1 = next((l for l in reversed(ctx) if l.strip().startswith('1.')), '') or '\n'.join(ctx)
                     val2 = next((l for l in reversed(ctx) if l.strip().startswith('2.')), '') or ''
-                
+
                 ui.label(header).classes('font-bold text-lg mb-3')
                 with ui.row().classes('gap-4 w-full items-stretch'):
                     with ui.column().classes('flex-1 min-w-0'):
@@ -207,7 +209,7 @@ class Merge:
                         full_code_block(val1)
                     with ui.column().classes('flex-1 min-w-0'):
                         ui.label('Value from reference 2').classes('font-semibold mb-1')
-                        full_code_block(val2)    
+                        full_code_block(val2)
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button('Keep 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes(
                         'q-btn--no-uppercase')
@@ -290,13 +292,13 @@ class Merge:
         self._prompt_q.put(req)
         req['event'].wait()
         return req['response']
-    
+
     def prompt_field_conflict(self, header: str, value1: str, value2: str):
         req = self._make_prompt('field_conflict', header, value1=value1, value2=value2)
         self._prompt_q.put(req)
         req['event'].wait()
         return req['response']
-    
+
     def prompt_abbreviation_conflict(self, header: str, long1: str, long2: str):
         req = self._make_prompt('abbr_choice', header, opt1=long1, opt2=long2)
         self._prompt_q.put(req)

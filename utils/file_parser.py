@@ -27,10 +27,10 @@ def add_field(fields, field_type, field_value):
     fields[field_type] = field_value
 
 
-def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
-    result = BibFile(file_name)
+def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
+    result = BibFile(file_path)
 
-    with open(file_name, encoding='utf-8') as file:
+    with open(file_path, encoding='utf-8') as file:
         token = ""
         comment = ""
         ref_type = ""
@@ -75,6 +75,10 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             continue
                         elif token_type == Token.FIELD_KEY:
                             field_type = token.strip()
+                            if " " and "\n" in field_type:
+                                unsupported_comment = field_type.split("\n")[0]
+                                raise ValueError(f"Parser does not support comments after field values: "
+                                                 f"key: '{key}', comment: '{unsupported_comment}'")
                             token = ""
                             token_type = Token.VALUE
                             continue
@@ -110,8 +114,14 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             token = token.strip()
                             if ref_type.lower() == "comment":
                                 result.content.append(Comment(token))
+                                if comment != "":
+                                    raise ValueError(f"Parser does not support comments above comment entries: "
+                                                     f"comment entry: {token}, unsupported comment: {comment}")
                             elif ref_type.lower() == "preamble":
                                 result.content.append(Preamble(token))
+                                if comment != "":
+                                    raise ValueError(f"Parser does not support comments above preamble entries: "
+                                                     f"preamble entry: {token}, unsupported comment: {comment}")
                             elif ref_type.lower() == "string":
                                 if token.startswith("{") and token.endswith("}"):
                                     enclosure = Enclosure.BRACKETS
@@ -130,6 +140,7 @@ def parse_bib(file_name, remove_whitespace_in_fields) -> BibFile:
                             token = ""
                             token_type = Token.EXTRA
                             fields = {}
+                            comment = ""
                             continue
                         elif token_type == Token.BRACKETS_ENCLOSURE:
                             curly_bracket_level -= 1

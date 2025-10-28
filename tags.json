@@ -1,5 +1,16 @@
 {
-  "Computer Science": ["jcg", "sarfraz", "knuth:ct", "knuth:ct:b", "knuth:ct:c", "knuth:ct:d", "knuth:ct:e", "knuth:ct:related",
-    "chiu", "wassenberg"],
-  "Virtual memory and storage": ["chiu", "wassenberg"]
+    "bla": [
+        "kant:kpv",
+        "kant:ku"
+    ],
+    "kant": [
+        "kant:kpv",
+        "kant:ku"
+    ],
+    "TCP": [
+        "padhye",
+        "padhye",
+        "padhye",
+        "padhye"
+    ]
 }

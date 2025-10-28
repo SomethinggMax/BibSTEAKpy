@@ -543,7 +543,7 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
+                raise ValueError("Please provide a filename.") #TODO: standardize?
 
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
@@ -556,14 +556,13 @@ class CLI(cmd.Cmd):
             print_in_green("Collapsing abbreviations has been done successfully!")
 
         except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-            return
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print(f"Unexpected error: {e}")
-            return None
 
     def do_tag(self, args):
         try:

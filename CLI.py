@@ -14,7 +14,6 @@ import ast
 import graph
 from graph import generate_graph
 from history_manager import (
-from history_manager import (
     commit,
     redo,
     undo,

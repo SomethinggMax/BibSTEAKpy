@@ -6,7 +6,6 @@ import utils.file_parser as file_parser
 from CLI import get_bib_file_names, get_working_directory_path
 from utils import batch_editor, sub_bib, merge, cleanup
 from utils.Reftype import sortByReftype, GroupingType
-from utils.filtering import search
 
 
 def file_to_string(file_name):
@@ -129,22 +128,18 @@ if __name__ == '__main__':
 
     print_differences(bib_examples_original, bib_examples_generated)
 
-    # test filtering/searching
-    displayfile = search(examples, "english")
-    file_generator.generate_bib(displayfile, "bib_files/newfile.bib", 15)
-
     batch_editor.batch_replace(examples, [], "Cambridge", "Cam")
     cleanup.cleanup(examples)
     file_generator.generate_bib(examples, bib_examples_edited, 15)
 
     print_differences(bib_examples_generated, bib_examples_edited)
 
-    articles = sub_bib.sub_bib_entry_types(test, ["article"])
+    articles = sub_bib.filter_entry_types(test, ["article"])
     file_generator.generate_bib(articles, articles_examples, 15)
 
     file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
 
-    tagged_sub_file = sub_bib.sub_bib_tags(examples, ["Computer Science", "Virtual memory and storage"])
+    tagged_sub_file = sub_bib.filter_tags(examples, ["Computer Science", "Virtual memory and storage"])
     file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
 
     # testing grouping

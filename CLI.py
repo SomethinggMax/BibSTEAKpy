@@ -3,20 +3,17 @@ import os
 import shutil
 import readline
 from utils import merge, cleanup, enrichment
-from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
-
 import utils
 from utils.sub_bib import *
 from utils.Reftype import *
-from utils.order_by_field import *
 from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import (
+from history_manager import (
     commit,
     redo,
     undo,
@@ -24,10 +21,8 @@ from manage_history import (
     checkout,
     history,
     delete_history,
-    commit
+    comment
 )
-
-from history_manager import commit, redo, undo, initialise_history, checkout, history, delete_history, comment
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"

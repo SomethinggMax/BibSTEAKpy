@@ -43,6 +43,7 @@ def convert_symbols(reference: Reference):
                 data = data.replace('{' + latex_command + '\\' + letter + '}', letter + combining_mark)
                 data = data.replace('{' + latex_command + letter + '}', letter + combining_mark)
                 data = data.replace('{' + latex_command + ' ' + letter + '}', letter + combining_mark)
+        setattr(reference, field_type, data)  # Actually update the field.
 
 
 def clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:
@@ -162,15 +163,15 @@ def cleanup(bib_file: BibFile):
     config = json_loader.load_config()
 
     # Load values from config (or default values).
-    convert_special_symbols = config.get("convert_special_symbols", False)
-    url = config.get("use_url", True)
-    doi = config.get("use_doi", True)
-    comments = config.get("comments", True)
-    comment_entries = config.get("comment_entries", True)
+    convert_special_symbols = config.get("convert_special_symbols_to_unicode", False)
+    url = config.get("prefer_url", True)
+    doi = config.get("prefer_doi", True)
+    comments = config.get("keep_comments", True)
+    comment_entries = config.get("keep_comment_entries", True)
     lowercase_entry_types = config.get("lowercase_entry_types", False)
     lowercase_fields = config.get("lowercase_fields", False)
-    braces_enclosure = config.get("braces_enclosure", False)
-    quotation_marks_enclosure = config.get("quotation_marks_enclosure", False)
+    braces_enclosure = config.get("change_enclosures_to_braces", False)
+    quotation_marks_enclosure = config.get("change_enclosures_to_quotation_marks", False)
 
     fields = config.get("unnecessary_fields", [])
 

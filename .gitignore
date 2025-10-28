@@ -15,6 +15,8 @@ permissionstest.bib
 /bib_files/tagged-examples.bib
 /utils/article+collection-examples.bib
 /utils/extended-examples.bib
+config.json
+tags.json
 /bib_files/bibtex-collection/
 /bib_files/extended-examples.bib
 /bib_files/article+collection-examples.bib
@@ -29,3 +31,7 @@ bib_files/merge_test2_a.bib
 bib_files/merge_test2_b.bib
 bib_files/examples_vadim/
 history
+test_script.py
+scripting.yaml
+scripting.py
+test_tree.py

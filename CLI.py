@@ -905,6 +905,21 @@ class CLI(cmd.Cmd):
                 print(f"Unexpected error: {e}")
                 return None
 
+    def do_enr(self, arg):
+        try:
+            filename = arg
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            utils.enrichment.sanitize_bib_file(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
+
+            print_in_green("Enrichment has been done successfully!")
+
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
 
     def default(self, line):
         print("Command not found!")
@@ -959,7 +974,7 @@ class CLI(cmd.Cmd):
     def complete_mer(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_san(self, text, line, begidx, endidx):
+    def complete_enr(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

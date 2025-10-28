@@ -938,8 +938,7 @@ class CLI(cmd.Cmd):
                 filename = argument_list[0]
                 commit_hash = argument_list[1]
             else:
-                print("Not enough arguments!")
-                return
+                raise IndexError()
             
             if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
                 print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
@@ -952,22 +951,19 @@ class CLI(cmd.Cmd):
                 print_in_yellow(f"Commit hash for file {filename} is not valid")
                 return
                 
-
-
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
 
-        except ValueError as e:
-                print(f"Argument error: {e}")
-                return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
         except FileNotFoundError as e:
-                print(f"File error: {e.filename} not found.")
-                return None
+            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
                 print(f"Unexpected error: {e}")
-                return None
             
     def do_comment(self, args):
         try:
@@ -996,15 +992,14 @@ class CLI(cmd.Cmd):
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
             
-        except ValueError as e:
-                print(f"Argument error: {e}")
-                return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
         except FileNotFoundError as e:
-                print(f"File error: {e.filename} not found.")
-                return None
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
                 print(f"Unexpected error: {e}")
-                return None
         
             
     def do_history(self, args):
@@ -1014,17 +1009,14 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             
             history(bib_file)
-
-
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print(f"Unexpected error: {e}")
-            return None
 
     def do_del(self, args):
         try:
@@ -1033,16 +1025,14 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             delete_history(bib_file)
 
-
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}del <filename>")
         except FileNotFoundError as e:
-                print(f"File error: {e.filename} not found.")
-                return None
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
                 print(f"Unexpected error: {e}")
-                return None
 
     def do_enr(self, arg):
         try:

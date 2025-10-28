@@ -16,7 +16,7 @@ from utils.filtering import *
 import ast
 import graph
 from graph import generate_graph
-from manage_history import (
+from history_manager import (
     commit,
     redo,
     undo,
@@ -80,11 +80,11 @@ COMMANDS = {
         ),
         ("clean <filename>", "Cleans file according to rules in config."),
         (
-            "sub -e <filename> <new filename> <entry types list>",
+            "sub -e <filename> <new filename> <entrytypes list>",
             "Creates a sub .bib file with only specified entry " "types.",
         ),
         (
-            "sub -t <filename> <new filename> <tags>",
+            "sub -t <filename> <new filename> <tags list>",
             "Creates a sub .bib file with only references with specified " "tags.",
         ),
         (
@@ -101,10 +101,6 @@ COMMANDS = {
             "Displays references with a certain searchterm",
         ),
         (
-            "gr <filename> [descending=False]",
-            "Group references of a bib file based on a certain field",
-        ),
-        (
             "filter <filename> <field> [value=None]",
             "Displays references with a certain field (OPTIONAL: a value in that field)",
         ),
@@ -114,7 +110,7 @@ COMMANDS = {
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
         (
-            "checkout <filename> <commit_hask>",
+            "checkout <filename> <commit_hash>",
             "Checkout to a historic version of the file indexed by the commit_hash",
         ),
         ("del <filename>", "Delete all the history logs for a file"),
@@ -124,7 +120,6 @@ COMMANDS = {
         
         
     ]
-    ],
 }
 
 
@@ -251,7 +246,7 @@ def display_help_commands(space_length = 60, indent = 0):
         print(f"{MAGENTA}{category}{RESET}")
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
-            print(f"{MAGENTA}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
+            print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
             
 
 
@@ -309,20 +304,23 @@ class CLI(cmd.Cmd):
     def do_list(self, arg):
         try:
             folder_path = get_working_directory_path()
+            if folder_path == "":
+                raise ValueError("No working directory is selected. Use the cwd command")
 
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
-                    print(f"{BLUE}Bib files in {folder_path}:")
+                    # print(f"{BLUE}Bib files in {folder_path}:")
                     for file, index in files:
                         print(f"{BLUE}[{index}] {RESET}", file)
                 else:
                     print("No .bib files found in the working directory!")
             else:
                 print("The working directory is empty!")
-
+        except ValueError as e:
+            print_in_yellow(f"{RED}Argument error:{YELLOW} {e}")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print_in_yellow(f"Unexpected error: {e}")
             return None
 
     def do_pwd(self, arg):
@@ -443,9 +441,11 @@ class CLI(cmd.Cmd):
             else:
                 self.do_view_array(array)
         except (IndexError, ValueError) as e: #TODO: GROUP?
-            print_in_yellow(f"Argument error! The argument should be invoked as follows:{GREEN} search <filename> <searchterm>")
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The argument should be invoked as follows...\n{GREEN}search <filename> <searchterm>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
@@ -734,7 +734,6 @@ class CLI(cmd.Cmd):
 
     def do_sub(self, args):
         try:
-            print(args)
             arguments = args.split()
 
             flag = arguments[0]
@@ -764,15 +763,14 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(sub_file, new_path, 15)
             print_in_green("Sub operation done successfully!")
 
-        except ValueError as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}") 
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows... \n{GREEN}sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]") 
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
             print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
-            return None
 
     def do_clean(self, arg):
         try:
@@ -824,12 +822,14 @@ class CLI(cmd.Cmd):
                 file_name_1, file_name_2, new_file_name = args.split()
                 new_file_name = check_extension(new_file_name)
 
-                path_1 = os.path.join(get_working_directory_path(), file_name_1)
-                path_2 = os.path.join(get_working_directory_path(), file_name_2)
-                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
-                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+
+                bib_file_1 = path_to_bibfileobj(file_name_1)
+                bib_file_2 = path_to_bibfileobj(file_name_2)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
+
+                #TODO: check if overriding file?
+
                 # Write output inside the configured working directory
                 out_path = os.path.join(get_working_directory_path(), new_file_name)
                 utils.file_generator.generate_bib(merge_result, out_path, 15)
@@ -837,52 +837,50 @@ class CLI(cmd.Cmd):
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            if "not enough values to unpack" in str(
-                e
-            ) or "too many values to unpack" in str(e):
-                print(
-                    "Argument error: Incorrect number of arguments. Please provide three arguments: <filename1> "
-                    "<filename2> <new_filename>."
-                )
-            else:
-                print(f"Argument error: {e}")
+            print_in_yellow(f"{RED}ARGUMENT ERROR: {YELLOW}This command should be invoked as follows... \n{GREEN}mer <filename1> <filename2> <new_filename>") #TODO: standardize
         except FileNotFoundError as e:
-            print(f"File error: {os.path.basename(e.filename)} not found.")
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print(f"Unexpected error: {e}")
 
     def do_graph(self, args):
-        if args:
-            k_regular = int(args)
-        else:
-            k_regular = 2
 
-        if get_working_directory_path() == "":
-            print(
-                f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}"
-            )
-        else:
-            print(
-                f"{BLUE}PLEASE CHOOSE ONE FILE FROM WD BY INDEX FOR GRAPH GENERATION{RESET}"
-            )
-            self.do_list("")
+        try:
+            if args:
+                if len(args.split()) > 1:
+                    raise ValueError("This command only takes one argument!")
+                k_regular = int(args)
+            else:
+                k_regular = 2
 
-            index_str = input(f"{BLUE}Enter file index: {RESET}")
+            if get_working_directory_path() == "":
+                raise ValueError("Working directory not set! Use the cwd command")
+            else:
+                print(
+                    f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}"
+                )
+                self.do_list("")
 
-            try:
+                index_str = input(f"{BLUE}Enter file index: {RESET}")
+
                 files = get_bib_file_names(
                     get_working_directory_path()
                 )  # Check if index is in range
                 index = int(index_str)
-                print(f"You selected the file: {files[index-1][0]}")
+                print(f"You selected {CYAN}'{files[index-1][0]}'{RESET}")
                 file = files[index - 1]
                 file_name = file[0]
-                path = os.path.join(get_working_directory_path(), file_name)
-                bibfileobj = utils.file_parser.parse_bib(path, False)
+                bibfileobj = path_to_bibfileobj(file_name)
                 graph.generate_graph(bibfileobj, k_regular)
 
-            except ValueError:
-                print(f"{RED}Invalid index. Please enter a number.{RESET}")
+        except KeyboardInterrupt as e:
+            print_in_yellow(f"{RED}ABORTED")
+        except ValueError as e:
+            print_in_yellow(f"{RED}Argument error:{YELLOW} {e}")
+        except Exception as e:
+            print_in_yellow(f"Unexpected error: {e}")
 
 
     def do_undo(self, args):
@@ -944,8 +942,7 @@ class CLI(cmd.Cmd):
                 filename = argument_list[0]
                 commit_hash = argument_list[1]
             else:
-                print("Not enough arguments!")
-                return
+                raise IndexError()
 
 
             path = os.path.join(get_working_directory_path(), filename)
@@ -954,15 +951,12 @@ class CLI(cmd.Cmd):
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
 
 
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows... \n{GREEN}checkout <filename> <commit_hash>")
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+            print_in_yellow(f"File error: {e.filename} not found.")
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_in_yellow(f"Unexpected error: {e}")
 
     def do_history(self, args):
         try:
@@ -1086,4 +1080,7 @@ class CLI(cmd.Cmd):
 if __name__ == "__main__":
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
-    CLI().cmdloop()
+    try:
+        CLI().cmdloop()
+    except KeyboardInterrupt as e:
+        print(f"{GREEN}An interruption has occured! - Shell closed{RESET}")

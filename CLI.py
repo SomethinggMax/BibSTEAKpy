@@ -26,6 +26,7 @@ from manage_history import (
     delete_history,
 )
 
+from history_manager import commit, redo, undo, initialise_history, checkout, history, delete_history, comment
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -70,7 +71,7 @@ COMMANDS = {
         ),
         ("quit", "Close the BibSteak CLI"),
     ],
-    "FUNCTIONAL COMMANDS": [
+        f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
@@ -117,6 +118,12 @@ COMMANDS = {
             "Checkout to a historic version of the file indexed by the commit_hash",
         ),
         ("del <filename>", "Delete all the history logs for a file"),
+        ("history <filename>", "Show the historic commit graph"),
+        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
+        
+        
+        
+    ]
     ],
 }
 
@@ -237,13 +244,15 @@ def load_file_to_storage(source_path):
         return
 
 
-def display_help_commands(space_length=60, indent=2):
+def display_help_commands(space_length = 60, indent = 0):
+    print("")
+    
     for category, commands in COMMANDS.items():
         print(f"{MAGENTA}{category}{RESET}")
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
-            print(command[0], (space_length - len(command[0])) * " ", command[1])
-        print("\n")
+            print(f"{MAGENTA}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
+            
 
 
 def display_abbreviations():
@@ -960,6 +969,7 @@ class CLI(cmd.Cmd):
             filename = args
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
+            
             history(bib_file)
 
 

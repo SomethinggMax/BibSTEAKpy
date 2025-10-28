@@ -25,7 +25,14 @@ MAGENTA = "\033[35m"; M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
-DEFAULT_JSON = {"parent_to_childs": {}, "child_to_parent": {}, "BOTTOM": "None", "TOP": "None", "current_parent": "None", "timestamp": {}}
+DEFAULT_JSON = {"parent_to_childs": {}, 
+                "child_to_parent": {}, 
+                "BOTTOM": "None", 
+                "TOP": "None", 
+                "current_parent": "None", 
+                "timestamp": {},
+                "comments": {}
+                }
 
 def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
@@ -129,7 +136,7 @@ def commit(bibfile: BibFile):
             tracker_file.close()
         
     else:
-        print_in_yellow("No changes detected.")
+        print_in_yellow("No changes detected relative to last commit.")
         
 
 def undo(bibfile: BibFile, step=1):
@@ -200,12 +207,16 @@ def checkout(bibfile: BibFile, commit_hash: str):
         print_in_yellow("There is no history to undo - please commit a change first!")
         return 
     
-    tracker = get_json_object(tracker_file_path)
-    
     checkout_path = os.path.join(hist_dir_path, commit_hash)
+    
+    if not os.path.isfile(checkout_path):
+        print_in_yellow("Commit hash is not valid")
+        return
+    
     checkout_bib_file = file_parser.parse_bib(checkout_path, True)
     file_generator.generate_bib(checkout_bib_file, file_path, True)
     
+    tracker = get_json_object(tracker_file_path)
     with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
         tracker["current_parent"] = commit_hash
         json_str= json.dumps(tracker, indent=2)
@@ -243,17 +254,20 @@ def history(bibfile: BibFile):
 
         def compose(self) -> ComposeResult:
             if parent_root == current_parent:
-                tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
+                if parent_root in tracker["comments"]:
+                    tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}\nComment: {tracker['comments'][parent_root]}")
+                else:
+                    tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
             else:
-                tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
+                if parent_root in tracker["comments"]:
+                    tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}\nComment: {tracker['comments'][parent_root]}")
+                else:
+                    tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
                 
             tree.root.expand()
             
             for child in adj_list[tracker["BOTTOM"]]:
-                if child == current_parent:
-                    tree.root.add(Text(child, "blue"), data = f"Commit Time: {tracker['timestamp'][child]}").expand()
-                else:
-                    tree.root.add(Text(child, "white"), data = f"Commit Time: {tracker['timestamp'][child]}").expand()
+                add_child_to_parent(tree.root, child, current_parent, tracker)
                 
             for child in tree.root.children:
                 update_tree(adj_list, child, tracker, current_parent)
@@ -276,16 +290,23 @@ def history(bibfile: BibFile):
 def update_tree(adj_list, parent, tracker, current_parent):
     if label_from_node(parent) in adj_list:
         for child_name in adj_list[label_from_node(parent)]:
-            if child_name == current_parent:
-                parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-            else:
-                parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-                
-                
+            add_child_to_parent(parent, child_name, current_parent, tracker)
             
         for child in parent.children:
             update_tree(adj_list, child, tracker, current_parent)
             
+def add_child_to_parent(parent, child_name, current_parent, tracker):
+    if child_name == current_parent:
+        if child_name in tracker["comments"]:
+            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
+        else:
+            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
+    else:
+        if child_name in tracker["comments"]:
+            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
+        else:
+            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
+    
     
 def label_from_node(node) -> str:
     lab = node.label
@@ -372,7 +393,20 @@ def same_strings(bib_file1: BibFile, bib_file2:BibFile):
         string_entries2.append(field_strings)
         
     return string_entries2 == string_entries1
+
+
+def comment(bibfile: BibFile, commit_hash: str, comment: str):
+    file_path = bibfile.file_name
+    file_name = file_path.split("\\")[-1]
+    hist_dir_path = os.path.join("history", f"hist_{file_name}")
+    tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
+    tracker = get_json_object(tracker_file_path)
     
+    with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
+        tracker["comments"][commit_hash] = comment
+        json_str= json.dumps(tracker, indent=2)
+        tracker_file.write(json_str)
+
     
 def delete_history(bibfile: BibFile): 
     file_path = bibfile.file_name

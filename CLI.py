@@ -107,6 +107,7 @@ COMMANDS = {
             "filter <filename> <field> [value=None]",
             "Displays references with a certain field (OPTIONAL: a value in that field)",
         ),
+        ("enr <filename>", "Enriches a bibfile by getting information from the web"), #TODO: better description
     ],
     "VERSION CONTROL COMMANDS": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
@@ -1005,8 +1006,7 @@ class CLI(cmd.Cmd):
     def do_enr(self, arg):
         try:
             filename = arg
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
             utils.enrichment.sanitize_bib_file(bib_file)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
             commit(bib_file)

@@ -12,7 +12,17 @@ from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
 import graph
-from history_manager import commit, redo, undo, initialise_history, checkout, history, delete_history, comment
+from graph import generate_graph
+from history_manager import (
+    commit,
+    redo,
+    undo,
+    initialise_history,
+    checkout,
+    history,
+    delete_history,
+    comment
+)
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -41,7 +51,7 @@ CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json"  # TODO
 
 COMMANDS = {
-    "BASE COMMANDS": [
+    f"{MAGENTA}BASE COMMANDS{RESET}" : [
         ("help", "Display the current menu"),
         (
             "load <absolute/path/to/file>",
@@ -57,7 +67,8 @@ COMMANDS = {
         ),
         ("quit", "Close the BibSteak CLI"),
     ],
-        f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
+    
+    f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
@@ -96,17 +107,19 @@ COMMANDS = {
         ),
         ("enr <filename>", "Enriches a bibfile by getting information from the web"), #TODO: better description
     ],
-    "VERSION CONTROL COMMANDS": [
+    
+    f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
-        (
-            "checkout <filename> <commit_hask>",
-            "Checkout to a historic version of the file indexed by the commit_hash",
-        ),
+        ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
         ("del <filename>", "Delete all the history logs for a file"),
         ("history <filename>", "Show the historic commit graph"),
         ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
-    ],
+        
+        
+        
+    ]
+    
 }
 
 
@@ -928,6 +941,18 @@ class CLI(cmd.Cmd):
             else:
                 print("Not enough arguments!")
                 return
+            
+            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+                return
+            
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+            
+            if not os.path.isfile(checkout_path):
+                print_in_yellow(f"Commit hash for file {filename} is not valid")
+                return
+                
 
 
             path = os.path.join(get_working_directory_path(), filename)
@@ -935,17 +960,54 @@ class CLI(cmd.Cmd):
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
 
-
         except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+                print(f"Argument error: {e}")
+                return None
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+                print(f"File error: {e.filename} not found.")
+                return None
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-
+                print(f"Unexpected error: {e}")
+                return None
+            
+    def do_comment(self, args):
+        try:
+            argument_list = args.split(maxsplit = 2)
+            if len(argument_list) == 3:
+                filename = argument_list[0]
+                commit_hash = argument_list[1]
+                checkout_comment = argument_list[2]
+            else:
+                print_in_yellow("Not enough arguments!")
+                return
+            
+            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+                return
+            
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+            
+            if not os.path.isfile(checkout_path):
+                print_in_yellow(f"Commit hash for file {filename} is not valid")
+                return
+                
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            comment(bib_file, commit_hash, checkout_comment)
+            print_in_green(f"Commenting done successfuly")
+            
+        except ValueError as e:
+                print(f"Argument error: {e}")
+                return None
+        except FileNotFoundError as e:
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+        
+            
     def do_history(self, args):
         try:
             filename = args

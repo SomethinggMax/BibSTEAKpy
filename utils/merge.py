@@ -316,7 +316,8 @@ def canonicalize_field_value(field: str, v1, v2):
         u1 = str(v1).strip() if v1 else ''
         u2 = str(v2).strip() if v2 else ''
         if u1.lower().replace('http://', 'https://') == u2.lower().replace('http://', 'https://'):
-            chosen = u1 if u1.lower().startswith('https://') else (u2 if u2.lower().startswith('https://') else u1 or u2)
+            chosen = u1 if u1.lower().startswith('https://') else (
+                u2 if u2.lower().startswith('https://') else u1 or u2)
         else:
             chosen = _normalize_url(v1) or _normalize_url(v2)
         enc = _choose_enclosure(v1, v2)
@@ -401,13 +402,13 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
             string_list.append(string)
         else:
             choice = interface_handler.prompt_abbreviation_conflict(
-            string.long_form,
-            file_2_strings[string.abbreviation],
-            string.abbreviation,
+                string.long_form,
+                file_2_strings[string.abbreviation],
+                string.abbreviation,
             )
             new_abbreviation = interface_handler.prompt_text_input(
-            f"Now input the new abbreviation for '{string.long_form}'. (Old abbreviation: '{string.abbreviation}'): ",
-            default=string.abbreviation,
+                f"Now input the new abbreviation for '{string.long_form}'. (Old abbreviation: '{string.abbreviation}'): ",
+                default=string.abbreviation,
             )
 
             if choice == 1:
@@ -490,7 +491,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                 best_key = key
                     target_key = best_key
                     other_ref = bib2_index[target_key]
-                    interface_handler.show_toast(f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm}).",level='success')
+                    interface_handler.show_toast(
+                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm}).", level='success')
                     merged_reference = merge_reference(entry, other_ref)
                     merged_bib_file.content.append(merged_reference)
                     consumed_bib2_keys.add(target_key)
@@ -524,7 +526,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         strong_thr, weak_thr = _get_abstract_thresholds()
                         if best_sim >= strong_thr:
                             interface_handler.show_toast(f"Auto-merging '{entry.cite_key}' + '{target_key}' "
-                                f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f}).",level='success')
+                                                         f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f}).",
+                                                         level='success')
                             merged_reference = merge_reference(entry, other_ref)
                             merged_bib_file.content.append(merged_reference)
                             consumed_bib2_keys.add(target_key)
@@ -532,7 +535,7 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         elif best_sim <= weak_thr:
                             interface_handler.show_toast(
                                 f"Keeping both for '{entry.cite_key}' and '{target_key}' "
-                                f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f}).",level='info')
+                                f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f}).", level='info')
                             merged_bib_file.content.append(entry)
                             merged_bib_file.content.append(other_ref)
                             consumed_bib2_keys.add(target_key)
@@ -582,7 +585,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                                       f"please confirm merge. URL key: {url_key}"])
                         print_reference_comparison(entry, other_ref, width=110)
                         header = f"References share the same trusted URL; please confirm merge. URL key: {url_key}"
-                        if getattr(interface_handler, 'user_interface', 'CLI') == 'GUI' and hasattr(interface_handler, 'prompt_reference_comparison'):
+                        if (getattr(interface_handler, 'user_interface', 'CLI') == 'GUI' and
+                                hasattr(interface_handler, 'prompt_reference_comparison')):
                             choice = interface_handler.prompt_reference_comparison(
                                 _render_reference_block(entry),
                                 _render_reference_block(other_ref),

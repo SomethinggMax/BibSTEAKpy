@@ -895,15 +895,14 @@ class CLI(cmd.Cmd):
             undo(bib_file, step)
 
 
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}undo <filename>")
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_in_yellow(f"Unexpected error: {e}")
 
     def do_redo(self, args):
         try:
@@ -921,15 +920,14 @@ class CLI(cmd.Cmd):
             redo(bib_file, step)
 
 
-        except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+        except PermissionError as e:
+            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print(f"Unexpected error: {e}")
-            return None
 
     def do_checkout(self, args):
         try:

@@ -43,6 +43,7 @@ def convert_symbols(reference: Reference):
                 data = data.replace('{' + latex_command + '\\' + letter + '}', letter + combining_mark)
                 data = data.replace('{' + latex_command + letter + '}', letter + combining_mark)
                 data = data.replace('{' + latex_command + ' ' + letter + '}', letter + combining_mark)
+        setattr(reference, field_type, data)  # Actually update the field.
 
 
 def clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:

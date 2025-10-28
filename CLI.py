@@ -2,7 +2,7 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge, cleanup
+from utils import merge, cleanup, enrichment
 from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
@@ -118,6 +118,7 @@ COMMANDS = {
         ("del <filename>", "Delete all the history logs for a file"),
     ],
 }
+
 
 
 def completer(text, state):
@@ -575,6 +576,7 @@ class CLI(cmd.Cmd):
                     query = arguments[2:]
                     array = []
 
+
                     bibfileobj = path_to_bibfileobj(query[1])
 
                     match query[0]:
@@ -597,9 +599,10 @@ class CLI(cmd.Cmd):
                     # no queries returned, tell the user
                     if array == -1:
                         print("Query returns no matches! No tags have been added")
+                        print("Query returns no matches! No tags have been added")
                         return
 
-                    # get cite_keys only
+                    #get cite_keys only
                     newarr = [ref.cite_key for ref in array]
                     with open("tags.json", "r+") as tagsfile:
                         # add the new tagged references
@@ -647,6 +650,7 @@ class CLI(cmd.Cmd):
                     query = arguments[2:]
                     array = []
 
+
                     bibfileobj = path_to_bibfileobj(query[1])
 
                     match query[0]:
@@ -669,9 +673,10 @@ class CLI(cmd.Cmd):
                     # no queries returned, tell the user
                     if array == -1:
                         print("Query returns no matches! No tags have been added")
+                        print("Query returns no matches! No tags have been added")
                         return
 
-                    # get cite_keys only
+                    #get cite_keys only
                     newarr = [ref.cite_key for ref in array]
                     with open("tags.json", "r+") as tagsfile:
                         # remove tags
@@ -681,15 +686,13 @@ class CLI(cmd.Cmd):
                                 if citekey in newarr:
                                     newarr.remove(citekey)
                         else:
-                            print_in_yellow(
-                                "Tag not found in the tags file. Check your spelling."
-                            )
+                            print_in_yellow("Tag not found in the tags file. Check your spelling.")
                             return
 
                         # TODO: remove fully empty tags
                         tags[tag] = newarr
 
-                        tagsfile.seek(0)  # go to beginning of file
+                        tagsfile.seek(0) #go to beginning of file
                         tagsfile.truncate(0)
                         json.dump(tags, tagsfile, indent=4)  # replace content
                     print_in_green("Successfully removed tags!")
@@ -702,12 +705,10 @@ class CLI(cmd.Cmd):
                     if tag in tags.keys():
                         for citekey in tags[tag]:
                             if citekey in citekeylist:
-                                # TODO: remove tag
-                                return
+                              #TODO: remove tag
+                              return
                     else:
-                        print_in_yellow(
-                            "Tag not found in the tags file. Check your spelling."
-                        )
+                        print_in_yellow("Tag not found in the tags file. Check your spelling.")
                         return
                     return
                 case _:
@@ -784,6 +785,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             cleanup.cleanup(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
             utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
             commit(bib_file)
 
@@ -884,6 +886,7 @@ class CLI(cmd.Cmd):
             except ValueError:
                 print(f"{RED}Invalid index. Please enter a number.{RESET}")
 
+
     def do_undo(self, args):
         try:
             argument_list = args.split()
@@ -894,9 +897,11 @@ class CLI(cmd.Cmd):
                 filename = argument_list[0]
                 step = int(argument_list[1])
 
+
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             undo(bib_file, step)
+
 
         except ValueError as e:
             print(f"Argument error: {e}")
@@ -918,9 +923,11 @@ class CLI(cmd.Cmd):
                 filename = argument_list[0]
                 step = int(argument_list[1])
 
+
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             redo(bib_file, step)
+
 
         except ValueError as e:
             print(f"Argument error: {e}")
@@ -942,10 +949,12 @@ class CLI(cmd.Cmd):
                 print("Not enough arguments!")
                 return
 
+
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
+
 
         except ValueError as e:
             print(f"Argument error: {e}")
@@ -964,6 +973,7 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             history(bib_file)
 
+
         except ValueError as e:
             print(f"Argument error: {e}")
             return None
@@ -981,15 +991,32 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             delete_history(bib_file)
 
+
         except ValueError as e:
             print(f"Argument error: {e}")
             return None
         except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
+                print(f"File error: {e.filename} not found.")
+                return None
+        except Exception as e:
+                print(f"Unexpected error: {e}")
+                return None
+
+    def do_enr(self, arg):
+        try:
+            filename = arg
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+            utils.enrichment.sanitize_bib_file(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            commit(bib_file)
+
+            print_in_green("Enrichment has been done successfully!")
+
         except Exception as e:
             print(f"Unexpected error: {e}")
             return None
+
 
     def default(self, line):
         print("Command not found!")
@@ -1005,6 +1032,8 @@ class CLI(cmd.Cmd):
             ]
         except Exception:
             return []
+
+
 
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
@@ -1040,6 +1069,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_mer(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_enr(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

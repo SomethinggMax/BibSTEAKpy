@@ -110,10 +110,7 @@ COMMANDS = {
         ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
         ("del <filename>", "Delete all the history logs for a file"),
         ("history <filename>", "Show the historic commit graph"),
-        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
-        
-        
-        
+        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),    
     ]
     
 }
@@ -244,20 +241,16 @@ def display_help_commands(space_length = 60, indent = 0):
         for command in ordered_commands:
             print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
             
-
-
 def display_abbreviations():
     with open("abbreviations.json", "r") as f:
         abreviations = json.load(f)
         for key, value in abreviations.items():
             print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
 
-
 def path_to_bibfileobj(filename):
     path = os.path.join(get_working_directory_path(), filename)
     bibfileobj = utils.file_parser.parse_bib(path, False)
     return bibfileobj
-
 
 class CLI(cmd.Cmd):
 
@@ -314,10 +307,9 @@ class CLI(cmd.Cmd):
             else:
                 print("The working directory is empty!")
         except ValueError as e:
-            print_in_yellow(f"{RED}Argument error:{YELLOW} {e}")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} {e}")
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
-            return None
+            print_in_yellow(f"{RED}UNEXPECTED ERROR!{YELLOW} {e}")
 
     def do_pwd(self, arg):
         if get_working_directory_path() != "":
@@ -437,7 +429,7 @@ class CLI(cmd.Cmd):
             else:
                 self.do_view_array(array)
         except (IndexError, ValueError) as e: #TODO: GROUP?
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The argument should be invoked as follows...\n{GREEN}search <filename> <searchterm>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The argument should be invoked as follows...\n{GREEN}search <filename> <searchterm>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -760,7 +752,7 @@ class CLI(cmd.Cmd):
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows... \n{GREEN}sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]") 
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows... \n{GREEN}sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]") 
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -882,7 +874,10 @@ class CLI(cmd.Cmd):
     def do_undo(self, args):
         try:
             argument_list = args.split()
-            if len(argument_list) == 1:
+
+            if len(argument_list) < 1:
+                raise ValueError()
+            elif len(argument_list) == 1:
                 filename = args
                 step = 1
             elif len(argument_list) == 2:
@@ -894,9 +889,8 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             undo(bib_file, step)
 
-
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}undo <filename>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}undo <filename>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -907,7 +901,10 @@ class CLI(cmd.Cmd):
     def do_redo(self, args):
         try:
             argument_list = args.split()
-            if len(argument_list) == 1:
+
+            if len(argument_list) < 1:
+                raise ValueError()
+            elif len(argument_list) == 1:
                 filename = args
                 step = 1
             elif len(argument_list) == 2:
@@ -921,13 +918,13 @@ class CLI(cmd.Cmd):
 
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
             print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print_in_yellow(f"{RED}Unexpected error:{YELLOW} {e}")
 
     def do_checkout(self, args):
         try:
@@ -955,7 +952,7 @@ class CLI(cmd.Cmd):
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -991,7 +988,7 @@ class CLI(cmd.Cmd):
             print_in_green(f"Commenting done successfuly")
             
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -1008,7 +1005,7 @@ class CLI(cmd.Cmd):
             
             history(bib_file)
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -1024,7 +1021,7 @@ class CLI(cmd.Cmd):
             delete_history(bib_file)
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR!{YELLOW} The command should be invoked as follows...\n{GREEN}del <filename>")
+            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}del <filename>")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
         except PermissionError as e:
@@ -1045,7 +1042,7 @@ class CLI(cmd.Cmd):
 
             print_in_green("Enrichment has been done successfully!")
 
-        except ValueError as e:
+        except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
         except FileNotFoundError as e:
             print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
@@ -1053,7 +1050,6 @@ class CLI(cmd.Cmd):
             print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
-
 
     def default(self, line):
         print("Command not found!")
@@ -1069,8 +1065,6 @@ class CLI(cmd.Cmd):
             ]
         except Exception:
             return []
-
-
 
     def complete_view(self, text, line, begidx, endidx):
         return self.filename_completions(text)
@@ -1112,7 +1106,6 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments
-
 
 if __name__ == "__main__":
     readline.set_completer(completer)

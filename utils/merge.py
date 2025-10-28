@@ -316,7 +316,8 @@ def canonicalize_field_value(field: str, v1, v2):
         u1 = str(v1).strip() if v1 else ''
         u2 = str(v2).strip() if v2 else ''
         if u1.lower().replace('http://', 'https://') == u2.lower().replace('http://', 'https://'):
-            chosen = u1 if u1.lower().startswith('https://') else (u2 if u2.lower().startswith('https://') else u1 or u2)
+            chosen = u1 if u1.lower().startswith('https://') else (
+                u2 if u2.lower().startswith('https://') else u1 or u2)
         else:
             chosen = _normalize_url(v1) or _normalize_url(v2)
         enc = _choose_enclosure(v1, v2)
@@ -373,20 +374,8 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
                 continue
 
             if data != other:
-                interface_handler.show_lines([
-                    interface_handler.colorize(f"Conflict in field '{field_type}' "
-                                               f"for key '{reference_1.cite_key}':", 'yellow')
-                ])
-                # Pretty print just the conflicting field values side-by-side
-                temp1 = Reference(reference_1.comment_above_reference, reference_1.entry_type, reference_1.cite_key)
-                temp2 = Reference(reference_2.comment_above_reference, reference_2.entry_type, reference_2.cite_key)
-                setattr(temp1, field_type, data)
-                setattr(temp2, field_type, other)
-                print_reference_comparison(temp1, temp2, width=100)
-                choice = interface_handler.get_selection('Choose which to keep (1 or 2): ', 2)
-                if choice == 1:
-                    data = data
-                elif choice == 2:
+                choice = _prompt_field_conflict_choice(field_type, data, other, reference_1, reference_2)
+                if choice == 2:
                     data = other
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
@@ -412,15 +401,16 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
         elif file_2_strings[string.abbreviation] == string.long_form:
             string_list.append(string)
         else:
-            interface_handler.show_lines([
-                f"Conflict with string abbreviation '{string.abbreviation}'!",
-                "You can select an abbreviation to rename.",
-                f"1: {string.long_form}",
-                f"2: {file_2_strings[string.abbreviation]}"
-            ])
-            choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
-            new_abbreviation = interface_handler.get_input(f"Now input the new abbreviation for '{string.long_form}'. "
-                                                           f"(Old abbreviation: '{string.abbreviation}'): ")
+            choice = interface_handler.prompt_abbreviation_conflict(
+                string.long_form,
+                file_2_strings[string.abbreviation],
+                string.abbreviation,
+            )
+            new_abbreviation = interface_handler.prompt_text_input(
+                f"Now input the new abbreviation for '{string.long_form}'. (Old abbreviation: '{string.abbreviation}'): ",
+                default=string.abbreviation,
+            )
+
             if choice == 1:
                 old_abbreviation = string.abbreviation
                 batch_editor.batch_rename_abbreviation(bib_file_1, string.abbreviation, new_abbreviation)
@@ -430,6 +420,8 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
                 batch_editor.batch_rename_abbreviation(bib_file_2, string.abbreviation, new_abbreviation)
                 string_list.append(string)  # The unchanged string from file 1.
                 string_list.append([x for x in bib_file_2.get_strings() if x.abbreviation == new_abbreviation][0])
+            else:
+                raise ValueError("Invalid choice. Please enter 1 or 2.")
     return bib_file_1, bib_file_2, string_list
 
 
@@ -499,9 +491,8 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                 best_key = key
                     target_key = best_key
                     other_ref = bib2_index[target_key]
-                    interface_handler.show_lines([
-                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm})."
-                    ])
+                    interface_handler.show_toast(
+                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm}).", level='success')
                     merged_reference = merge_reference(entry, other_ref)
                     merged_bib_file.content.append(merged_reference)
                     consumed_bib2_keys.add(target_key)
@@ -534,38 +525,25 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     if has_abs_1 and has_abs_2:
                         strong_thr, weak_thr = _get_abstract_thresholds()
                         if best_sim >= strong_thr:
-                            interface_handler.show_lines([
-                                f"Auto-merging '{entry.cite_key}' + '{target_key}' "
-                                f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f})."
-                            ])
+                            interface_handler.show_toast(f"Auto-merging '{entry.cite_key}' + '{target_key}' "
+                                                         f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f}).",
+                                                         level='success')
                             merged_reference = merge_reference(entry, other_ref)
                             merged_bib_file.content.append(merged_reference)
                             consumed_bib2_keys.add(target_key)
                             continue
                         elif best_sim <= weak_thr:
-                            interface_handler.show_lines([
+                            interface_handler.show_toast(
                                 f"Keeping both for '{entry.cite_key}' and '{target_key}' "
-                                f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f})."
-                            ])
+                                f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f}).", level='info')
                             merged_bib_file.content.append(entry)
                             merged_bib_file.content.append(other_ref)
                             consumed_bib2_keys.add(target_key)
                             continue
 
                     # Otherwise, ask user
-                    interface_handler.show_lines(["References seem similar based on author/title normalization."])
-                    if has_abs_1 and has_abs_2:
-                        strong_thr, weak_thr = _get_abstract_thresholds()
-                        interface_handler.show_lines([f"Abstract similarity: {best_sim:.2f} "
-                                                      f"(strong {strong_thr:.2f}, weak {weak_thr:.2f})"])
-                    interface_handler.show_lines(["Please compare the following references:"])
-                    print_reference_comparison(entry, other_ref, width=110)
-                    interface_handler.show_lines([
-                        "Choose where to merge or skip:",
-                        "1: Merge references",
-                        "2: Keep both references"
-                    ])
-                    choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+                    choice = _prompt_ref_merge_decision(entry, other_ref)
+
                     if choice == 1:
                         interface_handler.show_lines([
                             f"Merging '{entry.cite_key}' with '{target_key}' "
@@ -606,12 +584,26 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         interface_handler.show_lines([f"References share the same trusted URL; "
                                                       f"please confirm merge. URL key: {url_key}"])
                         print_reference_comparison(entry, other_ref, width=110)
-                        interface_handler.show_lines([
-                            "Choose where to merge or skip:",
-                            "1: Merge references",
-                            "2: Keep both references"
-                        ])
-                        choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+                        header = f"References share the same trusted URL; please confirm merge. URL key: {url_key}"
+                        if (getattr(interface_handler, 'user_interface', 'CLI') == 'GUI' and
+                                hasattr(interface_handler, 'prompt_reference_comparison')):
+                            choice = interface_handler.prompt_reference_comparison(
+                                _render_reference_block(entry),
+                                _render_reference_block(other_ref),
+                                header=header,
+                                option1="Merge references",
+                                option2="Keep both references"
+                            )
+                        else:
+                            interface_handler.show_lines([header])
+                            print_reference_comparison(entry, other_ref, width=110)
+                            interface_handler.show_lines([
+                                "Choose where to merge or skip:",
+                                "1: Merge references",
+                                "2: Keep both references"
+                            ])
+                            choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+
                         if choice == 1:
                             interface_handler.show_lines([
                                 f"Merging '{entry.cite_key}' with '{target_key}' "
@@ -637,3 +629,58 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
             merged_bib_file.content.append(entry)
 
     return merged_bib_file
+
+
+def _render_reference_block(ref: Reference) -> str:
+    lines = []
+    for name in _ordered_field_names(ref):
+        v = _stringify_field_value(getattr(ref, name, ''))
+        lines.append(f"{name}: {v}")
+    return '\n'.join(lines) if lines else '(empty)'
+
+
+def _prompt_ref_merge_decision(ref1: Reference, ref2: Reference) -> int:
+    is_gui = getattr(interface_handler, 'user_interface', 'CLI') == 'GUI'
+    if is_gui and hasattr(interface_handler, 'prompt_reference_comparison'):
+        ref1_text = _render_reference_block(ref1)
+        ref2_text = _render_reference_block(ref2)
+        return interface_handler.prompt_reference_comparison(
+            ref1_text,
+            ref2_text,
+            header="Please compare the following references:",
+            option1="Merge references",
+            option2="Keep both references"
+        )
+    else:
+        interface_handler.show_lines(["Please compare the following references:"])
+        print_reference_comparison(ref1, ref2, width=110)
+        interface_handler.show_lines([
+            "Choose where to merge or skip:",
+            "1: Merge references",
+            "2: Keep both references"
+        ])
+        return interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+
+
+def _prompt_field_conflict_choice(field_name: str, v1, v2, reference_1: Reference, reference_2: Reference) -> int:
+    is_gui = getattr(interface_handler, 'user_interface', 'CLI') == 'GUI'
+    if is_gui and hasattr(interface_handler, 'prompt_field_conflict'):
+        return interface_handler.prompt_field_conflict(
+            field_name,
+            _stringify_field_value(v1),
+            _stringify_field_value(v2),
+            header=f"Conflict in field '{field_name}' for key '{reference_1.cite_key}':"
+        )
+    else:
+        interface_handler.show_lines([
+            interface_handler.colorize(
+                f"Conflict in field '{field_name}' for key '{reference_1.cite_key}':",
+                'yellow'
+            )
+        ])
+        temp1 = Reference(reference_1.comment_above_reference, reference_1.entry_type, reference_1.cite_key)
+        temp2 = Reference(reference_2.comment_above_reference, reference_2.entry_type, reference_2.cite_key)
+        setattr(temp1, field_name, v1)
+        setattr(temp2, field_name, v2)
+        print_reference_comparison(temp1, temp2, width=100)
+        return interface_handler.get_selection('Choose which to keep (1 or 2): ', 2)

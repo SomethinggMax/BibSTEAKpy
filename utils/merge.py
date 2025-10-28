@@ -374,8 +374,8 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
 
             if data != other:
                 choice = _prompt_field_conflict_choice(field_type, data, other, reference_1, reference_2)
-    if choice == 2:
-        data = other
+                if choice == 2:
+                    data = other
         setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
 
     for field_type, data in reference_2_fields.items():

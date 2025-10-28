@@ -6,7 +6,7 @@ import utils.file_generator as file_generator
 from objects import BibFile, Reference
 
 
-def filter_entry_types(file: BibFile, entry_types: list) -> list:
+def filter_entry_types(file: BibFile, entry_types: list) -> BibFile:
     """
     Returns a grouped File object which contains References
     which have entry types in the entry_types list
@@ -23,7 +23,7 @@ def filter_entry_types(file: BibFile, entry_types: list) -> list:
     return new_file
 
 
-def filter_tags(file: BibFile, tags: list) -> list:
+def filter_tags(file: BibFile, tags: list) -> BibFile:
     """
     Returns a BibFile object with all references that have a tag from the tags list.
     :param file: the input file

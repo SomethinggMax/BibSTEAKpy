@@ -2,7 +2,7 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge, cleanup
+from utils import merge, cleanup, enrichment
 from utils.Reftype import GroupingType
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
@@ -15,7 +15,7 @@ from utils.abbreviations_exec import *
 from utils.filtering import *
 import ast
 import graph
-from graph import generate_graph
+# from graph import generate_graph
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
@@ -536,6 +536,25 @@ class CLI(cmd.Cmd):
             print(f"Unexpected error: {e}")
             return None
 
+    def do_san(self, arg):
+        try:
+
+            filename = arg
+            if filename == "":
+                raise ValueError("No filename provided. Please provide a filename.")
+
+            # working_direcory =
+            path = os.path.join(get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path, False)
+
+            enrichment.sanitize_bib_file(bib_file)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+
+            print_in_green("Enriching current references done successfully!")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return None
+
     def do_clean(self, arg):
         try:
             filename = arg
@@ -686,6 +705,9 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_mer(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
+    def complete_san(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

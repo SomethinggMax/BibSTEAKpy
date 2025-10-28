@@ -13,10 +13,6 @@ def sanitize_bib_file(bib_file: BibFile):
         if type(entry) is Reference:
             fields = entry.get_fields()
             if fields['entry_type'] != 'set':
-                # if 'doi' in fields:
-                #     lookup = lookup_bibtex_fields_by_title(fields['doi'], '')
-                #     print('doi:')
-                #     print(lookup)
                 if 'author' in fields:
                     authors = _split_authors(fields['author'])
                     iterable = iter(authors)
@@ -43,32 +39,33 @@ def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0
     query = title + " " + author
     # Execute API queries
     try:
-        cr = _search_crossref(session, query, timeout)
+        cr = _search_crossref(session, query, timeout= timeout)
         if cr and is_same_paper(title, author, cr):
             responses.append(cr)
     except Exception as e:
         print(e)
 
     try:
-        db = _search_dblp(session, query, timeout)
+        db = _search_dblp(session, query, timeout= timeout)
         if db and is_same_paper(title, author, db):
             responses.append(db)
     except Exception as e:
         print(e)
 
     try:
-        dc = _search_datacite()
+        dc = _search_datacite(session, query, timeout= timeout)
         if dc and is_same_paper(title, author, dc):
             responses.append(dc)
     except Exception:
         pass
 
-    # try:
-    #     oa = _search_openalex()
-    #     if oa:
-    #         responses.append(oa)
-    # except Exception:
-    #     pass
+    try:
+        oa = _search_openalex(session, query, timeout= timeout)
+        if oa and is_same_paper(title, author, oa):
+            responses.append(oa)
+    except Exception:
+        pass
+
     final_dict: Dict[str, Any] = {}
     for response in responses:
         final_dict = _merge_responses(final_dict, response)
@@ -156,10 +153,6 @@ def _map_dblp_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     # Title
     if data.get("title"): result["title"] = data["title"]
 
-    # Authors
-    # TODO: Implement
-    result["authors"] = "placeholder"
-
     # Venue (aka journal/book-title)
     if data.get("venue"): result["venue"] = data["venue"]
     # Year
@@ -173,10 +166,8 @@ def _map_dblp_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     # Identifiers
     if data.get("doi"): result["doi"] = data["doi"]
     if data.get("ee"): result["ee"] = data["ee"]
-    if result["doi"]:
-        result["url"] = f"https://doi.org/{result["doi"]}"
-    else:
-        if data.get("ee"): result["ee"] = data["ee"]
+
+    if data.get("ee"): result["url"] = data["ee"]
 
     return result
 
@@ -262,9 +253,73 @@ def _map_datacite_to_bibtex(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _search_openalex():
-    return None
+def _search_openalex(session: requests.Session, query: str, timeout: float):
+    url = "https://api.openalex.org/works"
+    params = {
+        "search": query,  # full-text search across title, authors, etc.
+        "per_page": 1,  # best single result
+        "sort": "relevance_score:desc",  # most relevant first
+    }
+    r = session.get(url, params=params, timeout=timeout)
+    r.raise_for_status()
+    payload = r.json()
+    items = payload.get("results") or []
+    if not items:
+        return None
+    return _map_openalex_to_bib_dict(items[0])
 
+
+def _map_openalex_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    result: Dict[str, Any] = {}
+
+    # Title
+    if data.get("display_name"): result["title"] = data["display_name"]
+
+    # Authors
+    names: List[str] = []
+    for a in data.get("authorships") or []:
+        author = a.get("author") or {}
+        name = (
+            author.get("display_name")
+            or " ".join(filter(None, [author.get("given_name"), author.get("family_name")]))
+        )
+        if name:
+            names.append(name)
+    if names:
+        result["author"] = " and ".join(names)
+
+    # Year
+    if data.get("publication_year"): result["year"] = data["publication_year"]
+
+    # Venue / publisher
+    host = data.get("host_venue") or {}
+    if host.get("display_name"): result["venue"] = host["display_name"]
+    if host.get("publisher"): result["publisher"] = host["publisher"]
+
+    # Volume / Issue / Pages
+    biblio = data.get("biblio") or {}
+    if biblio.get("volume"): result["volume"] = biblio["volume"]
+    if biblio.get("issue"): result["number"] = biblio["issue"]
+    first_page = biblio.get("first_page")
+    last_page = biblio.get("last_page")
+    if first_page and last_page:
+        result["pages"] = f"{first_page}-{last_page}"
+    elif first_page:
+        result["pages"] = str(first_page)
+
+    # DOI + URL
+    doi = (data.get("doi") or "").strip()
+    if doi:
+        clean_doi = doi.replace("https://doi.org/", "").replace("http://doi.org/", "").strip()
+        result["doi"] = clean_doi
+        result["url"] = f"https://doi.org/{clean_doi}"
+    # Fallback to URL from openalex
+    if "url" not in result:
+        ids = data.get("ids") or {}
+        if ids.get("openalex"):
+            result["url"] = ids["openalex"]
+
+    return result
 
 def _merge_responses(response_a: Dict[str, Any], response_b: Dict[str, Any]) -> Dict[str, Any]:
     result = dict(response_a)
@@ -361,5 +416,3 @@ def is_same_paper(
 ) -> bool:
     combined, title_score, author_score = match_score(query_title, query_authors, candidate, title_weight)
     return combined >= threshold
-
-print(lookup_bibtex_fields_by_title('10.2307/1919439', ''))

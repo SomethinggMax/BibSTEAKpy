@@ -6,7 +6,7 @@ import utils.file_generator as file_generator
 from objects import BibFile, Reference
 
 
-def sub_bib_entry_types(file: BibFile, entry_types: list) -> BibFile:
+def filter_entry_types(file: BibFile, entry_types: list) -> list:
     """
     Returns a grouped File object which contains References
     which have entry types in the entry_types list
@@ -23,7 +23,7 @@ def sub_bib_entry_types(file: BibFile, entry_types: list) -> BibFile:
     return new_file
 
 
-def sub_bib_tags(file: BibFile, tags: list) -> BibFile:
+def filter_tags(file: BibFile, tags: list) -> list:
     """
     Returns a BibFile object with all references that have a tag from the tags list.
     :param file: the input file
@@ -53,5 +53,5 @@ def sub_bib_tags(file: BibFile, tags: list) -> BibFile:
 # JUST FOR TESTING
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib", True)
-    article_file = sub_bib_entry_types(test_file, ["article", "collection"])
+    article_file = filter_entry_types(test_file, ["article", "collection"])
     file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib", 15)

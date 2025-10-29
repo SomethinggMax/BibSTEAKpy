@@ -1,4 +1,7 @@
 from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
+from utils import json_loader
+
+MAXIMUM_FIELD_LENGTH = 100
 
 
 def get_maximum_alignment(bib_file: BibFile) -> int:
@@ -19,16 +22,47 @@ def get_maximum_alignment(bib_file: BibFile) -> int:
     return maximum
 
 
-def generate_bib(bib_file: BibFile, file_path, align_fields_position=None):
+def generate_field(field_type: str, align_fields_position: int, data: str, add_newlines: bool) -> str:
+    """
+    Generates a str of a field based on parameters.
+    """
+    field_start = "  " + field_type
+    position_minus_length = align_fields_position - len(field_start)
+    padding_size = position_minus_length if position_minus_length > 0 else 0
+    field = field_start + " " * padding_size + "= " + data + ",\n"
+    if add_newlines:
+        counter = 0
+        last_word = ""
+        new_field = ""
+        for char in field:
+            if char == " ":
+                if counter >= MAXIMUM_FIELD_LENGTH:
+                    padding = " " * (align_fields_position + 1)
+                    new_field += "\n" + padding + last_word
+                    counter = len(padding + last_word)
+                else:
+                    new_field += last_word
+                last_word = ""
+            last_word += char
+            counter += 1
+        field = new_field + last_word
+    return field
+
+
+def generate_bib(bib_file: BibFile, file_path, align_fields_position=None, add_newlines_in_fields=None):
     """
     Generates a bib file from the BibFile object at the file_path (overwrites if the path already exists).
     :param bib_file: the BibFile object.
     :param file_path: the path to generate the file at.
     :param align_fields_position: the position to align the '=' at. If None: calculated based on entries.
+    :param add_newlines_in_fields: add newlines to fields if they are longer than MAXIMUM_FIELD_LENGTH characters.
     :return:
     """
     if align_fields_position is None:
         align_fields_position = get_maximum_alignment(bib_file)
+    if add_newlines_in_fields is None:
+        add_newlines_in_fields = json_loader.load_config().get("remove_newlines_in_fields", False)
+
     with open(file_path, "w", encoding="utf-8") as file:
         final_string = ""
 
@@ -55,10 +89,7 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=None):
                     for field_type, data in entry.get_fields().items():
                         if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                             continue
-                        field_start = "  " + field_type
-                        position_minus_length = align_fields_position - len(field_start)
-                        padding_size = position_minus_length if position_minus_length > 0 else 0
-                        final_string += field_start + " " * padding_size + "= " + data + ",\n"
+                        final_string += generate_field(field_type, align_fields_position, data, add_newlines_in_fields)
                     final_string += "}\n"
                 case _:
                     final_string += entry

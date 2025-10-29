@@ -153,5 +153,5 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                     remove_whitespace = False
                     token += " "
                 token += char
-    result.content.append(token)
+    result.content.append(token.strip())
     return result

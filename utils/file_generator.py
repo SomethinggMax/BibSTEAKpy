@@ -10,12 +10,12 @@ def get_maximum_alignment(bib_file: BibFile) -> int:
     maximum = 0
     for entry in bib_file.content:
         if isinstance(entry, String):
-            maximum = max(maximum, len(entry.abbreviation) + 9)
+            maximum = max(maximum, len(entry.abbreviation) + 9)  # len(@string{)=8 +1 for a space after the abbreviation
         elif isinstance(entry, Reference):
             for field_type, data in entry.get_fields().items():
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
-                maximum = max(maximum, len(field_type) + 3)
+                maximum = max(maximum, len(field_type) + 3)  # two spaces before field_type, 1 space after
     return maximum
 
 

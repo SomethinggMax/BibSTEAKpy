@@ -52,9 +52,9 @@ def print_error_msg(error_type: Exception, msg):
         case "ValueError" | "IndexError":
             print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
         case "FileNotFoundError":
-            print_in_yellow(f"Path to {CYAN}'{msg}'{YELLOW} not found! Check your spelling")
+            print_in_yellow(f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling")
         case "PermissionError":
-            print_in_yellow(f"Permission to access {CYAN}'{msg}'{YELLOW} was denied")
+            print_in_yellow(f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied")
         case "Exception":
             print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
         case _:
@@ -276,14 +276,8 @@ class CLI(cmd.Cmd):
         except ValueError as e:
             #NOTE! This should not be changed to print_error_msg, since the custom messages are important
             print_in_yellow(f"{e}") 
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except shutil.SameFileError as e:
-            print_error_msg(e,e)
-        except OSError as e:
-            print_error_msg(e,e)
-        except Exception as e:
-            print_error_msg(e,e)
+        except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_list(self, arg):
         try:
@@ -331,9 +325,7 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, "cwd <absolute/path/to/directory>")
-        except FileNotFoundError as e:
-            print_error_msg(e, e.filename)
-        except (TypeError, Exception) as e:
+        except (FileNotFoundError, TypeError, Exception) as e:
             print_error_msg(e, e)
 
     def do_cd(self, wd_path):
@@ -369,9 +361,7 @@ class CLI(cmd.Cmd):
                 for line in f:
                     print(f"", line, end="")
             print("\n")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_filter(self, args):
@@ -400,9 +390,7 @@ class CLI(cmd.Cmd):
                 self.do_view_array(array)
         except (ValueError, IndexError) as e:
             print_error_msg(e, "filter <filename> <field> [value=None]")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_search(self, args):
@@ -418,9 +406,7 @@ class CLI(cmd.Cmd):
             self.do_view_array(array)
         except (IndexError, ValueError) as e: 
             print_error_msg(e, "search <filename> <searchterm>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_view_array(self, args):
@@ -452,9 +438,7 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_error_msg(e, "br <filename> <old string> <new string> [fieldslist=None]")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_ord(self, args):
@@ -508,10 +492,8 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_error_msg(e, "exp <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_col(self, arg):
         try:
@@ -530,10 +512,8 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_error_msg(e, "col <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_tag(self, args):
         try:
@@ -577,7 +557,9 @@ class CLI(cmd.Cmd):
                     # add the new tagged references
                     tags = json.load(tagsfile)
                     if tag in tags.keys():
-                        tags[tag] += newarr  # TODO: duplicates
+                        for ref in tags[tag]:
+                            if ref not in tags[tag]:
+                                tags[tag] + ref
                     else:
                         tags[tag] = newarr
 
@@ -594,104 +576,18 @@ class CLI(cmd.Cmd):
                     json.dump({}, tagsfile)
                 print_in_green("Try and run the command again")
             else:
-                print_error_msg(e,e.filename)
+                print_error_msg(e,e)
         except Exception as e:
             print_error_msg(e,e)
 
     # TODO
     def do_untag(self, args):
-        try:
-            arguments = args.split()
-            flag = arguments[0]
-
-            match flag:
-                case "-q":
-                    tag = arguments[1]
-                    query = arguments[2:]
-                    array = []
-
-
-                    bibfileobj = path_to_bibfileobj(query[1])
-
-                    match query[0]:
-                        case "search":
-                            array = search(bibfileobj, query[2])
-                        case "filter":
-                            if len(query) == 3:
-                                array = filterByFieldExistence(bibfileobj, query[2])
-                            elif len(query) == 4:
-                                array = filterByFieldValue(
-                                    bibfileobj, query[2], query[3]
-                                )
-                            else:
-                                print("Invalid query given!")
-                                return
-                        case _:
-                            print_in_yellow("Invalid query! Check your spelling")
-                            return
-
-                    # no queries returned, tell the user
-                    if array == -1:
-                        print("Query returns no matches! No tags have been added")
-                        print("Query returns no matches! No tags have been added")
-                        return
-
-                    #get cite_keys only
-                    newarr = [ref.cite_key for ref in array]
-                    with open("tags.json", "r+") as tagsfile:
-                        # remove tags
-                        tags = json.load(tagsfile)
-                        if tag in tags.keys():
-                            for citekey in tags[tag]:
-                                if citekey in newarr:
-                                    newarr.remove(citekey)
-                        else:
-                            print_in_yellow("Tag not found in the tags file. Check your spelling.")
-                            return
-
-                        # TODO: remove fully empty tags
-                        tags[tag] = newarr
-
-                        tagsfile.seek(0) #go to beginning of file
-                        tagsfile.truncate(0)
-                        json.dump(tags, tagsfile, indent=4)  # replace content
-                    print_in_green("Successfully removed tags!")
-                    return
-                case "-ls":
-                    tag = arguments[1]
-                    citekeylist = arguments[2]
-
-                    tags = json.load(tagsfile)
-                    if tag in tags.keys():
-                        for citekey in tags[tag]:
-                            if citekey in citekeylist:
-                              #TODO: remove tag
-                              return
-                    else:
-                        print_in_yellow("Tag not found in the tags file. Check your spelling.")
-                        return
-                    return
-                case _:
-                    print("Flag not supported!")
-                    return
-        except IndexError as e:
-            print_in_yellow(
-                f"Command is not complete, please check the amount of arguments.\nThe command can be invoked in two ways:\nuntag -q <tag> <query> where <query> is a search or filter command\nuntag -ls <tag> <citekey list>"
-            )
-            return
-        # except FileNotFoundError as e: #TODO
-        #     print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
-        #     with open("tags.json", "w+") as tagsfile:
-        #         json.dump({}, tagsfile)
-        #     print_in_green("Try and run the command again")
-        except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
-
-    """
-    Makes a sub .bib file from a selected list of entry types or tags
-    """
+        return
 
     def do_sub(self, args):
+        """
+        Makes a sub .bib file from a selected list of entry types or tags
+        """
         try:
             arguments = args.split()
 
@@ -724,9 +620,7 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, f"sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_clean(self, arg):
@@ -747,10 +641,8 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_error_msg(e, "clean <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_mer(self, args):
         try:
@@ -792,11 +684,9 @@ class CLI(cmd.Cmd):
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"{RED}ARGUMENT ERROR: {YELLOW}This command should be invoked as follows... \n{GREEN}mer <filename1> <filename2> <new_filename>") #TODO: standardize
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+            print_error_msg(e, "mer <filename1> <filename2> <new_filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_graph(self, args):
 
@@ -829,12 +719,11 @@ class CLI(cmd.Cmd):
                 graph.generate_graph(bibfileobj, k_regular)
 
         except KeyboardInterrupt as e:
-            print_in_yellow(f"{RED}ABORTED")
+            print(f"{RED}ABORTED")
         except ValueError as e:
-            print_in_yellow(f"{RED}Argument error:{YELLOW} {e}")
+            print_error_msg(e, "graph [k_regular=2]")
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
-
+            print_error_msg(e,e)
 
     def do_undo(self, args):
         try:
@@ -855,11 +744,9 @@ class CLI(cmd.Cmd):
             undo(bib_file, step)
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}undo <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e, "undo <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_redo(self, args):
         try:
@@ -882,10 +769,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print_in_yellow(f"{RED}Unexpected error:{YELLOW} {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_checkout(self, args):
         try:
@@ -914,10 +799,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-                print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
             
     def do_comment(self, args):
         try:
@@ -948,10 +831,8 @@ class CLI(cmd.Cmd):
             
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-                print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
         
             
     def do_history(self, args):
@@ -963,10 +844,8 @@ class CLI(cmd.Cmd):
             history(bib_file)
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_del(self, args):
         try:
@@ -981,10 +860,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, "del <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
-                print(f"Unexpected error: {e}")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_enr(self, arg):
         try:
@@ -1001,9 +878,7 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_error_msg(e,"enr <filename>")
-        except (FileNotFoundError, PermissionError) as e:
-            print_error_msg(e, e.filename)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def default(self, line):

@@ -63,7 +63,7 @@ def load_all_files_from_storage():
         if filename.endswith(".bib"):
             path = os.path.join(wd, filename)
             try:
-                bib_file = file_parser.parse_bib(path, remove_whitespace_in_fields=True)
+                bib_file = file_parser.parse_bib(path)
                 loaded[filename] = bib_file
             except Exception as e:
                 print(f"Error parsing {filename}: {e}")
@@ -407,7 +407,7 @@ def save_bib_file(filename: str, bib_file):
     path = os.path.join(wd, filename)
     try:
         generate_bib(bib_file, path)
-        files[filename] = parse_bib(path, remove_whitespace_in_fields=True)
+        files[filename] = parse_bib(path)
         print(f"Saved {filename} successfully")
         ui.notify(f"Saved {filename} successfully", color="green")
     except Exception as e:

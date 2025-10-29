@@ -259,7 +259,7 @@ def display_abbreviations():
 
 def path_to_bibfileobj(filename):
     path = os.path.join(get_working_directory_path(), filename)
-    bibfileobj = utils.file_parser.parse_bib(path, False)
+    bibfileobj = utils.file_parser.parse_bib(path)
     return bibfileobj
 
 
@@ -821,8 +821,8 @@ class CLI(cmd.Cmd):
 
                 path_1 = os.path.join(get_working_directory_path(), file_name_1)
                 path_2 = os.path.join(get_working_directory_path(), file_name_2)
-                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
-                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+                bib_file_1 = utils.file_parser.parse_bib(path_1)
+                bib_file_2 = utils.file_parser.parse_bib(path_2)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
                 # Write output inside the configured working directory
@@ -873,7 +873,7 @@ class CLI(cmd.Cmd):
                 file = files[index - 1]
                 file_name = file[0]
                 path = os.path.join(get_working_directory_path(), file_name)
-                bibfileobj = utils.file_parser.parse_bib(path, False)
+                bibfileobj = utils.file_parser.parse_bib(path)
                 graph.generate_graph(bibfileobj, k_regular)
 
             except ValueError:
@@ -892,7 +892,7 @@ class CLI(cmd.Cmd):
 
 
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             undo(bib_file, step)
 
 
@@ -918,7 +918,7 @@ class CLI(cmd.Cmd):
 
 
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             redo(bib_file, step)
 
 
@@ -956,7 +956,7 @@ class CLI(cmd.Cmd):
 
 
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
 
@@ -993,7 +993,7 @@ class CLI(cmd.Cmd):
                 return
                 
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
             
@@ -1012,7 +1012,7 @@ class CLI(cmd.Cmd):
         try:
             filename = args
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             
             history(bib_file)
 
@@ -1031,7 +1031,7 @@ class CLI(cmd.Cmd):
         try:
             filename = args
             path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = utils.file_parser.parse_bib(path)
             delete_history(bib_file)
 
 

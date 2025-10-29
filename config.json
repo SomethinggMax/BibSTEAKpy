@@ -3,6 +3,7 @@
   "abstract_strong_mismatch": 0.5,
   "user_interface": "CLI",
   "working_directory": "",
+  "remove_newlines_in_fields": false,
   "convert_special_symbols_to_unicode": true,
   "prefer_url": false,
   "prefer_doi": true,

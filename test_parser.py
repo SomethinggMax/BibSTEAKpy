@@ -17,7 +17,7 @@ def compare_parsing(original_path) -> bool:
         bibtexparser_example_file = bibtexparser.load(file, parser)
 
     # Parse with file_parser
-    file_parser_example_file = file_parser.parse_bib(original_path, True)
+    file_parser_example_file = file_parser.parse_bib(original_path)
 
     # Compare results
     bibtexparser_entries = len(bibtexparser_example_file.entries)

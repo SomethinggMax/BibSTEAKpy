@@ -105,7 +105,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                         if token_type == Token.QUOTATION_MARKS_ENCLOSURE:
                             ignore_next = True
                     case "\n":
-                        if token_type == Token.VALUE:
+                        if token_type == Token.VALUE or token_type == Token.QUOTATION_MARKS_ENCLOSURE or token_type == Token.BRACKETS_ENCLOSURE:
                             if remove_newlines_in_fields:
                                 remove_whitespace = True
                                 continue

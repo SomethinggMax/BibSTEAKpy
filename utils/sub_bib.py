@@ -54,4 +54,4 @@ def filter_tags(file: BibFile, tags: list) -> BibFile:
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib", True)
     article_file = filter_entry_types(test_file, ["article", "collection"])
-    file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib", 15)
+    file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib")

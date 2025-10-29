@@ -454,7 +454,7 @@ class CLI(cmd.Cmd):
 
             #do batch replace
             bib_file = batch_editor.batch_replace(bib_file, fields, old_string, new_string)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             #TODO: IT DOESSNT WORK
@@ -486,7 +486,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             sortByReftype(bib_file, order)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green(
@@ -511,7 +511,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
@@ -533,7 +533,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
@@ -739,7 +739,7 @@ class CLI(cmd.Cmd):
 
             new_path = os.path.join(get_working_directory_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            utils.file_generator.generate_bib(sub_file, new_path, 15)
+            utils.file_generator.generate_bib(sub_file, new_path)
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
@@ -760,7 +760,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
@@ -791,7 +791,7 @@ class CLI(cmd.Cmd):
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 # Write output inside the configured working directory
                 out_path = os.path.join(get_working_directory_path(), new_file_name)
-                utils.file_generator.generate_bib(merged_bib_file, out_path, 15)
+                utils.file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
                 file_name_1, file_name_2, new_file_name = args.split()
@@ -807,7 +807,7 @@ class CLI(cmd.Cmd):
 
                 # Write output inside the configured working directory
                 out_path = os.path.join(get_working_directory_path(), new_file_name)
-                utils.file_generator.generate_bib(merge_result, out_path, 15)
+                utils.file_generator.generate_bib(merge_result, out_path)
 
             print_in_green("Files have been merged successfully!")
 
@@ -1014,7 +1014,7 @@ class CLI(cmd.Cmd):
 
             bib_file = path_to_bibfileobj(filename)
             utils.enrichment.sanitize_bib_file(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green("Enrichment has been done successfully!")

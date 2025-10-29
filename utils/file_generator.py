@@ -1,10 +1,34 @@
 from objects import BibFile, Reference, Comment, String, Preamble, Enclosure
 
 
-ALIGN_FIELDS_POSITION = 20
+def get_maximum_alignment(bib_file: BibFile) -> int:
+    """
+    Gets the alignment position based on the longest length of string abbreviations and field_types.
+    :param bib_file:
+    :return:
+    """
+    maximum = 0
+    for entry in bib_file.content:
+        if isinstance(entry, String):
+            maximum = max(maximum, len(entry.abbreviation) + 9)  # len(@string{)=8 +1 for a space after the abbreviation
+        elif isinstance(entry, Reference):
+            for field_type, data in entry.get_fields().items():
+                if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
+                    continue
+                maximum = max(maximum, len(field_type) + 3)  # two spaces before field_type, 1 space after
+    return maximum
 
 
-def generate_bib(bib_file: BibFile, file_path, align_fields_position=ALIGN_FIELDS_POSITION):
+def generate_bib(bib_file: BibFile, file_path, align_fields_position=None):
+    """
+    Generates a bib file from the BibFile object at the file_path (overwrites if the path already exists).
+    :param bib_file: the BibFile object.
+    :param file_path: the path to generate the file at.
+    :param align_fields_position: the position to align the '=' at. If None: calculated based on entries.
+    :return:
+    """
+    if align_fields_position is None:
+        align_fields_position = get_maximum_alignment(bib_file)
     with open(file_path, "w", encoding="utf-8") as file:
         final_string = ""
 
@@ -28,8 +52,7 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=ALIGN_FIELD
                     if entry.comment_above_reference != "":
                         final_string += "\n"
                     final_string += entry.comment_above_reference + "\n@" + entry.entry_type + "{" + entry.cite_key + ",\n"
-                    attribute_maps = entry.get_fields()
-                    for field_type, data in attribute_maps.items():
+                    for field_type, data in entry.get_fields().items():
                         if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                             continue
                         field_start = "  " + field_type
@@ -39,5 +62,4 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=ALIGN_FIELD
                     final_string += "}\n"
                 case _:
                     final_string += entry
-
         file.write(final_string)

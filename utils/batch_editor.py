@@ -198,4 +198,4 @@ if __name__ == "__main__":
     batch_extend_strings(test_file, ["pup"])
     batch_shorten_string(test_file, [], String("", "SF", "Science Fiction"))
     batch_rename_abbreviation(test_file, "cup", "camup")
-    file_generator.generate_bib(test_file, "../bib_files/extended-examples.bib", 15)
+    file_generator.generate_bib(test_file, "../bib_files/extended-examples.bib")

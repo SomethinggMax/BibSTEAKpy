@@ -83,7 +83,7 @@ def initialise_history(bibfile: BibFile):
             tracker["current_parent"] = commit_name
             tracker["timestamp"][commit_name] = timestamp_local()
             commit_file_path = os.path.join(hist_dir_path, commit_name)
-            file_generator.generate_bib(bibfile, commit_file_path, True)
+            file_generator.generate_bib(bibfile, commit_file_path)
             
             tracker["BOTTOM"] = commit_name
             tracker["TOP"] = commit_name
@@ -129,7 +129,7 @@ def commit(bibfile: BibFile):
             tracker["TOP"] = tracker["current_parent"]
             
             commit_file_path = os.path.join(hist_dir_path, commit_name)
-            file_generator.generate_bib(bibfile, commit_file_path, True)
+            file_generator.generate_bib(bibfile, commit_file_path)
             json_str= json.dumps(tracker, indent=2)
                 
             tracker_file.write(json_str)
@@ -157,7 +157,7 @@ def undo(bibfile: BibFile, step=1):
             past_commit_name = f"{parent}"
             past_file_path = os.path.join(hist_dir_path, past_commit_name)
             past_bib_file = file_parser.parse_bib(past_file_path, True)
-            file_generator.generate_bib(past_bib_file, file_path, True)
+            file_generator.generate_bib(past_bib_file, file_path)
             
             tracker["current_parent"] = parent
             json_str= json.dumps(tracker, indent=2)
@@ -186,7 +186,7 @@ def redo(bibfile: BibFile, step=1):
             future_commit_name = f"{child}"
             future_file_path = os.path.join(hist_dir_path, future_commit_name)
             future_bib_file = file_parser.parse_bib(future_file_path, True)
-            file_generator.generate_bib(future_bib_file, file_path, True)
+            file_generator.generate_bib(future_bib_file, file_path)
             
             tracker["current_parent"] = child
             
@@ -214,7 +214,7 @@ def checkout(bibfile: BibFile, commit_hash: str):
         return
     
     checkout_bib_file = file_parser.parse_bib(checkout_path, True)
-    file_generator.generate_bib(checkout_bib_file, file_path, True)
+    file_generator.generate_bib(checkout_bib_file, file_path)
     
     tracker = get_json_object(tracker_file_path)
     with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:

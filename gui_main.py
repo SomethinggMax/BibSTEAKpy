@@ -406,8 +406,7 @@ def save_bib_file(filename: str, bib_file):
     wd = get_working_directory_path()
     path = os.path.join(wd, filename)
     try:
-        ALIGN_FIELDS_POSITION = 15
-        generate_bib(bib_file, path, ALIGN_FIELDS_POSITION)
+        generate_bib(bib_file, path)
         files[filename] = parse_bib(path, remove_whitespace_in_fields=True)
         print(f"Saved {filename} successfully")
         ui.notify(f"Saved {filename} successfully", color="green")

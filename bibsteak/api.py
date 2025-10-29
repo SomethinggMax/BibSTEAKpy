@@ -76,8 +76,8 @@ class API(object):
             bib_file = file_parser.parse_bib(path, False)
 
             # # initialise_history(bib_file)
-            Reftype.sortByReftype(bib_file, order); 
-            file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            Reftype.sortByReftype(bib_file, order)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
             # # commit(bib_file)
 
         except Exception as e:
@@ -99,7 +99,7 @@ class API(object):
             
             # initialise_history(file)
             order_by_field.order_by_field(file, field, descending)
-            file_generator.generate_bib(file, path, 15)
+            file_generator.generate_bib(file, path)
             # commit(file)
 
         except Exception as e:

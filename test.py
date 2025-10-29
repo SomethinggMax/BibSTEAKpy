@@ -95,7 +95,7 @@ def test_files(directory_path) -> bool:
         except ValueError as e:
             print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue
-        file_generator.generate_bib(bib_file, temp_file_name, 15)
+        file_generator.generate_bib(bib_file, temp_file_name)
         if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
@@ -119,29 +119,27 @@ if __name__ == '__main__':
     merge_test = file_parser.parse_bib(bib_merge_test, True)
 
     # Generate file from the dictionary:
-    file_generator.generate_bib(examples, bib_examples_generated, 15)
+    file_generator.generate_bib(examples, bib_examples_generated)
 
     if not os.listdir(get_working_directory_path()):
         print("The working directory is empty!")
     elif test_files(get_working_directory_path()):
         print("All files in the working directory seem correctly parsed and generated.")
 
-    print_differences(bib_examples_original, bib_examples_generated)
-
     batch_editor.batch_replace(examples, [], "Cambridge", "Cam")
     cleanup.cleanup(examples)
-    file_generator.generate_bib(examples, bib_examples_edited, 15)
+    file_generator.generate_bib(examples, bib_examples_edited)
 
     print_differences(bib_examples_generated, bib_examples_edited)
 
     articles = sub_bib.filter_entry_types(test, ["article"])
-    file_generator.generate_bib(articles, articles_examples, 15)
+    file_generator.generate_bib(articles, articles_examples)
 
-    file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
+    file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result)
 
     tagged_sub_file = sub_bib.filter_tags(examples, ["Computer Science", "Virtual memory and storage"])
-    file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
+    file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib")
 
     # testing grouping
     sortByReftype(examples, GroupingType.ZTOA)
-    file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib", 15)
+    file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib")

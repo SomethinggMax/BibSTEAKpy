@@ -50,11 +50,13 @@ def print_error_msg(error_type: Exception, msg):
     error_type = error_type.__class__.__name__
     match error_type:
         case "ValueError" | "IndexError":
-            print_in_yellow(f"{RED}Command passed incorrectly!\n{YELLOW}The command should be invoked as follows: {GREEN}{msg}")
+            print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
         case "FileNotFoundError":
             print_in_yellow(f"Path to {CYAN}'{msg}'{YELLOW} not found! Check your spelling")
         case "PermissionError":
             print_in_yellow(f"Permission to access {CYAN}'{msg}'{YELLOW} was denied")
+        case "Exception":
+            print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
         case _:
             print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
@@ -195,48 +197,7 @@ def check_extension(new_file_name):
         raise ValueError(
             "The new file name must have a .bib extension or no extension at all."
         )
-    return new_file_name
-
-
-def load_file_to_storage(source_path):
-    """
-    Copy a file from source_path into the storage folder.
-    Creates the folder if it doesn't exist.
-    """
-    try:
-        working_directory = get_working_directory_path()
-        os.makedirs(working_directory, exist_ok=True)
-        filename = os.path.basename(source_path)
-        name, extension = os.path.splitext(filename)
-        destination_path = os.path.join(working_directory, filename)
-
-        if extension == ".bib":
-            shutil.copy(source_path, destination_path)
-
-            print_in_green(
-                f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfuly!"
-            )
-        else:
-            if extension == "":
-                raise ValueError("File has no extension! Only .bib files are allowed.")
-            else:
-                raise ValueError(
-                    f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed."
-                )
-
-    except ValueError as e:
-        print_in_yellow(f"{e}")
-        return
-    except (FileNotFoundError, PermissionError) as e:
-        print_error_msg(e, e.filename)
-    except shutil.SameFileError as e:
-        print_in_yellow(f"File Error: File already loaded to current working directory")
-        return
-    except OSError as e:
-        print_in_yellow(f"Invalid argument!")
-    except Exception as e:
-        print_in_yellow(f"Unexpected error: {e}")
-        return
+    return new_file_name 
 
 
 def display_help_commands(space_length = 60, indent = 0):
@@ -284,10 +245,43 @@ class CLI(cmd.Cmd):
 
     # commands
     def do_load(self, arg):
-        if len(arg) >= 1:
-            load_file_to_storage(arg)
-        else:
-            print_in_yellow("Give a path to a file as an argument")
+        """
+        Copy a file from source_path into the storage folder.
+        Creates the folder if it doesn't exist.
+        """
+        try:
+
+            if arg == "":
+                raise ValueError(f"The command should be invoked as follows: {GREEN}load <absolute/path/to/file>")
+
+            working_directory = get_working_directory_path()
+            if working_directory == "":
+                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
+     
+            filename = os.path.basename(arg)
+            name, extension = os.path.splitext(filename)
+            destination_path = os.path.join(working_directory, filename)
+
+            if extension != ".bib":
+                if extension == "":
+                    raise ValueError("File has no extension! Only .bib files are allowed.")
+                else:
+                    raise ValueError(f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed.")
+
+            shutil.copy(arg, destination_path)
+            print_in_green(f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfully!")
+
+        except ValueError as e:
+            #NOTE! This should not be changed to print_error_msg, since the custom messages are important
+            print_in_yellow(f"{e}") 
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
+        except shutil.SameFileError as e:
+            print_error_msg(e,e)
+        except OSError as e:
+            print_error_msg(e,e)
+        except Exception as e:
+            print_error_msg(e,e)
 
     def do_list(self, arg):
         try:
@@ -1024,7 +1018,7 @@ class CLI(cmd.Cmd):
         except (FileNotFoundError, PermissionError) as e:
             print_error_msg(e, e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     def default(self, line):
         print("Command not found!")

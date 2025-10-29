@@ -1,16 +1,6 @@
 {
-    "bla": [
-        "kant:kpv",
-        "kant:ku"
-    ],
     "kant": [
         "kant:kpv",
         "kant:ku"
-    ],
-    "TCP": [
-        "padhye",
-        "padhye",
-        "padhye",
-        "padhye"
     ]
 }

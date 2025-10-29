@@ -98,6 +98,8 @@ COMMANDS = {
             "sub -t <filename> <new filename> <tags list>",
             "Creates a sub .bib file with only references with specified " "tags.",
         ),
+        ("tag <tag> <query>", "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
+        ("tag -ls", "Lists all added tags"),
         (
             "mer <filename1> <filename2> <new_filename>",
             "Merge the references from two bib files into one file.",
@@ -304,9 +306,7 @@ class CLI(cmd.Cmd):
 
     def do_pwd(self, arg):
         if get_working_directory_path() != "":
-            print(
-                f"The current working directory is {CYAN}'{get_working_directory_path()}'"
-            )
+            print(f"The current working directory is {CYAN}'{get_working_directory_path()}'")
         else:
             print_in_yellow("No working directory is selected")
 
@@ -333,10 +333,8 @@ class CLI(cmd.Cmd):
             print_error_msg(e, "cwd <absolute/path/to/directory>")
         except FileNotFoundError as e:
             print_error_msg(e, e.filename)
-        except TypeError as e:
+        except (TypeError, Exception) as e:
             print_error_msg(e, e)
-        except Exception as e:
-            print_in_yellow(f"{RED}An unexpected error occured!{YELLOW}{e}")
 
     def do_cd(self, wd_path):
         self.do_cwd(wd_path)
@@ -371,11 +369,10 @@ class CLI(cmd.Cmd):
                 for line in f:
                     print(f"", line, end="")
             print("\n")
-        except FileNotFoundError as e:
+        except (FileNotFoundError, PermissionError) as e:
             print_error_msg(e, e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
-            return
+            print_error_msg(e,e)
 
     def do_filter(self, args):
         try:
@@ -390,24 +387,23 @@ class CLI(cmd.Cmd):
             if len(args_split) == 3:
                 value = args_split[2].lower()
                 array = filterByFieldValue(bibfileobj, field, value)
+
                 if array == -1:
-                    print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
-                    )
-                else:
-                    self.do_view_array(array)
+                    print_in_yellow(f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'")
+                    return
+                self.do_view_array(array)
             else:
                 array = filterByFieldExistence(bibfileobj, field)
                 if array == -1:
                     print_in_yellow(f"No references found with a field named {CYAN}'{field}'")
-                else:
-                    self.do_view_array(array)
-        except IndexError as e:
-            print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}filter <filename> <field> [value=None]") #TODO: STANDARDIZE
+                    return
+                self.do_view_array(array)
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "filter <filename> <field> [value=None]")
         except (FileNotFoundError, PermissionError) as e:
             print_error_msg(e, e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     def do_search(self, args):
         try:
@@ -416,15 +412,16 @@ class CLI(cmd.Cmd):
 
             array = search(bibfileobj, searchterm)
             if array == -1:
-                print_in_yellow("No references match your search :(") #TODO: diff colour?
-            else:
-                self.do_view_array(array)
-        except (IndexError, ValueError) as e: #TODO: GROUP?
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The argument should be invoked as follows...\n{GREEN}search <filename> <searchterm>")
+                print_in_yellow(f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'") #TODO: diff colour?
+                return
+            
+            self.do_view_array(array)
+        except (IndexError, ValueError) as e: 
+            print_error_msg(e, "search <filename> <searchterm>")
         except (FileNotFoundError, PermissionError) as e:
             print_error_msg(e, e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     def do_view_array(self, args):
         for item in args:
@@ -451,15 +448,14 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
-            #TODO: IT DOESSNT WORK
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <old string> <new string> [fieldslist=None]")
+            print_error_msg(e, "br <filename> <old string> <new string> [fieldslist=None]")
         except (FileNotFoundError, PermissionError) as e:
             print_error_msg(e, e.filename)
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     def do_ord(self, args):
         try:
@@ -544,73 +540,63 @@ class CLI(cmd.Cmd):
             arguments = args.split()
             flag = arguments[0]
 
-            match flag:
-                case "-q":
-                    tag = arguments[1]
-                    query = arguments[2:]
-                    array = []
-
-
-                    bibfileobj = path_to_bibfileobj(query[1])
-
-                    match query[0]:
-                        case "search":
-                            array = search(bibfileobj, query[2])
-                        case "filter":
-                            if len(query) == 3:
-                                array = filterByFieldExistence(bibfileobj, query[2])
-                            elif len(query) == 4:
-                                array = filterByFieldValue(
-                                    bibfileobj, query[2], query[3]
-                                )
-                            else:
-                                print("Invalid query given!")
-                                return
-                        case _:
-                            print_in_yellow("Invalid query! Check your spelling")
-                            return
-
-                    # no queries returned, tell the user
-                    if array == -1:
-                        print("Query returns no matches! No tags have been added")
-                        print("Query returns no matches! No tags have been added")
-                        return
-
-                    #get cite_keys only
-                    newarr = [ref.cite_key for ref in array]
-                    with open("tags.json", "r+") as tagsfile:
-                        # add the new tagged references
-                        tags = json.load(tagsfile)
-                        if tag in tags.keys():
-                            tags[tag] += newarr  # TODO: duplicates
-                        else:
-                            tags[tag] = newarr
-
-                        tagsfile.seek(0)  # go to beginning of file
-                        json.dump(tags, tagsfile, indent=4)  # replace content
-                    print_in_green("Successfully added tags!")
-                    return
-                case "-ls":
-                    with open("tags.json") as tagsfile:
+            if flag == "-ls":
+                with open("tags.json") as tagsfile:
                         tags = json.load(tagsfile)
                         for key, value in tags.items():  # TODO: if empty
                             print(f"{YELLOW}{key} {RESET}{value}")  # TODO: pretty
+            else:
+                tag = arguments[0]
+                query = arguments[1:]
+                query_type = query[0]
+                filename = query[1]
+                bibfileobj = path_to_bibfileobj(filename)
+                term = query[2]
+                array = []
+
+                match query_type:
+                    case "search":
+                        array = search(bibfileobj, term)
+                    case "filter":
+                        if len(query) == 3:
+                            array = filterByFieldExistence(bibfileobj, term)
+                        elif len(query) == 4:
+                            array = filterByFieldValue(bibfileobj, term, query[3])
+                    case _:
+                        print_in_yellow(f"Invalid query! A query can either look like...\n{GREEN}search <filename> <searchterm>\nfilter <filename> <field> [OPT=value]")
+                        return
+
+                # no queries returned, tell the user
+                if array == -1:
+                    print_in_yellow("Query returns no matches! No tags have been added")
                     return
-                case _:
-                    print("Flag not supported!")
-                    return
-        except IndexError as e:
-            print_in_yellow(
-                f"Command is not complete, please check the amount of arguments.\nThe command can be invoked in two ways:\ntag -q <tag> <query> where <query> is a search or filter command\ntag -ls"
-            )
-            return
-        # except FileNotFoundError as e: #TODO
-        #     print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
-        #     with open("tags.json", "w+") as tagsfile:
-        #         json.dump({}, tagsfile)
-        #     print_in_green("Try and run the command again")
+
+                #get cite_keys only
+                newarr = [ref.cite_key for ref in array]
+                with open("tags.json", "r+") as tagsfile:
+                    # add the new tagged references
+                    tags = json.load(tagsfile)
+                    if tag in tags.keys():
+                        tags[tag] += newarr  # TODO: duplicates
+                    else:
+                        tags[tag] = newarr
+
+                    tagsfile.seek(0)  # go to beginning of file
+                    json.dump(tags, tagsfile, indent=4)  # replace content
+                print_in_green("Successfully added tags!")
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
+        except FileNotFoundError as e:
+            if e.filename == "tags.json":
+                print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
+                with open("tags.json", "w+") as tagsfile:
+                    json.dump({}, tagsfile)
+                print_in_green("Try and run the command again")
+            else:
+                print_error_msg(e,e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     # TODO
     def do_untag(self, args):

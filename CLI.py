@@ -62,7 +62,7 @@ def print_error_msg(error_type: Exception, msg):
 
 
 CONFIG_FILE = "config.json"
-TAGS_FILE = "tags.json"  # TODO
+TAGS_FILE = "tags.json"
 
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}" : [
@@ -766,9 +766,8 @@ class CLI(cmd.Cmd):
             bib_file = utils.file_parser.parse_bib(path, False)
             redo(bib_file, step)
 
-
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
+            print_error_msg(e,"redo <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
@@ -782,47 +781,39 @@ class CLI(cmd.Cmd):
                 raise IndexError()
             
             if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
-                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
-                return
+                raise FileNotFoundError(None, None, filename)
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
             checkout_path = os.path.join(hist_dir_path, commit_hash)
             
             if not os.path.isfile(checkout_path):
-                print_in_yellow(f"Commit hash for file {filename} is not valid")
-                return
+                raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
                 
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             checkout(bib_file, commit_hash)
-            print_in_green(f"Checkout done successfully to commit: {commit_hash}")
+            print_in_green(f"Checkout done successfully to commit {CYAN}{commit_hash}")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
+            print_error_msg(e,"checkout <filename> <commit_hash>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
             
     def do_comment(self, args):
         try:
             argument_list = args.split(maxsplit = 2)
-            if len(argument_list) == 3:
-                filename = argument_list[0]
-                commit_hash = argument_list[1]
-                checkout_comment = argument_list[2]
-            else:
-                print_in_yellow("Not enough arguments!")
-                return
-            
+            filename = argument_list[0]
+            commit_hash = argument_list[1]
+            checkout_comment = argument_list[2]
+
             if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
-                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
-                return
+                raise FileNotFoundError(None, None, filename)
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
             checkout_path = os.path.join(hist_dir_path, commit_hash)
             
             if not os.path.isfile(checkout_path):
-                print_in_yellow(f"Commit hash for file {filename} is not valid")
-                return
+                raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
                 
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
@@ -830,7 +821,7 @@ class CLI(cmd.Cmd):
             print_in_green(f"Commenting done successfuly")
             
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
+            print_error_msg(e, "comment <filename> <commit_hash> <comment>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
         
@@ -843,7 +834,7 @@ class CLI(cmd.Cmd):
             
             history(bib_file)
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
+            print_error_msg(e, "history <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
@@ -853,8 +844,7 @@ class CLI(cmd.Cmd):
             if filename == "":
                 raise ValueError()
 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
             delete_history(bib_file)
             print_in_green(f"History of {CYAN}'{filename}'{GREEN} deleted successfuly!")
 

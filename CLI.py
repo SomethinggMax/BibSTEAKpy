@@ -46,6 +46,18 @@ def print_in_green(arg):
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
 
+def print_error_msg(error_type: Exception, msg):
+    error_type = error_type.__class__.__name__
+    match error_type:
+        case "ValueError" | "IndexError":
+            print_in_yellow(f"{RED}Command passed incorrectly!\n{YELLOW}The command should be invoked as follows: {GREEN}{msg}")
+        case "FileNotFoundError":
+            print_in_yellow(f"Path to {CYAN}'{msg}'{YELLOW} not found! Check your spelling")
+        case "PermissionError":
+            print_in_yellow(f"Permission to access {CYAN}'{msg}'{YELLOW} was denied")
+        case _:
+            print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
+
 
 CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json"  # TODO
@@ -114,8 +126,6 @@ COMMANDS = {
     ]
     
 }
-
-
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -217,11 +227,8 @@ def load_file_to_storage(source_path):
     except ValueError as e:
         print_in_yellow(f"{e}")
         return
-    except FileNotFoundError as e:
-        print_in_yellow(f"File not found: {CYAN}'{e.filename}'")
-        return
-    except PermissionError as e:
-        print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+    except (FileNotFoundError, PermissionError) as e:
+        print_error_msg(e, e.filename)
     except shutil.SameFileError as e:
         print_in_yellow(f"File Error: File already loaded to current working directory")
         return
@@ -240,12 +247,6 @@ def display_help_commands(space_length = 60, indent = 0):
         ordered_commands = sorted(commands, key=lambda command: command[0])
         for command in ordered_commands:
             print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
-            
-def display_abbreviations():
-    with open("abbreviations.json", "r") as f:
-        abreviations = json.load(f)
-        for key, value in abreviations.items():
-            print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
 
 def path_to_bibfileobj(filename):
     path = os.path.join(get_working_directory_path(), filename)
@@ -271,10 +272,8 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is: '{
-    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
-    If you want to change it use the set_directory <source_directory> command
-    and add the absolute path as an argument.
+    The current/last working directory is {CYAN}'{
+    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'{RESET}
     """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
@@ -294,7 +293,7 @@ class CLI(cmd.Cmd):
         try:
             folder_path = get_working_directory_path()
             if folder_path == "":
-                raise ValueError("No working directory is selected. Use the cwd command")
+                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
 
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
@@ -306,10 +305,8 @@ class CLI(cmd.Cmd):
                     print("No .bib files found in the working directory!")
             else:
                 print("The working directory is empty!")
-        except ValueError as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} {e}")
         except Exception as e:
-            print_in_yellow(f"{RED}UNEXPECTED ERROR!{YELLOW} {e}")
+            print_error_msg(e,e)
 
     def do_pwd(self, arg):
         if get_working_directory_path() != "":
@@ -320,16 +317,13 @@ class CLI(cmd.Cmd):
             print_in_yellow("No working directory is selected")
 
     def do_cwd(self, args):
-
-        wd_path = args.split()[0]
-
         try:
-            if wd_path == "":
-                raise ValueError("No path provided. Please provide an absolute path.")
+            wd_path = args.split()[0]
+
             if not os.path.exists(wd_path):
-                raise FileNotFoundError(f"Path not found: {wd_path}")
+                raise FileNotFoundError()
             if not os.path.isdir(wd_path):
-                raise TypeError(f"The provided path is not a directory: {wd_path}")
+                raise TypeError(f"the provided path is not a directory: {wd_path}")
 
             with open("config.json", "r") as f:
                 config = json.load(f)
@@ -339,12 +333,14 @@ class CLI(cmd.Cmd):
             with open("config.json", "w") as f:
                 json.dump(config, f, indent=2)
 
-            print_in_green(f"Directory successfully set to {wd_path}")
+            print_in_green(f"Directory successfully set to {CYAN}'{wd_path}'")
 
-        except ValueError as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "cwd <absolute/path/to/directory>")
         except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+            print_error_msg(e, e.filename)
+        except TypeError as e:
+            print_error_msg(e, e)
         except Exception as e:
             print_in_yellow(f"{RED}An unexpected error occured!{YELLOW}{e}")
 
@@ -356,7 +352,10 @@ class CLI(cmd.Cmd):
         display_help_commands()
 
     def do_abb(self, arg):
-        display_abbreviations()
+        with open("abbreviations.json", "r") as f:
+            abreviations = json.load(f)
+            for key, value in abreviations.items():
+                print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
 
     def do_quit(self, arg):
 
@@ -379,7 +378,7 @@ class CLI(cmd.Cmd):
                     print(f"", line, end="")
             print("\n")
         except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
             return
@@ -411,10 +410,8 @@ class CLI(cmd.Cmd):
                     self.do_view_array(array)
         except IndexError as e:
             print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}filter <filename> <field> [value=None]") #TODO: STANDARDIZE
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling") #TODO: chekc if others have e.filename instead of filename
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
@@ -430,10 +427,8 @@ class CLI(cmd.Cmd):
                 self.do_view_array(array)
         except (IndexError, ValueError) as e: #TODO: GROUP?
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The argument should be invoked as follows...\n{GREEN}search <filename> <searchterm>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
@@ -467,8 +462,8 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_in_yellow(f"Not enough arguments given.\nThe command should be invoked as follows: {GREEN}br <filename> <old string> <new string> [fieldslist=None]")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
@@ -509,7 +504,7 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("Please provide a filename") #TODO: standardize
+                raise ValueError()
 
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
@@ -522,11 +517,9 @@ class CLI(cmd.Cmd):
             print_in_green("Expanding abbreviations has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e, "exp <filename>")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
@@ -534,7 +527,7 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("Please provide a filename.") #TODO: standardize?
+                raise ValueError()
 
             bib_file = path_to_bibfileobj(filename)
 
@@ -546,11 +539,9 @@ class CLI(cmd.Cmd):
             print_in_green("Collapsing abbreviations has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e, "col <filename>")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
@@ -752,19 +743,17 @@ class CLI(cmd.Cmd):
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows... \n{GREEN}sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]") 
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e, f"sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            print_error_msg(e,e)
 
     def do_clean(self, arg):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
+                raise ValueError()
 
             # working_direcory =
             bib_file = path_to_bibfileobj(filename)
@@ -777,11 +766,9 @@ class CLI(cmd.Cmd):
             print_in_green("Cleanup has been done successfully!")
 
         except ValueError as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e, "clean <filename>")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
@@ -826,10 +813,8 @@ class CLI(cmd.Cmd):
 
         except ValueError as e:
             print_in_yellow(f"{RED}ARGUMENT ERROR: {YELLOW}This command should be invoked as follows... \n{GREEN}mer <filename1> <filename2> <new_filename>") #TODO: standardize
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
@@ -891,10 +876,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}undo <filename>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 
@@ -919,10 +902,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}redo <filename>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"{RED}Unexpected error:{YELLOW} {e}")
 
@@ -953,10 +934,8 @@ class CLI(cmd.Cmd):
 
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}checkout <filename> <commit_hash>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
                 print(f"Unexpected error: {e}")
             
@@ -989,10 +968,8 @@ class CLI(cmd.Cmd):
             
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}comment <filename> <commit_hash> <comment>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
                 print(f"Unexpected error: {e}")
         
@@ -1006,26 +983,26 @@ class CLI(cmd.Cmd):
             history(bib_file)
         except (ValueError, IndexError) as e:
             print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}history <filename>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print(f"Unexpected error: {e}")
 
     def do_del(self, args):
         try:
             filename = args
+            if filename == "":
+                raise ValueError()
+
             path = os.path.join(get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path, False)
             delete_history(bib_file)
+            print_in_green(f"History of {CYAN}'{filename}'{GREEN} deleted successfuly!")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Argument Error!{YELLOW} The command should be invoked as follows...\n{GREEN}del <filename>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{e.filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e, "del <filename>")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
                 print(f"Unexpected error: {e}")
 
@@ -1033,7 +1010,7 @@ class CLI(cmd.Cmd):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("Please provide a filename") #TODO: standardize? not valueerror?
+                raise ValueError()
 
             bib_file = path_to_bibfileobj(filename)
             utils.enrichment.sanitize_bib_file(bib_file)
@@ -1043,11 +1020,9 @@ class CLI(cmd.Cmd):
             print_in_green("Enrichment has been done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_in_yellow(f"{RED}Value error:{YELLOW} {e}")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {CYAN}'{filename}'{YELLOW} not found! Check your spelling")
-        except PermissionError as e:
-            print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+            print_error_msg(e,"enr <filename>")
+        except (FileNotFoundError, PermissionError) as e:
+            print_error_msg(e, e.filename)
         except Exception as e:
             print_in_yellow(f"Unexpected error: {e}")
 

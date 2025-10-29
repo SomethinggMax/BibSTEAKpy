@@ -90,6 +90,7 @@ COMMANDS = {
             "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
         ),
         ("clean <filename>", "Cleans file according to rules in config."),
+        ("ord <filename> [reverse=False]", "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)"),
         (
             "sub -e <filename> <new filename> <entrytypes list>",
             "Creates a sub .bib file with only specified entry " "types.",
@@ -288,13 +289,12 @@ class CLI(cmd.Cmd):
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
-                    # print(f"{BLUE}Bib files in {folder_path}:")
                     for file, index in files:
                         print(f"{BLUE}[{index}] {RESET}", file)
                 else:
-                    print("No .bib files found in the working directory!")
+                    print_in_yellow("No .bib files found in the working directory!")
             else:
-                print("The working directory is empty!")
+                print_in_yellow("The working directory is empty!")
         except Exception as e:
             print_error_msg(e,e)
 
@@ -348,7 +348,7 @@ class CLI(cmd.Cmd):
         except Exception:
             pass
 
-        print(f"{GREEN}Bye! - Shell closed{RESET}")
+        print_in_green("Bye! - Shell closed")
 
         return True  # returning True exits the loop
 
@@ -463,16 +463,12 @@ class CLI(cmd.Cmd):
             utils.file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
-            print_in_green(
-                f"Grouping by reference done successfully in {order.name} order"
-            )
+            print_in_green(f"Grouping by reference done successfully in {order.name} order")
 
-        except IndexError as e:
-            print(f"Unexpected error: {e}")
-            return
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "ord <filename> [reverse=False]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e,e)
 
     def do_exp(self, arg):
         try:
@@ -652,7 +648,7 @@ class CLI(cmd.Cmd):
                 new_file_name = check_extension(new_file_name)
                 wd = get_working_directory_path()
                 if not os.listdir(wd):
-                    print("The working directory is empty!")
+                    print_in_yellow("The working directory is empty!")
                     return
                 file_names = get_bib_file_names(wd)
                 merged_bib_file = path_to_bibfileobj(file_names[0][0])
@@ -701,9 +697,7 @@ class CLI(cmd.Cmd):
             if get_working_directory_path() == "":
                 raise ValueError("Working directory not set! Use the cwd command")
             else:
-                print(
-                    f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}"
-                )
+                print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
                 self.do_list("")
 
                 index_str = input(f"{BLUE}Enter file index: {RESET}")
@@ -722,7 +716,7 @@ class CLI(cmd.Cmd):
             print(f"{RED}ABORTED")
         except ValueError as e:
             print_error_msg(e, "graph [k_regular=2]")
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_undo(self, args):
@@ -774,11 +768,8 @@ class CLI(cmd.Cmd):
     def do_checkout(self, args):
         try:
             argument_list = args.split()
-            if len(argument_list) == 2:
-                filename = argument_list[0]
-                commit_hash = argument_list[1]
-            else:
-                raise IndexError()
+            filename = argument_list[0]
+            commit_hash = argument_list[1]
             
             if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
                 raise FileNotFoundError(None, None, filename)
@@ -872,7 +863,7 @@ class CLI(cmd.Cmd):
             print_error_msg(e,e)
 
     def default(self, line):
-        print("Command not found!")
+        print_in_yellow("Command not found!")
 
     def emptyline(self):
         pass
@@ -933,4 +924,4 @@ if __name__ == "__main__":
     try:
         CLI().cmdloop()
     except KeyboardInterrupt as e:
-        print(f"{GREEN}An interruption has occured! - Shell closed{RESET}")
+        print_in_green(f"An interruption has occured! - Shell closed")

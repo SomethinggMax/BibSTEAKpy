@@ -2,6 +2,7 @@ import cmd
 import os
 import shutil
 import readline
+import re
 from utils import merge, cleanup, enrichment
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
@@ -42,13 +43,14 @@ WHITE = "\033[37m"
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
 
-
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
 
 def print_error_msg(error_type: Exception, msg):
     error_type = error_type.__class__.__name__
     match error_type:
+        case "JSONDecodeError":
+            print_in_yellow(f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually")
         case "ValueError" | "IndexError":
             print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
         case "FileNotFoundError":
@@ -59,7 +61,6 @@ def print_error_msg(error_type: Exception, msg):
             print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
         case _:
             print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
-
 
 CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json"
@@ -101,6 +102,8 @@ COMMANDS = {
         ),
         ("tag <tag> <query>", "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
         ("tag -ls", "Lists all added tags"),
+        ("untag <tag> <query>", "Untags all references that return from a query. A query can either be a filter or search command"),
+        ("untag <tag> <citekey list>", "Untags all references that are passed in the list of citekeys"),
         (
             "mer <filename1> <filename2> <new_filename>",
             "Merge the references from two bib files into one file.",
@@ -118,7 +121,7 @@ COMMANDS = {
             "filter <filename> <field> [value=None]",
             "Displays references with a certain field (OPTIONAL: a value in that field)",
         ),
-        ("enr <filename>", "Enriches a bibfile by getting information from the web"), #TODO: better description
+        ("enr <filename>", "Enriches a bibfiles empty DOI and URL fields by getting information from the web"),
     ],
     
     f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
@@ -202,7 +205,6 @@ def check_extension(new_file_name):
         )
     return new_file_name 
 
-
 def display_help_commands(space_length = 60, indent = 0):
     print("")
     
@@ -212,10 +214,15 @@ def display_help_commands(space_length = 60, indent = 0):
         for command in ordered_commands:
             print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
 
-def path_to_bibfileobj(filename):
+def path_to_bibfileobj(filename) -> BibFile:
     path = os.path.join(get_working_directory_path(), filename)
     bibfileobj = utils.file_parser.parse_bib(path, False)
     return bibfileobj
+
+def parse_args(args) -> list:
+    pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
+    pattern = [x for x in pattern if x.strip()]
+    return pattern
 
 class CLI(cmd.Cmd):
 
@@ -353,7 +360,6 @@ class CLI(cmd.Cmd):
         return True  # returning True exits the loop
 
     # TODO: pretty up?
-    # TODO: store all files as preprocessed bibfiles in this cli?
     def do_view(self, arg):
         try:
             path = os.path.join(get_working_directory_path(), arg)
@@ -400,7 +406,7 @@ class CLI(cmd.Cmd):
 
             array = search(bibfileobj, searchterm)
             if array == -1:
-                print_in_yellow(f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'") #TODO: diff colour?
+                print_in_yellow(f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'") 
                 return
             
             self.do_view_array(array)
@@ -519,7 +525,9 @@ class CLI(cmd.Cmd):
             if flag == "-ls":
                 with open("tags.json") as tagsfile:
                         tags = json.load(tagsfile)
-                        for key, value in tags.items():  # TODO: if empty
+                        if tags == {}:
+                            print_in_yellow("The tags file is empty")
+                        for key, value in tags.items(): 
                             print(f"{YELLOW}{key} {RESET}{value}")  # TODO: pretty
             else:
                 tag = arguments[0]
@@ -549,13 +557,15 @@ class CLI(cmd.Cmd):
 
                 #get cite_keys only
                 newarr = [ref.cite_key for ref in array]
+
+                # add the new tagged references
                 with open("tags.json", "r+") as tagsfile:
-                    # add the new tagged references
                     tags = json.load(tagsfile)
                     if tag in tags.keys():
-                        for ref in tags[tag]:
-                            if ref not in tags[tag]:
-                                tags[tag] + ref
+                        citekeyarr = tags[tag]
+                        for citekey in newarr:
+                            if citekey not in citekeyarr:
+                                citekeyarr.append(citekey)
                     else:
                         tags[tag] = newarr
 
@@ -563,11 +573,13 @@ class CLI(cmd.Cmd):
                     json.dump(tags, tagsfile, indent=4)  # replace content
                 print_in_green("Successfully added tags!")
 
+        except json.JSONDecodeError as e: #NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            print_error_msg(e, "tags.json") #TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
             print_error_msg(e, f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
         except FileNotFoundError as e:
             if e.filename == "tags.json":
-                print_in_yellow("Tags file not found! Creating \"tags.json\" for you...") #TODO
+                print_in_yellow("Tags file not found! Creating \"tags.json\" for you...")
                 with open("tags.json", "w+") as tagsfile:
                     json.dump({}, tagsfile)
                 print_in_green("Try and run the command again")
@@ -575,10 +587,71 @@ class CLI(cmd.Cmd):
                 print_error_msg(e,e)
         except Exception as e:
             print_error_msg(e,e)
+        
 
     # TODO
     def do_untag(self, args):
-        return
+        """
+        Untags either according to a query or according to a list of citekeys
+        """
+        try:
+            arguments = parse_args(args)
+            tag = arguments[0]
+            query = arguments[1:]
+
+            array = []
+            if query[0].startswith("["):
+                print(query[0])
+                return
+            else:
+                match query[0]:
+                    case "search":
+                        bibfileobj = path_to_bibfileobj(query[1])
+                        array = search(bibfileobj, query[2])
+                    case "filter":
+                        bibfileobj = path_to_bibfileobj(query[1])
+                        if len(query) == 3:
+                            array = filterByFieldExistence(bibfileobj, query[2])
+                        else:
+                            array = filterByFieldValue(bibfileobj, query[2], query[3])
+
+                     # no queries returned, tell the user
+                if array == -1:
+                    print_in_yellow("Query returns no matches! No tags have been added")
+                    return
+
+                #get cite_keys only
+                newarr = [ref.cite_key for ref in array]
+                print(newarr)
+                
+                # remove the tagged references
+                with open("tags.json", "r+") as tagsfile:
+                    tags = json.load(tagsfile)
+                    if tag in tags.keys():
+                        citekeyarr = tags[tag]
+                        print(citekeyarr)
+                        for citekey in newarr:
+                            if citekey in citekeyarr:
+                                citekeyarr.remove(citekey)
+
+                        #if we have removed all the citekeys in a tag, remove the full tag
+                        if citekeyarr == []:
+                            tags.pop(tag)
+                    else:
+                        print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in tags.json. Removed nothing")
+                        return
+
+                    tagsfile.seek(0)  # go to beginning of file
+                    json.dump(tags, tagsfile, indent=4)  # replace content
+                    tagsfile.truncate() #remove all the rest
+                print_in_green("Successfully removed tags!")
+
+        except json.JSONDecodeError as e: #NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            print_error_msg(e, "tags.json") #TODO: FOR ALL JSON                   
+        except (IndexError, ValueError) as e:
+            print_error_msg(e, "untag <tag> <query>\nuntag <tag> <citekey list>")
+        except Exception as e:
+            print_error_msg(e,e)
 
     def do_sub(self, args):
         """

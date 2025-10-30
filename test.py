@@ -143,3 +143,5 @@ if __name__ == '__main__':
     # testing grouping
     sortByReftype(examples, GroupingType.ZTOA)
     file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib")
+
+    

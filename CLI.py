@@ -834,7 +834,7 @@ class CLI(cmd.Cmd):
             elif len(argument_list) == 2:
                 filename = argument_list[0]
                 step = int(argument_list[1])
-
+            # TODO: handle else case (filename and step will not be initialised)
 
             path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = file_parser.parse_bib(path)
@@ -857,7 +857,7 @@ class CLI(cmd.Cmd):
             elif len(argument_list) == 2:
                 filename = argument_list[0]
                 step = int(argument_list[1])
-
+            # TODO: handle else case (filename and step will not be initialised)
 
             path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = file_parser.parse_bib(path)

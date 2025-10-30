@@ -1,16 +1,10 @@
 {
-    "bla": [
-        "kant:kpv",
-        "kant:ku"
+    "science": [
+        "westfahl:frontier",
+        "westfahl:space"
     ],
     "kant": [
         "kant:kpv",
         "kant:ku"
-    ],
-    "TCP": [
-        "padhye",
-        "padhye",
-        "padhye",
-        "padhye"
     ]
 }

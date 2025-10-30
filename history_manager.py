@@ -425,7 +425,6 @@ def delete_history(bibfile: BibFile):
             os.rmdir(os.path.join(root, d))
             
     os.rmdir(hist_dir_path)
-    print_in_green(f"History Directory of {file_name} deleted successfuly!")
     
     
 

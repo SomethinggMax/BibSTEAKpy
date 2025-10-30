@@ -9,7 +9,7 @@ class GroupingType(Enum):
 
 def order_by_entry_type(bib_file: BibFile, enum: GroupingType):
     # get all references from the bib obj
-    references_by_entry_types = references_to_entry_type_dict(bib_file)
+    references_by_entry_types = references_to_entry_type_dict(bib_file.get_references())
 
     # sort dictionary either AtoZ or ZtoA
     references_by_entry_types = sorted(references_by_entry_types.items(), reverse=bool(enum.value))

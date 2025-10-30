@@ -244,6 +244,7 @@ def path_to_bibfileobj(filename) -> BibFile:
     if wd_path == "":
         raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
     
+    filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
     bibfileobj = file_parser.parse_bib(path, False)
     return bibfileobj
@@ -407,7 +408,8 @@ class CLI(cmd.Cmd):
                 self.do_list()
                 raise ValueError()
 
-            path = os.path.join(json_loader.get_working_directory_path(), arg)
+            filename = check_extension(arg)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             with open(path, "r") as f:
                 for line in f:
                     print(f"", line, end="")
@@ -480,12 +482,11 @@ class CLI(cmd.Cmd):
                 raise ValueError()
             
             # generate fileobj
-            filename = check_extension(filename)
             bib_file = path_to_bibfileobj(filename)
 
             #get and save history of file
             initialise_history(bib_file)
-
+    
             # do batch replace
             bib_file = batch_editor.batch_replace(bib_file, fields, old_string, new_string)
             file_generator.generate_bib(bib_file, bib_file.file_name)
@@ -494,7 +495,7 @@ class CLI(cmd.Cmd):
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_error_msg(e, "br <filename> <old string> <new string> [fieldslist=None]")
+            print_error_msg(e, "br <filename> <old string> <new string> [OPT=fieldslist]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -919,7 +920,7 @@ class CLI(cmd.Cmd):
 
     def do_comment(self, args):
         try:
-            argument_list = args.split(maxsplit=2)
+            argument_list = parse_args(args)
             filename = argument_list[0]
             commit_hash = argument_list[1]
             checkout_comment = argument_list[2]

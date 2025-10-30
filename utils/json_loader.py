@@ -18,10 +18,10 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
 }
-CONFIG_FILE = "config.json"
-TAGS_FILE = "tags.json"
-ABBREVIATIONS_FILE = "abbreviations.json"
-SYNONYMS_FILE = "synonyms.json"
+CONFIG_FILE = "jons/config.json"
+TAGS_FILE = "jsons/tags.json"
+ABBREVIATIONS_FILE = "jsons/abbreviations.json"
+SYNONYMS_FILE = "jsons/synonyms.json"
 
 
 def _load_json(path):

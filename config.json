@@ -14,7 +14,7 @@
   "change_enclosures_to_braces": false,
   "change_enclosures_to_quotation_marks": false,
   "unnecessary_fields": [
-    "langidopts",
-    "volume"
+    "ee",
+    "venue"
   ]
 }

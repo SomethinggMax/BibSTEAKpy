@@ -53,7 +53,7 @@ class Preamble(object):
 
 
 class Enclosure(Enum):
-    BRACKETS = 1
+    BRACES = 1
     QUOTATION_MARKS = 2
 
 

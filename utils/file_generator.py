@@ -78,7 +78,7 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=None, add_n
                     string_start = "@string{" + entry.abbreviation
                     position_minus_length = align_fields_position - len(string_start)
                     padding_size = position_minus_length if position_minus_length > 0 else 0
-                    if entry.enclosure == Enclosure.BRACKETS:
+                    if entry.enclosure == Enclosure.BRACES:
                         final_string += string_start + " " * padding_size + "= {" + entry.long_form + "}}\n"
                     elif entry.enclosure == Enclosure.QUOTATION_MARKS:
                         final_string += string_start + " " * padding_size + "= \"" + entry.long_form + "\"}\n"

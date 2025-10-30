@@ -2,7 +2,9 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge, cleanup, enrichment
+import json
+from nicegui import ui
+from utils import merge, cleanup, enrichment, json_loader
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
 import utils
@@ -131,7 +133,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = get_working_directory_path()
+            wd = json_loader.get_working_directory_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -151,7 +153,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = get_working_directory_path()
+            wd = json_loader.get_working_directory_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -162,13 +164,6 @@ def completer(text, state):
         return options[state]
     else:
         return None
-
-
-def get_working_directory_path():
-    with open("config.json", "r") as f:
-        config = json.load(f)
-        working_directory_path = config["working_directory"]
-        return working_directory_path
 
 
 def get_bib_file_names(folder_path):
@@ -201,7 +196,7 @@ def load_file_to_storage(source_path):
     Creates the folder if it doesn't exist.
     """
     try:
-        working_directory = get_working_directory_path()
+        working_directory = json_loader.get_working_directory_path()
         os.makedirs(working_directory, exist_ok=True)
         filename = os.path.basename(source_path)
         name, extension = os.path.splitext(filename)
@@ -251,14 +246,13 @@ def display_help_commands(space_length = 60, indent = 0):
 
 
 def display_abbreviations():
-    with open("abbreviations.json", "r") as f:
-        abreviations = json.load(f)
-        for key, value in abreviations.items():
-            print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
+    abbreviations = json_loader.load_abbreviations()
+    for key, value in abbreviations.items():
+        print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
 
 
 def path_to_bibfileobj(filename):
-    path = os.path.join(get_working_directory_path(), filename)
+    path = os.path.join(json_loader.get_working_directory_path(), filename)
     bibfileobj = utils.file_parser.parse_bib(path)
     return bibfileobj
 
@@ -283,7 +277,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: '{
-    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
+    json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
     and add the absolute path as an argument.
     """
@@ -303,7 +297,7 @@ class CLI(cmd.Cmd):
 
     def do_list(self, arg):
         try:
-            folder_path = get_working_directory_path()
+            folder_path = json_loader.get_working_directory_path()
 
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
@@ -321,9 +315,9 @@ class CLI(cmd.Cmd):
             return None
 
     def do_pwd(self, arg):
-        if get_working_directory_path() != "":
+        if json_loader.get_working_directory_path() != "":
             print(
-                f"The current working directory is {CYAN}'{get_working_directory_path()}'"
+                f"The current working directory is {CYAN}'{json_loader.get_working_directory_path()}'"
             )
         else:
             print_in_yellow("No working directory is selected")
@@ -340,13 +334,9 @@ class CLI(cmd.Cmd):
             if not os.path.isdir(wd_path):
                 raise TypeError(f"The provided path is not a directory: {wd_path}")
 
-            with open("config.json", "r") as f:
-                config = json.load(f)
-
+            config = json_loader.load_config()
             config["working_directory"] = wd_path
-
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=2)
+            json_loader.dump_config(config)
 
             print_in_green(f"Directory successfully set to {wd_path}")
 
@@ -382,7 +372,7 @@ class CLI(cmd.Cmd):
     # TODO: store all files as preprocessed bibfiles in this cli?
     def do_view(self, arg):
         try:
-            path = os.path.join(get_working_directory_path(), arg)
+            path = os.path.join(json_loader.get_working_directory_path(), arg)
             with open(path, "r") as f:
                 for line in f:
                     print(f"", line, end="")
@@ -754,7 +744,7 @@ class CLI(cmd.Cmd):
                 case _:
                     raise ValueError("Flag not supported!")
 
-            new_path = os.path.join(get_working_directory_path(), new_filename)
+            new_path = os.path.join(json_loader.get_working_directory_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path)
             print_in_green("Sub operation done successfully!")
@@ -800,7 +790,7 @@ class CLI(cmd.Cmd):
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
-                wd = get_working_directory_path()
+                wd = json_loader.get_working_directory_path()
                 if not os.listdir(wd):
                     print("The working directory is empty!")
                     return
@@ -812,21 +802,21 @@ class CLI(cmd.Cmd):
                     bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
                 utils.file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
                 file_name_1, file_name_2, new_file_name = args.split()
                 new_file_name = check_extension(new_file_name)
 
-                path_1 = os.path.join(get_working_directory_path(), file_name_1)
-                path_2 = os.path.join(get_working_directory_path(), file_name_2)
+                path_1 = os.path.join(json_loader.get_working_directory_path(), file_name_1)
+                path_2 = os.path.join(json_loader.get_working_directory_path(), file_name_2)
                 bib_file_1 = utils.file_parser.parse_bib(path_1)
                 bib_file_2 = utils.file_parser.parse_bib(path_2)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
                 utils.file_generator.generate_bib(merge_result, out_path)
 
             print_in_green("Files have been merged successfully!")
@@ -852,7 +842,7 @@ class CLI(cmd.Cmd):
         else:
             k_regular = 2
 
-        if get_working_directory_path() == "":
+        if json_loader.get_working_directory_path() == "":
             print(
                 f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}"
             )
@@ -866,13 +856,13 @@ class CLI(cmd.Cmd):
 
             try:
                 files = get_bib_file_names(
-                    get_working_directory_path()
+                    json_loader.get_working_directory_path()
                 )  # Check if index is in range
                 index = int(index_str)
                 print(f"You selected the file: {files[index-1][0]}")
                 file = files[index - 1]
                 file_name = file[0]
-                path = os.path.join(get_working_directory_path(), file_name)
+                path = os.path.join(json_loader.get_working_directory_path(), file_name)
                 bibfileobj = utils.file_parser.parse_bib(path)
                 graph.generate_graph(bibfileobj, k_regular)
 
@@ -891,7 +881,7 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
 
 
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             undo(bib_file, step)
 
@@ -917,7 +907,7 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
 
 
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             redo(bib_file, step)
 
@@ -942,8 +932,8 @@ class CLI(cmd.Cmd):
                 print("Not enough arguments!")
                 return
             
-            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
-                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {json_loader.get_working_directory_path()}")
                 return
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -955,7 +945,7 @@ class CLI(cmd.Cmd):
                 
 
 
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit: {commit_hash}")
@@ -981,8 +971,8 @@ class CLI(cmd.Cmd):
                 print_in_yellow("Not enough arguments!")
                 return
             
-            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
-                print_in_yellow(f"{filename} doesn't exist in {get_working_directory_path()}")
+            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
+                print_in_yellow(f"{filename} doesn't exist in {json_loader.get_working_directory_path()}")
                 return
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -992,7 +982,7 @@ class CLI(cmd.Cmd):
                 print_in_yellow(f"Commit hash for file {filename} is not valid")
                 return
                 
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
@@ -1011,7 +1001,7 @@ class CLI(cmd.Cmd):
     def do_history(self, args):
         try:
             filename = args
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             
             history(bib_file)
@@ -1030,7 +1020,7 @@ class CLI(cmd.Cmd):
     def do_del(self, args):
         try:
             filename = args
-            path = os.path.join(get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
             bib_file = utils.file_parser.parse_bib(path)
             delete_history(bib_file)
 
@@ -1075,7 +1065,7 @@ class CLI(cmd.Cmd):
         pass
 
     def filename_completions(self, text):
-        wd = get_working_directory_path()
+        wd = json_loader.get_working_directory_path()
         try:
             return [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)

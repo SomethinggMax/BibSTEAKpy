@@ -1,10 +1,9 @@
-import json
 import utils.batch_editor as batch_editor
+from utils import json_loader
 
 
 def execute_abbreviations(bib_file, minimize, max_abbreviations):
-    with open('abbreviations.json') as abbreviations_data:
-        data = json.load(abbreviations_data)
+    data = json_loader.load_abbreviations()
 
     for abbreviation, list in data.items():
         batch_editor.batch_replace(bib_file, list[1], list[0], abbreviation)

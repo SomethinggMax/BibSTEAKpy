@@ -2,7 +2,7 @@ from objects import BibFile, Reference, String
 from utils import file_parser, file_generator
 
 
-def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new_string: str) -> BibFile:
+def batch_replace(bib_file: BibFile, fields_to_edit: list[str], old_string: str, new_string: str) -> BibFile:
     """
     Searches the references for occurrences of the old_string and replaces them with the new_string.
     Only searches the fields given in the fields_to_edit parameter, or all if empty.
@@ -86,7 +86,7 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
     return bib_file
 
 
-def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: String) -> BibFile:
+def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: String) -> BibFile:
     """
     Shortens all occurrences of the string long form and adds the String to the file if new.
     :param bib_file: input BibFile object.
@@ -148,7 +148,7 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: Strin
     return bib_file
 
 
-def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
+def batch_extend_strings(bib_file: BibFile, abbreviations: list[str]) -> BibFile:
     """
     Extends all given abbreviations in the BibFile and removes the Strings from the BibFile.
     Gets the long_form from the String object in the BibFile.

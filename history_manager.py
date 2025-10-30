@@ -114,7 +114,7 @@ def commit(bibfile: BibFile):
     last_commit_path = os.path.join(hist_dir_path, tracker["current_parent"])
     if not same_commit(file_parser.parse_bib(last_commit_path), bibfile):
         if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
-            print("Branching!")
+            print_in_yellow("Branching!") #TODO: REMOVE OR CLEARER MESSAGE
       
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             commit_name = f"{token_hex(16)}"

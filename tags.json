@@ -1,10 +1,5 @@
 {
-    "science": [
-        "westfahl:frontier",
-        "westfahl:space"
-    ],
     "kant": [
-        "kant:kpv",
         "kant:ku"
     ]
 }

@@ -251,18 +251,21 @@ def path_to_bibfileobj(filename) -> BibFile:
 
 
 def parse_args(args) -> list:
-    pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
-    pattern = [x for x in pattern if x.strip()]
-    res = []
-    for x in pattern:
-        if(x.startswith('"') and x.endswith('"')):
-            x=x.replace('"',"")
-        elif(x.startswith('\'') and x.endswith('\'')):
-            x=x.replace('\'',"")
-        elif(x.startswith('[') and x.endswith(']')):
-            x = json.loads(x)
-        res.append(x)
-    return res
+    try:
+        pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
+        pattern = [x for x in pattern if x.strip()]
+        res = []
+        for x in pattern:
+            if(x.startswith('"') and x.endswith('"')):
+                x=x.replace('"',"")
+            elif(x.startswith('\'') and x.endswith('\'')):
+                x=x.replace('\'',"")
+            elif(x.startswith('[') and x.endswith(']')):
+                x = json.loads(x)
+            res.append(x)
+        return res
+    except json.JSONDecodeError as e:
+        print_in_yellow("Please check the syntax of your list. Do not use mixed quotation marks!")
 
 
 class CLI(cmd.Cmd):
@@ -599,9 +602,8 @@ class CLI(cmd.Cmd):
                         elif len(query) == 4:
                             array = filtering.filterByFieldValue(bibfileobj, term, query[3])
                     case _:
-                        print_in_yellow(
-                            f"Invalid query! A query can either look like...\n{GREEN}search <filename> <searchterm>\nfilter <filename> <field> [OPT=value]")
-                        return
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
 
                 # no queries returned, tell the user
                 if array == -1:
@@ -629,8 +631,7 @@ class CLI(cmd.Cmd):
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
-            print_error_msg(e,
-                            f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
+            print_error_msg(e,f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
         except FileNotFoundError as e:
             if e.filename == "tags.json":
                 print_in_yellow("Tags file not found! Creating \"tags.json\" for you...")
@@ -642,7 +643,6 @@ class CLI(cmd.Cmd):
         except Exception as e:
             print_error_msg(e, e)
 
-    # TODO
     def do_untag(self, args):
         """
         Untags either according to a query or according to a list of citekeys
@@ -653,9 +653,8 @@ class CLI(cmd.Cmd):
             query = arguments[1:]
 
             array = []
-            if query[0].startswith("["):
-                print(query[0])
-                return
+            if type(query[0]).__name__ == "list":
+                array = query[0]
             else:
                 match query[0]:
                     case "search":
@@ -667,42 +666,43 @@ class CLI(cmd.Cmd):
                             array = filtering.filterByFieldExistence(bibfileobj, query[2])
                         else:
                             array = filtering.filterByFieldValue(bibfileobj, query[2], query[3])
+                    case _:
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
 
-                    # no queries returned, tell the user
+                # no queries returned, tell the user
                 if array == -1:
                     print_in_yellow("Query returns no matches! No tags have been added")
                     return
 
                 # get cite_keys only
-                newarr = [ref.cite_key for ref in array]
-                print(newarr)
+                array = [ref.cite_key for ref in array]
 
-                # remove the tagged references
-                with open("tags.json", "r+") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tag in tags.keys():
-                        citekeyarr = tags[tag]
-                        print(citekeyarr)
-                        for citekey in newarr:
-                            if citekey in citekeyarr:
-                                citekeyarr.remove(citekey)
+            # remove the tagged references
+            with open("tags.json", "r+") as tagsfile:
+                tags = json.load(tagsfile)
+                if tag in tags.keys():
+                    citekeyarr = tags[tag]
+                    for citekey in array:
+                        if citekey in citekeyarr:
+                            citekeyarr.remove(citekey)
 
-                        # if we have removed all the citekeys in a tag, remove the full tag
-                        if citekeyarr == []:
-                            tags.pop(tag)
-                    else:
-                        print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in tags.json. Removed nothing")
-                        return
+                    # if we have removed all the citekeys in a tag, remove the full tag
+                    if citekeyarr == []:
+                        tags.pop(tag)
+                else:
+                    print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
+                    return
 
-                    tagsfile.seek(0)  # go to beginning of file
-                    json.dump(tags, tagsfile, indent=4)  # replace content
-                    tagsfile.truncate()  # remove all the rest
-                print_in_green("Successfully removed tags!")
+                tagsfile.seek(0)  # go to beginning of file
+                json.dump(tags, tagsfile, indent=4)  # replace content
+                tagsfile.truncate()  # remove all the rest
+            print_in_green("Successfully removed tags!")
 
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
         except (IndexError, ValueError) as e:
-            print_error_msg(e, "untag <tag> <query>\nuntag <tag> <citekey list>")
+            print_error_msg(e, f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
         except Exception as e:
             print_error_msg(e, e)
 

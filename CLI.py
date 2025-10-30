@@ -262,7 +262,17 @@ def path_to_bibfileobj(filename) -> BibFile:
 def parse_args(args) -> list:
     pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
     pattern = [x for x in pattern if x.strip()]
-    return pattern
+
+    res = []
+    for x in pattern:
+        if(x.startswith('"') and x.endswith('"')):
+            x=x.replace('"',"")
+        elif(x.startswith('\'') and x.endswith('\'')):
+            x=x.replace('\'',"")
+        elif(x.startswith('[]') and x.endswith(']')):
+            x = json.loads(x)
+        res.append(x)
+    return res
 
 class CLI(cmd.Cmd):
 
@@ -329,7 +339,7 @@ class CLI(cmd.Cmd):
         except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
             print_error_msg(e, e)
 
-    def do_list(self, arg):
+    def do_list(self):
         try:
             folder_path = json_loader.get_working_directory_path()
             if folder_path == "":
@@ -357,10 +367,10 @@ class CLI(cmd.Cmd):
 
     def do_cwd(self, args):
         try:
-            wd_path = args.split()[0]
+            wd_path = parse_args(args)[0]
 
             if not os.path.exists(wd_path):
-                raise FileNotFoundError()
+                raise FileNotFoundError(None, None, wd_path)
             if not os.path.isdir(wd_path):
                 raise TypeError(f"the provided path is not a directory: {wd_path}")
 
@@ -402,17 +412,24 @@ class CLI(cmd.Cmd):
     # TODO: pretty up?
     def do_view(self, arg):
         try:
+            if arg == "":
+                print(f"{BLUE}Choose one of the following files to view:")
+                self.do_list()
+                raise ValueError()
+
             path = os.path.join(json_loader.get_working_directory_path(), arg)
             with open(path, "r") as f:
                 for line in f:
                     print(f"", line, end="")
             print("\n")
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "view <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e,e)
 
     def do_filter(self, args):
         try:
-            args_split = args.split()
+            args_split = parse_args(args)
 
             # get bibfileobj
             filename = args_split[0]
@@ -441,7 +458,7 @@ class CLI(cmd.Cmd):
 
     def do_search(self, args):
         try:
-            filename, searchterm = args.split()
+            filename, searchterm = parse_args(args)
             bibfileobj = path_to_bibfileobj(filename)
 
             array = search(bibfileobj, searchterm)
@@ -461,13 +478,13 @@ class CLI(cmd.Cmd):
 
     def do_br(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             if len(arguments) == 3:
-                filename, old_string, new_string = args.split()
+                filename, old_string, new_string = arguments
                 fields = []
             elif len(arguments) == 4:
-                filename, old_string, new_string, fields = args.split()
+                filename, old_string, new_string, fields = arguments
             else:
                 raise ValueError()
 
@@ -489,7 +506,7 @@ class CLI(cmd.Cmd):
 
     def do_ord(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             if len(arguments) > 1:
                 filename, order = arguments[0], arguments[1]
@@ -559,7 +576,7 @@ class CLI(cmd.Cmd):
 
     def do_tag(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
             flag = arguments[0]
 
             if flag == "-ls":
@@ -698,7 +715,7 @@ class CLI(cmd.Cmd):
         Makes a sub .bib file from a selected list of entry types or tags
         """
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             flag = arguments[0]
             if not flag.startswith("-"):
@@ -755,7 +772,7 @@ class CLI(cmd.Cmd):
 
     def do_mer(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
@@ -775,7 +792,7 @@ class CLI(cmd.Cmd):
                 utils.file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
-                file_name_1, file_name_2, new_file_name = args.split()
+                file_name_1, file_name_2, new_file_name = parse_args(args)
                 new_file_name = check_extension(new_file_name)
 
 
@@ -800,30 +817,31 @@ class CLI(cmd.Cmd):
     def do_graph(self, args):
 
         try:
+
+            if json_loader.get_working_directory_path() == "":
+                raise Exception("Working directory not set! Use the cwd command")
+            
             if args:
-                if len(args.split()) > 1:
-                    raise ValueError("This command only takes one argument!")
+                if len(parse_args(args)) > 1:
+                    raise ValueError()
                 k_regular = int(args)
             else:
                 k_regular = 2
+            
+            print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
+            self.do_list("")
 
-            if json_loader.get_working_directory_path() == "":
-                raise ValueError("Working directory not set! Use the cwd command")
-            else:
-                print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
-                self.do_list("")
+            index_str = input(f"{BLUE}Enter file index: {RESET}")
 
-                index_str = input(f"{BLUE}Enter file index: {RESET}")
-
-                files = get_bib_file_names(
-                    json_loader.get_working_directory_path()
-                )  # Check if index is in range
-                index = int(index_str)
-                print(f"You selected {CYAN}'{files[index-1][0]}'{RESET}")
-                file = files[index - 1]
-                file_name = file[0]
-                bibfileobj = path_to_bibfileobj(file_name)
-                graph.generate_graph(bibfileobj, k_regular)
+            files = get_bib_file_names(
+                json_loader.get_working_directory_path()
+            )  # Check if index is in range
+            index = int(index_str)
+            print(f"You selected {CYAN}'{files[index-1][0]}'{RESET}")
+            file = files[index - 1]
+            file_name = file[0]
+            bibfileobj = path_to_bibfileobj(file_name)
+            graph.generate_graph(bibfileobj, k_regular)
 
         except KeyboardInterrupt as e:
             print(f"{RED}ABORTED")
@@ -834,7 +852,7 @@ class CLI(cmd.Cmd):
 
     def do_undo(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
 
             if len(argument_list) < 1:
                 raise ValueError()
@@ -857,7 +875,7 @@ class CLI(cmd.Cmd):
 
     def do_redo(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
 
             if len(argument_list) < 1:
                 raise ValueError()
@@ -880,7 +898,7 @@ class CLI(cmd.Cmd):
 
     def do_checkout(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
             filename = argument_list[0]
             commit_hash = argument_list[1]
             

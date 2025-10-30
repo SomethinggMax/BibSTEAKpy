@@ -306,7 +306,7 @@ class CLI(cmd.Cmd):
             if arg == "":
                 raise ValueError(f"The command should be invoked as follows: {GREEN}load <absolute/path/to/file>")
 
-            working_directory = get_working_directory_path()
+            working_directory = json_loader.get_working_directory_path()
             if working_directory == "":
                 raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
      

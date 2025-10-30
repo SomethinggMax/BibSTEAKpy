@@ -88,7 +88,7 @@ COMMANDS = {
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
-            "br <filename> <old string> <new string> [fieldslist=None]",
+            "br <filename> <old string> <new string> [OPT=fieldslist]",
             "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
         ),
         ("clean <filename>", "Cleans file according to rules in config."),
@@ -100,7 +100,7 @@ COMMANDS = {
         ),
         (
             "sub -t <filename> <new filename> <tags list>",
-            "Creates a sub .bib file with only references with specified " "tags.",
+            "Creates a sub .bib file with only references with specified tags.",
         ),
         ("tag <tag> <query>",
          "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
@@ -330,7 +330,7 @@ class CLI(cmd.Cmd):
         except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
             print_error_msg(e, e)
 
-    def do_list(self):
+    def do_list(self, arg):
         try:
             folder_path = json_loader.get_working_directory_path()
             if folder_path == "":
@@ -405,7 +405,7 @@ class CLI(cmd.Cmd):
         try:
             if arg == "":
                 print(f"{BLUE}Choose one of the following files to view:")
-                self.do_list()
+                self.do_list(None)
                 raise ValueError()
 
             filename = check_extension(arg)
@@ -715,7 +715,7 @@ class CLI(cmd.Cmd):
 
             flag = arguments[0]
             if not flag.startswith("-"):
-                raise ValueError("Flag not supported!")
+                raise ValueError()
 
             filename = arguments[1]
             file = path_to_bibfileobj(filename)
@@ -723,19 +723,13 @@ class CLI(cmd.Cmd):
             new_filename = arguments[2]
             new_filename = check_extension(new_filename)
 
-            search_list = arguments[3:][0]  # TODO: PARSING
+            list = arguments[3] 
 
             match flag:
                 case "-e":
-                    entry_types_list = ast.literal_eval(
-                        search_list)  # TODO: PARSING AND MALFORMED THING WHEN LIST INCORRECTLY PASSED
-                    sub_file = sub_bib.filter_entry_types(file, entry_types_list)
-                case "-t":
-                    tags = ast.literal_eval(
-                        search_list)  # TODO: PARSING AND MALFORMED THING WHEN LIST INCORRECTLY PASSED
-                    sub_file = sub_bib.filter_tags(file, tags)
-                case _:
-                    raise ValueError("Flag not supported!")
+                    sub_file = sub_bib.filter_entry_types(file, list)
+                case "-t": 
+                    sub_file = sub_bib.filter_tags(file, list)
 
             new_path = os.path.join(json_loader.get_working_directory_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
@@ -743,8 +737,7 @@ class CLI(cmd.Cmd):
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_error_msg(e,
-                            f"sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
+            print_error_msg(e,f"\nsub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -827,7 +820,7 @@ class CLI(cmd.Cmd):
                 k_regular = 2
             
             print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
-            self.do_list("")
+            self.do_list(None)
 
             index_str = input(f"{BLUE}Enter file index: {RESET}")
 

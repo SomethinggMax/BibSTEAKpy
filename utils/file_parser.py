@@ -1,4 +1,5 @@
 from enum import Enum
+import utils.json_loader
 from objects import BibFile, Reference, String, Comment, Preamble, Enclosure
 
 
@@ -27,7 +28,9 @@ def add_field(fields, field_type, field_value):
     fields[field_type] = field_value
 
 
-def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
+def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
+    if remove_newlines_in_fields is None:
+        remove_newlines_in_fields = utils.json_loader.load_config().get("remove_newlines_in_fields", False)
     result = BibFile(file_path)
 
     with open(file_path, encoding='utf-8') as file:
@@ -102,8 +105,8 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                         if token_type == Token.QUOTATION_MARKS_ENCLOSURE:
                             ignore_next = True
                     case "\n":
-                        if token_type == Token.VALUE:
-                            if remove_whitespace_in_fields:
+                        if token_type == Token.VALUE or token_type == Token.QUOTATION_MARKS_ENCLOSURE or token_type == Token.BRACKETS_ENCLOSURE:
+                            if remove_newlines_in_fields:
                                 remove_whitespace = True
                                 continue
                     case " ":
@@ -150,5 +153,5 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                     remove_whitespace = False
                     token += " "
                 token += char
-    result.content.append(token)
+    result.content.append(token.strip())
     return result

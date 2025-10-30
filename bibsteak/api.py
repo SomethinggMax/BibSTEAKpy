@@ -73,7 +73,7 @@ class API(object):
         try:
             order = GroupingType.ZTOA if order is True else GroupingType.ATOZ
             path = os.path.join(self.wd_path, filename)
-            bib_file = file_parser.parse_bib(path, False)
+            bib_file = file_parser.parse_bib(path)
 
             # # initialise_history(bib_file)
             Reftype.sortByReftype(bib_file, order)
@@ -95,7 +95,7 @@ class API(object):
         """
         try:
             path = os.path.join(self.wd_path, filename)
-            file = file_parser.parse_bib(path, True)
+            file = file_parser.parse_bib(path)
             
             # initialise_history(file)
             order_by_field.order_by_field(file, field, descending)
@@ -120,7 +120,7 @@ class API(object):
         """
         try:
             path = os.path.join(self.wd_path, filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            bibfileobj = utils.file_parser.parse_bib(path)
 
             newFile = filtering.search(bibfileobj, searchterm)
             

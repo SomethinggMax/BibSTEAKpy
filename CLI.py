@@ -190,15 +190,15 @@ def get_bib_file_names(folder_path):
     return files
 
 
-def check_extension(new_file_name):
-    root, ext = os.path.splitext(new_file_name)
+def check_extension(filename):
+    root, ext = os.path.splitext(filename)
     if ext == "":
-        new_file_name += ".bib"
+        filename += ".bib"
     elif ext != ".bib":
-        raise ValueError(
-            "The new file name must have a .bib extension or no extension at all."
+        raise Exception(
+            f"The file name must have a .bib extension or no extension at all."
         )
-    return new_file_name 
+    return filename 
 
 
 def load_file_to_storage(source_path):
@@ -255,7 +255,12 @@ def display_help_commands(space_length = 60, indent = 0):
             print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
 
 def path_to_bibfileobj(filename) -> BibFile:
-    path = os.path.join(json_loader.get_working_directory_path(), filename)
+    #if no working dir set raise error
+    wd_path = json_loader.get_working_directory_path()
+    if wd_path == "":
+        raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
+    
+    path = os.path.join(wd_path, filename)
     bibfileobj = utils.file_parser.parse_bib(path, False)
     return bibfileobj
 
@@ -296,8 +301,8 @@ class CLI(cmd.Cmd):
     The current/last working directory is: '{
     json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'
     If you want to change it use the set_directory <source_directory> command
-    and add the absolute path as an argument.
-    """
+    and add the absolute path as an argument. 
+    """ #TODO
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
     doc_header = "Available commands:"
@@ -318,7 +323,7 @@ class CLI(cmd.Cmd):
 
             working_directory = json_loader.get_working_directory_path()
             if working_directory == "":
-                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
+                raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
      
             filename = os.path.basename(arg)
             name, extension = os.path.splitext(filename)
@@ -343,7 +348,7 @@ class CLI(cmd.Cmd):
         try:
             folder_path = json_loader.get_working_directory_path()
             if folder_path == "":
-                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
+                raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
 
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
@@ -372,7 +377,7 @@ class CLI(cmd.Cmd):
             if not os.path.exists(wd_path):
                 raise FileNotFoundError(None, None, wd_path)
             if not os.path.isdir(wd_path):
-                raise TypeError(f"the provided path is not a directory: {wd_path}")
+                raise TypeError(f"the provided path is not a directory: {CYAN}'{wd_path}'")
 
             config = json_loader.load_config()
             config["working_directory"] = wd_path
@@ -487,9 +492,12 @@ class CLI(cmd.Cmd):
                 filename, old_string, new_string, fields = arguments
             else:
                 raise ValueError()
+            
+            #generate fileobj
+            filename = check_extension(filename)
+            bib_file = path_to_bibfileobj(filename)
 
             #get and save history of file
-            bib_file = path_to_bibfileobj(filename)
             initialise_history(bib_file)
 
             #do batch replace
@@ -819,7 +827,7 @@ class CLI(cmd.Cmd):
         try:
 
             if json_loader.get_working_directory_path() == "":
-                raise Exception("Working directory not set! Use the cwd command")
+                raise Exception(f"Working directory not set! Use {GREEN}cwd <absolute/path/to/directory>")
             
             if args:
                 if len(parse_args(args)) > 1:

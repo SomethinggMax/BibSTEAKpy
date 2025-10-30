@@ -3,9 +3,8 @@ import os
 import re
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
-from CLI import get_bib_file_names, get_working_directory_path
-from utils import batch_editor, sub_bib, merge, cleanup
-from utils.Reftype import sortByReftype, GroupingType
+from CLI import get_bib_file_names
+from utils import batch_editor, sub_bib, merge, cleanup, ordering, json_loader
 
 
 def file_to_string(file_name):
@@ -96,6 +95,10 @@ def test_files(directory_path) -> bool:
             print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue
         file_generator.generate_bib(bib_file, temp_file_name)
+
+        # Check if the contents are the same when the generated file is parsed again:
+        assert file_parser.parse_bib(temp_file_name).content == bib_file.content
+
         if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
@@ -121,9 +124,9 @@ if __name__ == '__main__':
     # Generate file from the dictionary:
     file_generator.generate_bib(examples, bib_examples_generated)
 
-    if not os.listdir(get_working_directory_path()):
+    if not os.listdir(json_loader.get_working_directory_path()):
         print("The working directory is empty!")
-    elif test_files(get_working_directory_path()):
+    elif test_files(json_loader.get_working_directory_path()):
         print("All files in the working directory seem correctly parsed and generated.")
 
     batch_editor.batch_replace(examples, [], "Cambridge", "Cam")
@@ -141,7 +144,7 @@ if __name__ == '__main__':
     file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib")
 
     # testing grouping
-    sortByReftype(examples, GroupingType.ZTOA)
+    ordering.order_by_entry_type(examples, ordering.GroupingType.ZTOA)
     file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib")
 
     

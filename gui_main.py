@@ -34,7 +34,7 @@ def load_all_files_from_storage():
     (the path is hard coded right now).
     """
     global files
-    wd = json_loader.get_working_directory_path()
+    wd = json_loader.get_wd_path()
     os.makedirs(wd, exist_ok=True)
 
     loaded = {}
@@ -382,7 +382,7 @@ def order_by_field(file: BibFile, field: str, descending=False):
 
 
 def save_bib_file(filename: str, bib_file):
-    wd = json_loader.get_working_directory_path()
+    wd = json_loader.get_wd_path()
     path = os.path.join(wd, filename)
     try:
         generate_bib(bib_file, path)
@@ -495,7 +495,7 @@ def setup_page():
 def main_page():
     global files_col, refs_col, bib_col, merge
 
-    wd = json_loader.get_working_directory_path()
+    wd = json_loader.get_wd_path()
     if not wd:
         ui.notify("No working directory found. Please configure it first.", color="orange")
         ui.run_javascript('window.location.href = "/setup"')

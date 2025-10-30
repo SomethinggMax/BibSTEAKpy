@@ -51,11 +51,16 @@ def dump_config(dictionary: dict):
     return _dump_json(dictionary, CONFIG_FILE, 2, True)
 
 
-def get_working_directory_path():
+def get_wd_path():
     wd_path = load_config().get("working_directory")
     if wd_path == "":
-        raise Exception(f"working directory not set! Use cwd <absolute/path/to/directory> to set itq")
+        raise Exception(f"working directory not set! Use cwd <absolute/path/to/directory> to set it")
     return wd_path
+
+
+def is_wd_path_set():
+    wd_path = load_config().get("working_directory")
+    return False if wd_path == "" else True
 
 
 def load_abbreviations():

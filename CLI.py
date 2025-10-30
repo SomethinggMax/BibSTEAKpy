@@ -223,16 +223,6 @@ def load_file_to_storage(source_path):
         return
 
 
-def display_help_commands(space_length=60, indent=0):
-    print("")
-
-    for category, commands in COMMANDS.items():
-        print(f"{MAGENTA}{category}{RESET}")
-        ordered_commands = sorted(commands, key=lambda command: command[0])
-        for command in ordered_commands:
-            print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
-
-
 def path_to_bibfileobj(filename) -> BibFile:
     #if no working dir set raise error
     wd_path = json_loader.get_wd_path()
@@ -365,7 +355,13 @@ class CLI(cmd.Cmd):
         return
 
     def do_help(self, arg):
-        display_help_commands()
+        print("")
+
+        for category, commands in COMMANDS.items():
+            print(f"{MAGENTA}{category}{RESET}")
+            ordered_commands = sorted(commands, key=lambda command: command[0])
+            for command in ordered_commands:
+                print(f"{BLUE}> {RESET}", command[0], (60 - len(command[0])) * " ", command[1])
 
     def do_abb(self, arg):
         try:

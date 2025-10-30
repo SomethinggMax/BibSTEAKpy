@@ -18,7 +18,7 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
 }
-CONFIG_FILE = "jons/config.json"
+CONFIG_FILE = "jsons/config.json"
 TAGS_FILE = "jsons/tags.json"
 ABBREVIATIONS_FILE = "jsons/abbreviations.json"
 SYNONYMS_FILE = "jsons/synonyms.json"

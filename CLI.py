@@ -2,8 +2,10 @@ import cmd
 import os
 import shutil
 import readline
+import json
+from nicegui import ui
 import re
-from utils import merge, cleanup, enrichment
+from utils import merge, cleanup, enrichment, json_loader
 import utils.file_generator as file_generator
 import utils.abbreviations_exec as abbreviations_exec
 import utils
@@ -142,7 +144,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = get_working_directory_path()
+            wd = json_loader.get_working_directory_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -162,7 +164,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = get_working_directory_path()
+            wd = json_loader.get_working_directory_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -173,13 +175,6 @@ def completer(text, state):
         return options[state]
     else:
         return None
-
-
-def get_working_directory_path():
-    with open("config.json", "r") as f:
-        config = json.load(f)
-        working_directory_path = config["working_directory"]
-        return working_directory_path
 
 
 def get_bib_file_names(folder_path):
@@ -205,6 +200,51 @@ def check_extension(new_file_name):
         )
     return new_file_name 
 
+
+def load_file_to_storage(source_path):
+    """
+    Copy a file from source_path into the storage folder.
+    Creates the folder if it doesn't exist.
+    """
+    try:
+        working_directory = json_loader.get_working_directory_path()
+        os.makedirs(working_directory, exist_ok=True)
+        filename = os.path.basename(source_path)
+        name, extension = os.path.splitext(filename)
+        destination_path = os.path.join(working_directory, filename)
+
+        if extension == ".bib":
+            shutil.copy(source_path, destination_path)
+
+            print_in_green(
+                f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfuly!"
+            )
+        else:
+            if extension == "":
+                raise ValueError("File has no extension! Only .bib files are allowed.")
+            else:
+                raise ValueError(
+                    f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed."
+                )
+
+    except ValueError as e:
+        print_in_yellow(f"{e}")
+        return
+    except FileNotFoundError as e:
+        print_in_yellow(f"File not found: {CYAN}'{e.filename}'")
+        return
+    except PermissionError as e:
+        print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
+    except shutil.SameFileError as e:
+        print_in_yellow(f"File Error: File already loaded to current working directory")
+        return
+    except OSError as e:
+        print_in_yellow(f"Invalid argument!")
+    except Exception as e:
+        print_in_yellow(f"Unexpected error: {e}")
+        return
+
+
 def display_help_commands(space_length = 60, indent = 0):
     print("")
     
@@ -215,7 +255,7 @@ def display_help_commands(space_length = 60, indent = 0):
             print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
 
 def path_to_bibfileobj(filename) -> BibFile:
-    path = os.path.join(get_working_directory_path(), filename)
+    path = os.path.join(json_loader.get_working_directory_path(), filename)
     bibfileobj = utils.file_parser.parse_bib(path, False)
     return bibfileobj
 
@@ -243,8 +283,10 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is {CYAN}'{
-    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'{RESET}
+    The current/last working directory is: '{
+    json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'
+    If you want to change it use the set_directory <source_directory> command
+    and add the absolute path as an argument.
     """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
@@ -289,7 +331,7 @@ class CLI(cmd.Cmd):
 
     def do_list(self, arg):
         try:
-            folder_path = get_working_directory_path()
+            folder_path = json_loader.get_working_directory_path()
             if folder_path == "":
                 raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
 
@@ -306,8 +348,10 @@ class CLI(cmd.Cmd):
             print_error_msg(e,e)
 
     def do_pwd(self, arg):
-        if get_working_directory_path() != "":
-            print(f"The current working directory is {CYAN}'{get_working_directory_path()}'")
+        if json_loader.get_working_directory_path() != "":
+            print(
+                f"The current working directory is {CYAN}'{json_loader.get_working_directory_path()}'"
+            )
         else:
             print_in_yellow("No working directory is selected")
 
@@ -320,13 +364,9 @@ class CLI(cmd.Cmd):
             if not os.path.isdir(wd_path):
                 raise TypeError(f"the provided path is not a directory: {wd_path}")
 
-            with open("config.json", "r") as f:
-                config = json.load(f)
-
+            config = json_loader.load_config()
             config["working_directory"] = wd_path
-
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=2)
+            json_loader.dump_config(config)
 
             print_in_green(f"Directory successfully set to {CYAN}'{wd_path}'")
 
@@ -362,7 +402,7 @@ class CLI(cmd.Cmd):
     # TODO: pretty up?
     def do_view(self, arg):
         try:
-            path = os.path.join(get_working_directory_path(), arg)
+            path = os.path.join(json_loader.get_working_directory_path(), arg)
             with open(path, "r") as f:
                 for line in f:
                     print(f"", line, end="")
@@ -682,7 +722,7 @@ class CLI(cmd.Cmd):
                 case _:
                     raise ValueError("Flag not supported!")
 
-            new_path = os.path.join(get_working_directory_path(), new_filename)
+            new_path = os.path.join(json_loader.get_working_directory_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             utils.file_generator.generate_bib(sub_file, new_path)
             print_in_green("Sub operation done successfully!")
@@ -719,7 +759,7 @@ class CLI(cmd.Cmd):
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
-                wd = get_working_directory_path()
+                wd = json_loader.get_working_directory_path()
                 if not os.listdir(wd):
                     print_in_yellow("The working directory is empty!")
                     return
@@ -731,7 +771,7 @@ class CLI(cmd.Cmd):
                     bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
                 utils.file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
@@ -747,7 +787,7 @@ class CLI(cmd.Cmd):
                 #TODO: check if overriding file?
 
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
                 utils.file_generator.generate_bib(merge_result, out_path)
 
             print_in_green("Files have been merged successfully!")
@@ -767,7 +807,7 @@ class CLI(cmd.Cmd):
             else:
                 k_regular = 2
 
-            if get_working_directory_path() == "":
+            if json_loader.get_working_directory_path() == "":
                 raise ValueError("Working directory not set! Use the cwd command")
             else:
                 print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
@@ -776,7 +816,7 @@ class CLI(cmd.Cmd):
                 index_str = input(f"{BLUE}Enter file index: {RESET}")
 
                 files = get_bib_file_names(
-                    get_working_directory_path()
+                    json_loader.get_working_directory_path()
                 )  # Check if index is in range
                 index = int(index_str)
                 print(f"You selected {CYAN}'{files[index-1][0]}'{RESET}")
@@ -806,8 +846,8 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
 
 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path)
             undo(bib_file, step)
 
         except (ValueError, IndexError) as e:
@@ -829,8 +869,8 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
 
 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path)
             redo(bib_file, step)
 
         except (ValueError, IndexError) as e:
@@ -844,7 +884,7 @@ class CLI(cmd.Cmd):
             filename = argument_list[0]
             commit_hash = argument_list[1]
             
-            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
                 raise FileNotFoundError(None, None, filename)
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -853,8 +893,7 @@ class CLI(cmd.Cmd):
             if not os.path.isfile(checkout_path):
                 raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
                 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
             checkout(bib_file, commit_hash)
             print_in_green(f"Checkout done successfully to commit {CYAN}{commit_hash}")
 
@@ -870,7 +909,7 @@ class CLI(cmd.Cmd):
             commit_hash = argument_list[1]
             checkout_comment = argument_list[2]
 
-            if not os.path.isfile(os.path.join(get_working_directory_path(), filename)):
+            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
                 raise FileNotFoundError(None, None, filename)
             
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -879,8 +918,8 @@ class CLI(cmd.Cmd):
             if not os.path.isfile(checkout_path):
                 raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
                 
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path)
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
             
@@ -893,8 +932,8 @@ class CLI(cmd.Cmd):
     def do_history(self, args):
         try:
             filename = args
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            bib_file = utils.file_parser.parse_bib(path)
             
             history(bib_file)
         except (ValueError, IndexError) as e:
@@ -942,7 +981,7 @@ class CLI(cmd.Cmd):
         pass
 
     def filename_completions(self, text):
-        wd = get_working_directory_path()
+        wd = json_loader.get_working_directory_path()
         try:
             return [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)

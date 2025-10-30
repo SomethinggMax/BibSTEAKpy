@@ -112,7 +112,7 @@ def commit(bibfile: BibFile):
     tracker = get_json_object(tracker_file_path)
     
     last_commit_path = os.path.join(hist_dir_path, tracker["current_parent"])
-    if not same_commit(file_parser.parse_bib(last_commit_path, True), bibfile):
+    if not same_commit(file_parser.parse_bib(last_commit_path), bibfile):
         if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
             print("Branching!")
       
@@ -156,7 +156,7 @@ def undo(bibfile: BibFile, step=1):
             parent = tracker['child_to_parent'][tracker['current_parent']]
             past_commit_name = f"{parent}"
             past_file_path = os.path.join(hist_dir_path, past_commit_name)
-            past_bib_file = file_parser.parse_bib(past_file_path, True)
+            past_bib_file = file_parser.parse_bib(past_file_path)
             file_generator.generate_bib(past_bib_file, file_path)
             
             tracker["current_parent"] = parent
@@ -185,7 +185,7 @@ def redo(bibfile: BibFile, step=1):
             child = childs[-1]
             future_commit_name = f"{child}"
             future_file_path = os.path.join(hist_dir_path, future_commit_name)
-            future_bib_file = file_parser.parse_bib(future_file_path, True)
+            future_bib_file = file_parser.parse_bib(future_file_path)
             file_generator.generate_bib(future_bib_file, file_path)
             
             tracker["current_parent"] = child
@@ -213,7 +213,7 @@ def checkout(bibfile: BibFile, commit_hash: str):
         print_in_yellow("Commit hash is not valid")
         return
     
-    checkout_bib_file = file_parser.parse_bib(checkout_path, True)
+    checkout_bib_file = file_parser.parse_bib(checkout_path)
     file_generator.generate_bib(checkout_bib_file, file_path)
     
     tracker = get_json_object(tracker_file_path)

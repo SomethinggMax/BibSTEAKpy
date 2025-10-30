@@ -17,7 +17,7 @@ def compare_parsing(original_path) -> bool:
         bibtexparser_example_file = bibtexparser.load(file, parser)
 
     # Parse with file_parser
-    file_parser_example_file = file_parser.parse_bib(original_path, True)
+    file_parser_example_file = file_parser.parse_bib(original_path)
 
     # Compare results
     bibtexparser_entries = len(bibtexparser_example_file.entries)
@@ -28,8 +28,12 @@ def compare_parsing(original_path) -> bool:
     else:
         for entry in bibtexparser_example_file.entries:
             cite_key = entry["ID"]
-            if cite_key not in file_parser_example_file.get_cite_keys():
+            cite_keys = file_parser_example_file.get_cite_keys()
+            if cite_key not in cite_keys:
                 print(f"Entry with cite key '{cite_key}' is missing in the parsed file.")
+                return False
+            elif cite_keys.count(cite_key) > 1:
+                print(f"Entry with cite key '{cite_key}' exists multiple times in the parsed file.")
                 return False
             else:
                 file_parser_reference = file_parser_example_file.get_reference_by_key(cite_key)

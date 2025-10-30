@@ -1,11 +1,8 @@
 from nicegui import ui, app
 import os
 import json
-import interface_handler
 import utils.file_parser as file_parser
-import re
 import pprint
-from objects import BibFile, Reference
 from utils.abbreviations_exec import execute_abbreviations
 from utils.file_parser import parse_bib
 from utils.file_generator import generate_bib
@@ -31,31 +28,13 @@ SUCCESS_COLOR = "#5D9874"
 # ERROR_COLOR = "#EF4444"
 
 
-def config():
-    config_path = "config.json"
-    if not os.path.exists(config_path):
-        with open(config_path, "w") as f:
-            json.dump({}, f)
-        return {}
-    try:
-        with open(config_path, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        return {}
-
-
-def get_working_directory_path():
-    config_file = config()
-    return config_file.get("working_directory")
-
-
 def load_all_files_from_storage():
     """
     Loads all of the files from the working directory 
     (the path is hard coded right now).
     """
     global files
-    wd = get_working_directory_path()
+    wd = json_loader.get_working_directory_path()
     os.makedirs(wd, exist_ok=True)
 
     loaded = {}
@@ -63,7 +42,7 @@ def load_all_files_from_storage():
         if filename.endswith(".bib"):
             path = os.path.join(wd, filename)
             try:
-                bib_file = file_parser.parse_bib(path, remove_whitespace_in_fields=True)
+                bib_file = file_parser.parse_bib(path)
                 loaded[filename] = bib_file
             except Exception as e:
                 print(f"Error parsing {filename}: {e}")
@@ -403,11 +382,11 @@ def order_by_field(file: BibFile, field: str, descending=False):
 
 
 def save_bib_file(filename: str, bib_file):
-    wd = get_working_directory_path()
+    wd = json_loader.get_working_directory_path()
     path = os.path.join(wd, filename)
     try:
         generate_bib(bib_file, path)
-        files[filename] = parse_bib(path, remove_whitespace_in_fields=True)
+        files[filename] = parse_bib(path)
         print(f"Saved {filename} successfully")
         ui.notify(f"Saved {filename} successfully", color="green")
     except Exception as e:
@@ -516,7 +495,7 @@ def setup_page():
 def main_page():
     global files_col, refs_col, bib_col, merge
 
-    wd = get_working_directory_path()
+    wd = json_loader.get_working_directory_path()
     if not wd:
         ui.notify("No working directory found. Please configure it first.", color="orange")
         ui.run_javascript('window.location.href = "/setup"')

@@ -84,11 +84,11 @@ def test_files(directory_path) -> bool:
         print(f"Testing parsing and generation of file '{file_name}'")
         path = os.path.join(directory_path, file_name)
         try:
-            bib_file = file_parser.parse_bib(path, False)
+            bib_file = file_parser.parse_bib(path)
         except UnicodeDecodeError:
             try:
                 convert_to_utf8(path, path, 'windows-1252')
-                bib_file = file_parser.parse_bib(path, False)
+                bib_file = file_parser.parse_bib(path)
             except Exception as e:
                 print(f"Skipping file {file_name}, it cannot be decoded with UTF-8 or windows-1252. {e}")
                 continue
@@ -114,9 +114,9 @@ if __name__ == '__main__':
     bib_merge_test = "bib_files/bib-merge-test.bib"
     merge_result = "bib_files/merge-result.bib"
 
-    examples = file_parser.parse_bib(bib_examples_original, False)
-    test = file_parser.parse_bib(bib_tests, True)
-    merge_test = file_parser.parse_bib(bib_merge_test, True)
+    examples = file_parser.parse_bib(bib_examples_original)
+    test = file_parser.parse_bib(bib_tests)
+    merge_test = file_parser.parse_bib(bib_merge_test)
 
     # Generate file from the dictionary:
     file_generator.generate_bib(examples, bib_examples_generated)

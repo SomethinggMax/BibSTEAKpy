@@ -236,8 +236,8 @@ def display_help_commands(space_length=60, indent=0):
 def path_to_bibfileobj(filename) -> BibFile:
     #if no working dir set raise error
     wd_path = json_loader.get_working_directory_path()
-    if wd_path == "":
-        raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
+    # if wd_path == "":
+    #     raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
     
     filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
@@ -300,30 +300,22 @@ class CLI(cmd.Cmd):
         Creates the folder if it doesn't exist.
         """
         try:
+            arguments = parse_args(arg)
+            if arguments == []:
+                raise ValueError()
 
-            if arg == "":
-                raise ValueError(f"The command should be invoked as follows: {GREEN}load <absolute/path/to/file>")
+            source_path = arguments[0]
+            filename = os.path.basename(source_path)
+            check_extension(filename)
+            destination_path = os.path.join(json_loader.get_working_directory_path(), filename)
 
-            working_directory = json_loader.get_working_directory_path()
-            if working_directory == "":
-                raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
+            #TODO: CHECK IF OVERRIDING FILE?
 
-            filename = os.path.basename(arg)
-            name, extension = os.path.splitext(filename)
-            destination_path = os.path.join(working_directory, filename)
+            shutil.copy(source_path, destination_path)
+            print_in_green(f"File {CYAN}'{source_path}'{GREEN} loaded into the storage successfully!")
 
-            if extension != ".bib":
-                if extension == "":
-                    raise ValueError("File has no extension! Only .bib files are allowed.")
-                else:
-                    raise ValueError(f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed.")
-
-            shutil.copy(arg, destination_path)
-            print_in_green(f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfully!")
-
-        except ValueError as e:
-            # NOTE! This should not be changed to print_error_msg, since the custom messages are important
-            print_in_yellow(f"{e}")
+        except (IndexError, ValueError) as e:
+            print_error_msg(e, "load <absolute/path/to/file>")
         except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
             print_error_msg(e, e)
 
@@ -795,8 +787,8 @@ class CLI(cmd.Cmd):
 
         try:
 
-            if json_loader.get_working_directory_path() == "":
-                raise Exception(f"Working directory not set! Use {GREEN}cwd <absolute/path/to/directory>")
+            # if json_loader.get_working_directory_path() == "":
+            #     raise Exception(f"Working directory not set! Use {GREEN}cwd <absolute/path/to/directory>")
             
             if args:
                 if len(parse_args(args)) > 1:

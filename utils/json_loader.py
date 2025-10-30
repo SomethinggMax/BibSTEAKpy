@@ -52,7 +52,10 @@ def dump_config(dictionary: dict):
 
 
 def get_working_directory_path():
-    return load_config().get("working_directory")
+    wd_path = load_config().get("working_directory")
+    if wd_path == "":
+        raise Exception(f"working directory not set! Use cwd <absolute/path/to/directory> to set itq")
+    return wd_path
 
 
 def load_abbreviations():

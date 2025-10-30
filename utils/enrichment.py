@@ -8,26 +8,34 @@ from utils.file_parser import *
 
 
 def sanitize_bib_file(bib_file: BibFile):
-    for entry in bib_file.content:
-        lookup = None
-        if type(entry) is Reference:
-            fields = entry.get_fields()
-            if fields['entry_type'] != 'set':
-                if 'author' in fields:
-                    authors = _split_authors(fields['author'])
-                    iterable = iter(authors)
-                    first_author = next(iterable)
-                    lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
-                elif 'editor' in fields:
-                    authors = _split_authors(fields['editor'])
-                    iterable = iter(authors)
-                    first_author = next(iterable)
-                    lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
-            if lookup:
-                for k, v in lookup.items():
-                    if not k in fields:
-                        fields[k] = v
-    return bib_file
+    if checkInternet():
+        for entry in bib_file.content:
+            lookup = None
+            if type(entry) is Reference:
+                fields = entry.get_fields()
+                if fields['entry_type'] != 'set':
+                    if 'author' in fields:
+                        authors = _split_authors(fields['author'])
+                        iterable = iter(authors)
+                        first_author = next(iterable)
+                        lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+                    elif 'editor' in fields:
+                        authors = _split_authors(fields['editor'])
+                        iterable = iter(authors)
+                        first_author = next(iterable)
+                        lookup = lookup_bibtex_fields_by_title(fields['title'], first_author)
+                if lookup:
+                    for k, v in lookup.items():
+                        if not k in fields:
+                            fields[k] = v
+        return bib_file
+    else:
+        print(f"\033[31m No internet connection found, please connect to the internet and try again! \033[0m")
+        return bib_file
+
+
+def checkInternet() -> bool:
+    return (lambda a: True if 0 == a.system('ping 8.8.8.8 -n 3 -l 32 -w 3 > clear') else False)(__import__('os'))
 
 
 def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0) -> Dict[str, Any] | None:
@@ -39,28 +47,28 @@ def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0
     query = title + " " + author
     # Execute API queries
     try:
-        cr = _search_crossref(session, query, timeout= timeout)
+        cr = _search_crossref(session, query, timeout=timeout)
         if cr and is_same_paper(title, author, cr):
             responses.append(cr)
     except Exception as e:
         print(e)
 
     try:
-        db = _search_dblp(session, query, timeout= timeout)
+        db = _search_dblp(session, query, timeout=timeout)
         if db and is_same_paper(title, author, db):
             responses.append(db)
     except Exception as e:
         print(e)
 
     try:
-        dc = _search_datacite(session, query, timeout= timeout)
+        dc = _search_datacite(session, query, timeout=timeout)
         if dc and is_same_paper(title, author, dc):
             responses.append(dc)
     except Exception:
         pass
 
     try:
-        oa = _search_openalex(session, query, timeout= timeout)
+        oa = _search_openalex(session, query, timeout=timeout)
         if oa and is_same_paper(title, author, oa):
             responses.append(oa)
     except Exception:
@@ -165,7 +173,6 @@ def _map_dblp_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     if data.get("pages"): result["pages"] = data["pages"]
     # Identifiers
     if data.get("doi"): result["doi"] = data["doi"]
-    if data.get("ee"): result["ee"] = data["ee"]
 
     if data.get("ee"): result["url"] = data["ee"]
 
@@ -187,6 +194,7 @@ def _search_datacite(session: requests.Session, query: str, *, timeout: float) -
         return None
     it = items[0].get("attributes", {})
     return _map_datacite_to_bibtex(it)
+
 
 def _map_datacite_to_bibtex(data: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
@@ -280,8 +288,8 @@ def _map_openalex_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     for a in data.get("authorships") or []:
         author = a.get("author") or {}
         name = (
-            author.get("display_name")
-            or " ".join(filter(None, [author.get("given_name"), author.get("family_name")]))
+                author.get("display_name")
+                or " ".join(filter(None, [author.get("given_name"), author.get("family_name")]))
         )
         if name:
             names.append(name)
@@ -320,6 +328,7 @@ def _map_openalex_to_bib_dict(data: Dict[str, Any]) -> Dict[str, Any]:
             result["url"] = ids["openalex"]
 
     return result
+
 
 def _merge_responses(response_a: Dict[str, Any], response_b: Dict[str, Any]) -> Dict[str, Any]:
     result = dict(response_a)

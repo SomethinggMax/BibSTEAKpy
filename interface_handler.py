@@ -40,7 +40,7 @@ def print_msg(text: str):
     show_lines([text])
 
 
-def show_lines(lines: [str]):
+def show_lines(lines: list[str]):
     if user_interface == "CLI":
         # Print the prompt
         for line in lines:

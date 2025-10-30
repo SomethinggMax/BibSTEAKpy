@@ -490,7 +490,6 @@ class CLI(cmd.Cmd):
                 fields = []
             elif len(arguments) == 4:
                 filename, old_string, new_string, fields = arguments
-                print(type(fields))
             else:
                 raise ValueError()
             

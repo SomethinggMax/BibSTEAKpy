@@ -1,8 +1,8 @@
 
 import utils
 import os
-from utils.Reftype import GroupingType
-from utils import file_parser, file_generator, Reftype, order_by_field, filtering
+from utils.ordering import GroupingType
+from utils import file_parser, file_generator, ordering, order_by_field, filtering
 
 
 
@@ -76,7 +76,7 @@ class API(object):
             bib_file = file_parser.parse_bib(path)
 
             # # initialise_history(bib_file)
-            Reftype.sortByReftype(bib_file, order)
+            ordering.order_by_entry_type(bib_file, order)
             file_generator.generate_bib(bib_file, bib_file.file_name)
             # # commit(bib_file)
 

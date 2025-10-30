@@ -274,7 +274,7 @@ def parse_args(args) -> list:
             x=x.replace('"',"")
         elif(x.startswith('\'') and x.endswith('\'')):
             x=x.replace('\'',"")
-        elif(x.startswith('[]') and x.endswith(']')):
+        elif(x.startswith('[') and x.endswith(']')):
             x = json.loads(x)
         res.append(x)
     return res
@@ -490,6 +490,7 @@ class CLI(cmd.Cmd):
                 fields = []
             elif len(arguments) == 4:
                 filename, old_string, new_string, fields = arguments
+                print(type(fields))
             else:
                 raise ValueError()
             

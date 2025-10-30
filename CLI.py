@@ -62,10 +62,6 @@ def print_error_msg(error_type: Exception, msg):
         case _:
             print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
-
-CONFIG_FILE = "config.json"
-TAGS_FILE = "tags.json"
-
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}": [
         ("help", "Display the current menu"),
@@ -138,7 +134,6 @@ COMMANDS = {
     ]
 
 }
-
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -287,11 +282,10 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is: '{
-    json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'
-    If you want to change it use the set_directory <source_directory> command
-    and add the absolute path as an argument. 
-    """ #TODO
+    The current/last working directory is: {CYAN}'{
+    json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'{RESET}
+    If you want to change it use cwd <absolute/path/to/directory> 
+    """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
     doc_header = "Available commands:"
@@ -387,10 +381,12 @@ class CLI(cmd.Cmd):
         display_help_commands()
 
     def do_abb(self, arg):
-        with open("abbreviations.json", "r") as f:
-            abreviations = json.load(f)
-            for key, value in abreviations.items():
-                print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
+        try:
+            abbs = json_loader.load_abbreviations()
+            for key, value in abbs.items():
+                print(f"{BLUE}{key}{RESET} {(15 - len(key)) * ' '} {value[0]}") #TODO: REFACTOR?
+        except json.JSONDecodeError as e:
+            print_error_msg(e,json_loader.ABBREVIATIONS_FILE)
 
     def do_quit(self, arg):
 
@@ -578,12 +574,11 @@ class CLI(cmd.Cmd):
             flag = arguments[0]
 
             if flag == "-ls":
-                with open("tags.json") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tags == {}:
-                        print_in_yellow("The tags file is empty")
-                    for key, value in tags.items():
-                        print(f"{YELLOW}{key} {RESET}{value}")  # TODO: pretty
+                tags = json_loader.load_tags()
+                if tags == {}:
+                    print_in_yellow("The tags file is empty")
+                for key, value in tags.items():
+                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: pretty
             else:
                 tag = arguments[0]
                 query = arguments[1:]
@@ -614,31 +609,25 @@ class CLI(cmd.Cmd):
                 newarr = [ref.cite_key for ref in array]
 
                 # add the new tagged references
-                with open("tags.json", "r+") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tag in tags.keys():
-                        citekeyarr = tags[tag]
-                        for citekey in newarr:
-                            if citekey not in citekeyarr:
-                                citekeyarr.append(citekey)
-                    else:
-                        tags[tag] = newarr
+                tags = json_loader.load_tags()
+                if tag in tags.keys():
+                    citekeyarr = tags[tag]
+                    for citekey in newarr:
+                        if citekey not in citekeyarr:
+                            citekeyarr.append(citekey)
+                else:
+                    tags[tag] = newarr
 
-                    tagsfile.seek(0)  # go to beginning of file
-                    json.dump(tags, tagsfile, indent=4)  # replace content
+                json_loader.dump_tags(tags)  # replace content
                 print_in_green("Successfully added tags!")
+                for key, value in tags.items():
+                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: refactor?
 
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
-            print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
+            print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
-            print_error_msg(e,f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
+            print_error_msg(e,f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command")
         except FileNotFoundError as e:
-            if e.filename == "tags.json":
-                print_in_yellow("Tags file not found! Creating \"tags.json\" for you...")
-                with open("tags.json", "w+") as tagsfile:
-                    json.dump({}, tagsfile)
-                print_in_green("Try and run the command again")
-            else:
                 print_error_msg(e, e)
         except Exception as e:
             print_error_msg(e, e)
@@ -679,28 +668,25 @@ class CLI(cmd.Cmd):
                 array = [ref.cite_key for ref in array]
 
             # remove the tagged references
-            with open("tags.json", "r+") as tagsfile:
-                tags = json.load(tagsfile)
-                if tag in tags.keys():
-                    citekeyarr = tags[tag]
-                    for citekey in array:
-                        if citekey in citekeyarr:
-                            citekeyarr.remove(citekey)
+            tags = json_loader.load_tags()
+            if tag in tags.keys():
+                citekeyarr = tags[tag]
+                for citekey in array:
+                    if citekey in citekeyarr:
+                        citekeyarr.remove(citekey)
 
-                    # if we have removed all the citekeys in a tag, remove the full tag
-                    if citekeyarr == []:
-                        tags.pop(tag)
-                else:
-                    print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
-                    return
+                # if we have removed all the citekeys in a tag, remove the full tag
+                if citekeyarr == []:
+                    tags.pop(tag)
+            else:
+                print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
+                return
 
-                tagsfile.seek(0)  # go to beginning of file
-                json.dump(tags, tagsfile, indent=4)  # replace content
-                tagsfile.truncate()  # remove all the rest
+            json_loader.dump_tags(tags)
             print_in_green("Successfully removed tags!")
 
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
-            print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
+            print_error_msg(e, json_loader.TAGS_FILE) 
         except (IndexError, ValueError) as e:
             print_error_msg(e, f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
         except Exception as e:

@@ -2,7 +2,7 @@
   "abstract_strong_match": 0.9,
   "abstract_strong_mismatch": 0.5,
   "user_interface": "CLI",
-  "working_directory": "C:\\Users\\Gebruiker\\Downloads\\test folder\\",
+  "working_directory": "C:\\Users\\Gebruiker\\Downloads\\test folder",
   "remove_newlines_in_fields": false,
   "convert_special_symbols_to_unicode": true,
   "prefer_url": false,

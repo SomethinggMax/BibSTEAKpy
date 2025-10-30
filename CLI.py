@@ -8,7 +8,7 @@ import re
 
 from objects import BibFile
 from utils import merge, cleanup, enrichment, json_loader, file_parser, filtering, file_generator, batch_editor, \
-    Reftype, abbreviations_exec, sub_bib
+    ordering, abbreviations_exec, sub_bib
 import ast
 import graph
 from graph import generate_graph
@@ -481,18 +481,18 @@ class CLI(cmd.Cmd):
             if len(arguments) > 1:
                 filename, order = arguments[0], arguments[1]
                 order = (
-                    Reftype.GroupingType.ZTOA
+                    ordering.GroupingType.ZTOA
                     if order in ["True", "true", "1", "Yes", "yes"]
-                    else Reftype.GroupingType.ATOZ
+                    else ordering.GroupingType.ATOZ
                 )
             else:
                 filename = arguments[0]
-                order = Reftype.GroupingType.ATOZ
+                order = ordering.GroupingType.ATOZ
 
             bib_file = path_to_bibfileobj(filename)
 
             initialise_history(bib_file)
-            Reftype.sortByReftype(bib_file, order)
+            ordering.order_by_entry_type(bib_file, order)
             file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 

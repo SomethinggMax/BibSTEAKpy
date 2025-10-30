@@ -29,11 +29,16 @@ class BibFile(object):
         return [entry for entry in self.content if type(entry) is Comment]
 
     def get_preambles(self):
-        preambles = []
-        for entry in self.content:
-            if isinstance(entry, Preamble):
-                preambles.append(entry)
-        return preambles
+        return [entry for entry in self.content if isinstance(entry, Preamble)]
+
+    def get_remaining_entries(self):
+        """
+        Currently there is a single remaining str object if the file ends in something that cannot be parsed.
+        :return:
+        """
+        return [entry for entry in self.content if not isinstance(entry, Reference)
+                and not isinstance(entry, String) and not isinstance(entry, Comment)
+                and not isinstance(entry, Preamble)]
 
     def __str__(self):
         return f"[File: {self.file_name} - content: {self.content}]"

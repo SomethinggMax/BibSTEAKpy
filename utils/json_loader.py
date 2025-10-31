@@ -39,7 +39,7 @@ def _load_json(path):
 def _dump_json(dictionary: dict, path, indent: int, ensure_ascii: bool):
     with open(path, "w", encoding="utf-8") as file:
         file.seek(0)  # move pointer to first position
-        json.dump(dictionary, file, indent, ensure_ascii)
+        json.dump(dictionary, file, indent=indent, ensure_ascii=ensure_ascii)
         file.truncate()  # remove all that comes after replaced text
 
 

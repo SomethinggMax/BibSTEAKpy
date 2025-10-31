@@ -25,7 +25,7 @@ SYNONYMS_FILE = "jsons/synonyms.json"
 
 
 def _load_json(path):
-    #error recovery: if file does not exist create it with empty json
+    # error recovery: if file does not exist create it with empty json
     if not os.path.exists(path):
         _dump_json({}, path, 2, True)
 
@@ -38,13 +38,13 @@ def _load_json(path):
 
 def _dump_json(dictionary: dict, path, indent: int, ensure_ascii: bool):
     with open(path, "w", encoding="utf-8") as file:
-        file.seek(0) #move pointer to first position
+        file.seek(0)  # move pointer to first position
         json.dump(dictionary, file, indent, ensure_ascii)
-        file.truncate() #remove all that comes after replaced text
+        file.truncate()  # remove all that comes after replaced text
 
 
 def load_config():
-    #error recovery: in case of deletion of file, dump template
+    # error recovery: in case of deletion of file, dump template
     if _load_json(CONFIG_FILE) == {}:
         dump_config(CONFIG_TEMPLATE)
     return _load_json(CONFIG_FILE)

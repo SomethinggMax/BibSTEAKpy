@@ -62,10 +62,6 @@ def print_error_msg(error_type: Exception, msg):
         case _:
             print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
-
-CONFIG_FILE = "config.json"
-TAGS_FILE = "tags.json"
-
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}": [
         ("help", "Display the current menu"),
@@ -88,7 +84,7 @@ COMMANDS = {
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
-            "br <filename> <old string> <new string> [fieldslist=None]",
+            "br <filename> <old string> <new string> [OPT=fieldslist]",
             "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
         ),
         ("clean <filename>", "Cleans file according to rules in config."),
@@ -100,7 +96,7 @@ COMMANDS = {
         ),
         (
             "sub -t <filename> <new filename> <tags list>",
-            "Creates a sub .bib file with only references with specified " "tags.",
+            "Creates a sub .bib file with only references with specified tags.",
         ),
         ("tag <tag> <query>",
          "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
@@ -139,7 +135,6 @@ COMMANDS = {
 
 }
 
-
 def completer(text, state):
     line = readline.get_line_buffer()
     split_line = line.strip().split()
@@ -147,7 +142,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = json_loader.get_working_directory_path()
+            wd = json_loader.get_wd_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -173,15 +168,15 @@ def get_bib_file_names(folder_path):
     return files
 
 
-def check_extension(new_file_name):
-    root, ext = os.path.splitext(new_file_name)
+def check_extension(filename):
+    root, ext = os.path.splitext(filename)
     if ext == "":
-        new_file_name += ".bib"
+        filename += ".bib"
     elif ext != ".bib":
-        raise ValueError(
-            "The new file name must have a .bib extension or no extension at all."
+        raise Exception(
+            f"The file name must have a .bib extension or no extension at all."
         )
-    return new_file_name
+    return filename 
 
 
 def load_file_to_storage(source_path):
@@ -190,7 +185,7 @@ def load_file_to_storage(source_path):
     Creates the folder if it doesn't exist.
     """
     try:
-        working_directory = json_loader.get_working_directory_path()
+        working_directory = json_loader.get_wd_path()
         os.makedirs(working_directory, exist_ok=True)
         filename = os.path.basename(source_path)
         name, extension = os.path.splitext(filename)
@@ -228,26 +223,34 @@ def load_file_to_storage(source_path):
         return
 
 
-def display_help_commands(space_length=60, indent=0):
-    print("")
-
-    for category, commands in COMMANDS.items():
-        print(f"{MAGENTA}{category}{RESET}")
-        ordered_commands = sorted(commands, key=lambda command: command[0])
-        for command in ordered_commands:
-            print(f"{BLUE}> {RESET}", command[0], (space_length - len(command[0])) * " ", command[1])
-
-
 def path_to_bibfileobj(filename) -> BibFile:
-    path = os.path.join(json_loader.get_working_directory_path(), filename)
+    #if no working dir set raise error
+    wd_path = json_loader.get_wd_path()
+    # if wd_path == "":
+    #     raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
+    
+    filename = check_extension(filename)
+    path = os.path.join(wd_path, filename)
     bibfileobj = file_parser.parse_bib(path, False)
     return bibfileobj
 
 
 def parse_args(args) -> list:
-    pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
-    pattern = [x for x in pattern if x.strip()]
-    return pattern
+    try:
+        pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
+        pattern = [x for x in pattern if x.strip()]
+        res = []
+        for x in pattern:
+            if(x.startswith('"') and x.endswith('"')):
+                x=x.replace('"',"")
+            elif(x.startswith('\'') and x.endswith('\'')):
+                x=x.replace('\'',"")
+            elif(x.startswith('[') and x.endswith(']')):
+                x = json.loads(x)
+            res.append(x)
+        return res
+    except json.JSONDecodeError as e:
+        print_in_yellow("Please check the syntax of your list. Do not use mixed quotation marks!")
 
 
 class CLI(cmd.Cmd):
@@ -269,10 +272,8 @@ class CLI(cmd.Cmd):
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is: '{
-    json_loader.get_working_directory_path() if json_loader.get_working_directory_path() != "" else "No directory has been set"}'
-    If you want to change it use the set_directory <source_directory> command
-    and add the absolute path as an argument.
+    The current/last working directory is: {CYAN}{("'" + json_loader.get_wd_path() + "'") if json_loader.is_wd_path_set() else "None set"}{RESET}
+    If you want to change it use cwd <absolute/path/to/directory> 
     """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
@@ -288,39 +289,29 @@ class CLI(cmd.Cmd):
         Creates the folder if it doesn't exist.
         """
         try:
+            arguments = parse_args(arg)
+            if arguments == []:
+                raise ValueError()
 
-            if arg == "":
-                raise ValueError(f"The command should be invoked as follows: {GREEN}load <absolute/path/to/file>")
+            source_path = arguments[0]
+            filename = os.path.basename(source_path)
+            check_extension(filename)
+            destination_path = os.path.join(json_loader.get_wd_path(), filename)
 
-            working_directory = json_loader.get_working_directory_path()
-            if working_directory == "":
-                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
+            #TODO: CHECK IF OVERRIDING FILE?
 
-            filename = os.path.basename(arg)
-            name, extension = os.path.splitext(filename)
-            destination_path = os.path.join(working_directory, filename)
+            shutil.copy(source_path, destination_path)
+            print_in_green(f"File {CYAN}'{source_path}'{GREEN} loaded into the storage successfully!")
 
-            if extension != ".bib":
-                if extension == "":
-                    raise ValueError("File has no extension! Only .bib files are allowed.")
-                else:
-                    raise ValueError(f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed.")
-
-            shutil.copy(arg, destination_path)
-            print_in_green(f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfully!")
-
-        except ValueError as e:
-            # NOTE! This should not be changed to print_error_msg, since the custom messages are important
-            print_in_yellow(f"{e}")
+        except (IndexError, ValueError) as e:
+            print_error_msg(e, "load <absolute/path/to/file>")
         except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
             print_error_msg(e, e)
 
     def do_list(self, arg):
         try:
-            folder_path = json_loader.get_working_directory_path()
-            if folder_path == "":
-                raise Exception(f"no working directory is selected. Use {GREEN}cwd <absolute/path/to/directory>")
-
+            folder_path = json_loader.get_wd_path()
+    
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
@@ -334,21 +325,19 @@ class CLI(cmd.Cmd):
             print_error_msg(e, e)
 
     def do_pwd(self, arg):
-        if json_loader.get_working_directory_path() != "":
-            print(
-                f"The current working directory is {CYAN}'{json_loader.get_working_directory_path()}'"
-            )
+        if json_loader.is_wd_path_set():
+            print(f"The current working directory is {CYAN}'{json_loader.get_wd_path()}'")
         else:
             print_in_yellow("No working directory is selected")
 
     def do_cwd(self, args):
         try:
-            wd_path = args.split()[0]
+            wd_path = parse_args(args)[0]
 
             if not os.path.exists(wd_path):
-                raise FileNotFoundError()
+                raise FileNotFoundError(None, None, wd_path)
             if not os.path.isdir(wd_path):
-                raise TypeError(f"the provided path is not a directory: {wd_path}")
+                raise TypeError(f"the provided path is not a directory: {CYAN}'{wd_path}'")
 
             config = json_loader.load_config()
             config["working_directory"] = wd_path
@@ -366,13 +355,21 @@ class CLI(cmd.Cmd):
         return
 
     def do_help(self, arg):
-        display_help_commands()
+        print("")
+
+        for category, commands in COMMANDS.items():
+            print(f"{MAGENTA}{category}{RESET}")
+            ordered_commands = sorted(commands, key=lambda command: command[0])
+            for command in ordered_commands:
+                print(f"{BLUE}> {RESET}", command[0], (60 - len(command[0])) * " ", command[1])
 
     def do_abb(self, arg):
-        with open("abbreviations.json", "r") as f:
-            abreviations = json.load(f)
-            for key, value in abreviations.items():
-                print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
+        try:
+            abbs = json_loader.load_abbreviations()
+            for key, value in abbs.items():
+                print(f"{BLUE}{key}{RESET} {(15 - len(key)) * ' '} {value[0]}") #TODO: REFACTOR?
+        except json.JSONDecodeError as e:
+            print_error_msg(e,json_loader.ABBREVIATIONS_FILE)
 
     def do_quit(self, arg):
 
@@ -388,17 +385,25 @@ class CLI(cmd.Cmd):
     # TODO: pretty up?
     def do_view(self, arg):
         try:
-            path = os.path.join(json_loader.get_working_directory_path(), arg)
+            if arg == "":
+                print(f"{BLUE}Choose one of the following files to view:")
+                self.do_list(None)
+                raise ValueError()
+
+            filename = check_extension(arg)
+            path = os.path.join(json_loader.get_wd_path(), filename)
             with open(path, "r") as f:
                 for line in f:
                     print(f"", line, end="")
             print("\n")
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "view <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
     def do_filter(self, args):
         try:
-            args_split = args.split()
+            args_split = parse_args(args)
 
             # get bibfileobj
             filename = args_split[0]
@@ -428,7 +433,7 @@ class CLI(cmd.Cmd):
 
     def do_search(self, args):
         try:
-            filename, searchterm = args.split()
+            filename, searchterm = parse_args(args)
             bibfileobj = path_to_bibfileobj(filename)
 
             array = filtering.search(bibfileobj, searchterm)
@@ -448,20 +453,22 @@ class CLI(cmd.Cmd):
 
     def do_br(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             if len(arguments) == 3:
-                filename, old_string, new_string = args.split()
+                filename, old_string, new_string = arguments
                 fields = []
             elif len(arguments) == 4:
-                filename, old_string, new_string, fields = args.split()
+                filename, old_string, new_string, fields = arguments
             else:
                 raise ValueError()
-
-            # get and save history of file
+            
+            # generate fileobj
             bib_file = path_to_bibfileobj(filename)
-            initialise_history(bib_file)
 
+            #get and save history of file
+            initialise_history(bib_file)
+    
             # do batch replace
             bib_file = batch_editor.batch_replace(bib_file, fields, old_string, new_string)
             file_generator.generate_bib(bib_file, bib_file.file_name)
@@ -470,13 +477,13 @@ class CLI(cmd.Cmd):
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_error_msg(e, "br <filename> <old string> <new string> [fieldslist=None]")
+            print_error_msg(e, "br <filename> <old string> <new string> [OPT=fieldslist]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
     def do_ord(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             if len(arguments) > 1:
                 filename, order = arguments[0], arguments[1]
@@ -509,7 +516,6 @@ class CLI(cmd.Cmd):
             if filename == "":
                 raise ValueError()
 
-            # working_direcory =
             bib_file = path_to_bibfileobj(filename)
 
             initialise_history(bib_file)
@@ -546,16 +552,15 @@ class CLI(cmd.Cmd):
 
     def do_tag(self, args):
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
             flag = arguments[0]
 
             if flag == "-ls":
-                with open("tags.json") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tags == {}:
-                        print_in_yellow("The tags file is empty")
-                    for key, value in tags.items():
-                        print(f"{YELLOW}{key} {RESET}{value}")  # TODO: pretty
+                tags = json_loader.load_tags()
+                if tags == {}:
+                    print_in_yellow("The tags file is empty")
+                for key, value in tags.items():
+                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: pretty
             else:
                 tag = arguments[0]
                 query = arguments[1:]
@@ -574,9 +579,8 @@ class CLI(cmd.Cmd):
                         elif len(query) == 4:
                             array = filtering.filterByFieldValue(bibfileobj, term, query[3])
                     case _:
-                        print_in_yellow(
-                            f"Invalid query! A query can either look like...\n{GREEN}search <filename> <searchterm>\nfilter <filename> <field> [OPT=value]")
-                        return
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
 
                 # no queries returned, tell the user
                 if array == -1:
@@ -587,37 +591,29 @@ class CLI(cmd.Cmd):
                 newarr = [ref.cite_key for ref in array]
 
                 # add the new tagged references
-                with open("tags.json", "r+") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tag in tags.keys():
-                        citekeyarr = tags[tag]
-                        for citekey in newarr:
-                            if citekey not in citekeyarr:
-                                citekeyarr.append(citekey)
-                    else:
-                        tags[tag] = newarr
+                tags = json_loader.load_tags()
+                if tag in tags.keys():
+                    citekeyarr = tags[tag]
+                    for citekey in newarr:
+                        if citekey not in citekeyarr:
+                            citekeyarr.append(citekey)
+                else:
+                    tags[tag] = newarr
 
-                    tagsfile.seek(0)  # go to beginning of file
-                    json.dump(tags, tagsfile, indent=4)  # replace content
+                json_loader.dump_tags(tags)  # replace content
                 print_in_green("Successfully added tags!")
+                for key, value in tags.items():
+                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: refactor?
 
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
-            print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
+            print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
-            print_error_msg(e,
-                            f"\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command{GREEN}\ntag -ls")
+            print_error_msg(e,f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command")
         except FileNotFoundError as e:
-            if e.filename == "tags.json":
-                print_in_yellow("Tags file not found! Creating \"tags.json\" for you...")
-                with open("tags.json", "w+") as tagsfile:
-                    json.dump({}, tagsfile)
-                print_in_green("Try and run the command again")
-            else:
                 print_error_msg(e, e)
         except Exception as e:
             print_error_msg(e, e)
 
-    # TODO
     def do_untag(self, args):
         """
         Untags either according to a query or according to a list of citekeys
@@ -628,9 +624,8 @@ class CLI(cmd.Cmd):
             query = arguments[1:]
 
             array = []
-            if query[0].startswith("["):
-                print(query[0])
-                return
+            if type(query[0]).__name__ == "list":
+                array = query[0]
             else:
                 match query[0]:
                     case "search":
@@ -642,42 +637,40 @@ class CLI(cmd.Cmd):
                             array = filtering.filterByFieldExistence(bibfileobj, query[2])
                         else:
                             array = filtering.filterByFieldValue(bibfileobj, query[2], query[3])
+                    case _:
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
 
-                    # no queries returned, tell the user
+                # no queries returned, tell the user
                 if array == -1:
                     print_in_yellow("Query returns no matches! No tags have been added")
                     return
 
                 # get cite_keys only
-                newarr = [ref.cite_key for ref in array]
-                print(newarr)
+                array = [ref.cite_key for ref in array]
 
-                # remove the tagged references
-                with open("tags.json", "r+") as tagsfile:
-                    tags = json.load(tagsfile)
-                    if tag in tags.keys():
-                        citekeyarr = tags[tag]
-                        print(citekeyarr)
-                        for citekey in newarr:
-                            if citekey in citekeyarr:
-                                citekeyarr.remove(citekey)
+            # remove the tagged references
+            tags = json_loader.load_tags()
+            if tag in tags.keys():
+                citekeyarr = tags[tag]
+                for citekey in array:
+                    if citekey in citekeyarr:
+                        citekeyarr.remove(citekey)
 
-                        # if we have removed all the citekeys in a tag, remove the full tag
-                        if citekeyarr == []:
-                            tags.pop(tag)
-                    else:
-                        print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in tags.json. Removed nothing")
-                        return
+                # if we have removed all the citekeys in a tag, remove the full tag
+                if citekeyarr == []:
+                    tags.pop(tag)
+            else:
+                print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
+                return
 
-                    tagsfile.seek(0)  # go to beginning of file
-                    json.dump(tags, tagsfile, indent=4)  # replace content
-                    tagsfile.truncate()  # remove all the rest
-                print_in_green("Successfully removed tags!")
+            json_loader.dump_tags(tags)
+            print_in_green("Successfully removed tags!")
 
         except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
-            print_error_msg(e, "tags.json")  # TODO: FOR ALL JSON
+            print_error_msg(e, json_loader.TAGS_FILE) 
         except (IndexError, ValueError) as e:
-            print_error_msg(e, "untag <tag> <query>\nuntag <tag> <citekey list>")
+            print_error_msg(e, f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
         except Exception as e:
             print_error_msg(e, e)
 
@@ -686,11 +679,11 @@ class CLI(cmd.Cmd):
         Makes a sub .bib file from a selected list of entry types or tags
         """
         try:
-            arguments = args.split()
+            arguments = parse_args(args)
 
             flag = arguments[0]
             if not flag.startswith("-"):
-                raise ValueError("Flag not supported!")
+                raise ValueError()
 
             filename = arguments[1]
             file = path_to_bibfileobj(filename)
@@ -698,28 +691,21 @@ class CLI(cmd.Cmd):
             new_filename = arguments[2]
             new_filename = check_extension(new_filename)
 
-            search_list = arguments[3:][0]  # TODO: PARSING
+            list = arguments[3] 
 
             match flag:
                 case "-e":
-                    entry_types_list = ast.literal_eval(
-                        search_list)  # TODO: PARSING AND MALFORMED THING WHEN LIST INCORRECTLY PASSED
-                    sub_file = sub_bib.filter_entry_types(file, entry_types_list)
-                case "-t":
-                    tags = ast.literal_eval(
-                        search_list)  # TODO: PARSING AND MALFORMED THING WHEN LIST INCORRECTLY PASSED
-                    sub_file = sub_bib.filter_tags(file, tags)
-                case _:
-                    raise ValueError("Flag not supported!")
+                    sub_file = sub_bib.filter_entry_types(file, list)
+                case "-t": 
+                    sub_file = sub_bib.filter_tags(file, list)
 
-            new_path = os.path.join(json_loader.get_working_directory_path(), new_filename)
+            new_path = os.path.join(json_loader.get_wd_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
             file_generator.generate_bib(sub_file, new_path)
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_error_msg(e,
-                            f"sub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
+            print_error_msg(e,f"\nsub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -729,7 +715,6 @@ class CLI(cmd.Cmd):
             if filename == "":
                 raise ValueError()
 
-            # working_direcory =
             bib_file = path_to_bibfileobj(filename)
 
             initialise_history(bib_file)
@@ -746,11 +731,11 @@ class CLI(cmd.Cmd):
 
     def do_mer(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
-                wd = json_loader.get_working_directory_path()
+                wd = json_loader.get_wd_path()
                 if not os.listdir(wd):
                     print_in_yellow("The working directory is empty!")
                     return
@@ -762,11 +747,11 @@ class CLI(cmd.Cmd):
                     bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 # Write output inside the configured working directory
-                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_wd_path(), new_file_name)
                 file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
-                file_name_1, file_name_2, new_file_name = args.split()
+                file_name_1, file_name_2, new_file_name = parse_args(args)
                 new_file_name = check_extension(new_file_name)
 
                 bib_file_1 = path_to_bibfileobj(file_name_1)
@@ -777,7 +762,7 @@ class CLI(cmd.Cmd):
                 # TODO: check if overriding file?
 
                 # Write output inside the configured working directory
-                out_path = os.path.join(json_loader.get_working_directory_path(), new_file_name)
+                out_path = os.path.join(json_loader.get_wd_path(), new_file_name)
                 file_generator.generate_bib(merge_result, out_path)
 
             print_in_green("Files have been merged successfully!")
@@ -791,29 +776,26 @@ class CLI(cmd.Cmd):
 
         try:
             if args:
-                if len(args.split()) > 1:
-                    raise ValueError("This command only takes one argument!")
+                if len(parse_args(args)) > 1:
+                    raise ValueError()
                 k_regular = int(args)
             else:
                 k_regular = 2
+            
+            print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
+            self.do_list(None)
 
-            if json_loader.get_working_directory_path() == "":
-                raise ValueError("Working directory not set! Use the cwd command")
-            else:
-                print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
-                self.do_list("")
+            index_str = input(f"{BLUE}Enter file index: {RESET}")
 
-                index_str = input(f"{BLUE}Enter file index: {RESET}")
-
-                files = get_bib_file_names(
-                    json_loader.get_working_directory_path()
-                )  # Check if index is in range
-                index = int(index_str)
-                print(f"You selected {CYAN}'{files[index - 1][0]}'{RESET}")
-                file = files[index - 1]
-                file_name = file[0]
-                bibfileobj = path_to_bibfileobj(file_name)
-                graph.generate_graph(bibfileobj, k_regular)
+            files = get_bib_file_names(
+                json_loader.get_wd_path()
+            )  # Check if index is in range
+            index = int(index_str)
+            print(f"You selected {CYAN}'{files[index - 1][0]}'{RESET}")
+            file = files[index - 1]
+            file_name = file[0]
+            bibfileobj = path_to_bibfileobj(file_name)
+            graph.generate_graph(bibfileobj, k_regular)
 
         except KeyboardInterrupt as e:
             print(f"{RED}ABORTED")
@@ -824,7 +806,7 @@ class CLI(cmd.Cmd):
 
     def do_undo(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
 
             if len(argument_list) < 1:
                 raise ValueError()
@@ -836,7 +818,7 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
             # TODO: handle else case (filename and step will not be initialised)
 
-            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_wd_path(), filename)
             bib_file = file_parser.parse_bib(path)
             undo(bib_file, step)
 
@@ -847,7 +829,7 @@ class CLI(cmd.Cmd):
 
     def do_redo(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
 
             if len(argument_list) < 1:
                 raise ValueError()
@@ -859,7 +841,7 @@ class CLI(cmd.Cmd):
                 step = int(argument_list[1])
             # TODO: handle else case (filename and step will not be initialised)
 
-            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_wd_path(), filename)
             bib_file = file_parser.parse_bib(path)
             redo(bib_file, step)
 
@@ -870,11 +852,11 @@ class CLI(cmd.Cmd):
 
     def do_checkout(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
             filename = argument_list[0]
             commit_hash = argument_list[1]
 
-            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
+            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
                 raise FileNotFoundError(None, None, filename)
 
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -894,12 +876,12 @@ class CLI(cmd.Cmd):
 
     def do_comment(self, args):
         try:
-            argument_list = args.split(maxsplit=2)
+            argument_list = parse_args(args)
             filename = argument_list[0]
             commit_hash = argument_list[1]
             checkout_comment = argument_list[2]
 
-            if not os.path.isfile(os.path.join(json_loader.get_working_directory_path(), filename)):
+            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
                 raise FileNotFoundError(None, None, filename)
 
             hist_dir_path = os.path.join("history", f"hist_{filename}")
@@ -908,7 +890,7 @@ class CLI(cmd.Cmd):
             if not os.path.isfile(checkout_path):
                 raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
 
-            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_wd_path(), filename)
             bib_file = file_parser.parse_bib(path)
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
@@ -921,7 +903,7 @@ class CLI(cmd.Cmd):
     def do_history(self, args):
         try:
             filename = args
-            path = os.path.join(json_loader.get_working_directory_path(), filename)
+            path = os.path.join(json_loader.get_wd_path(), filename)
             bib_file = file_parser.parse_bib(path)
 
             history(bib_file)
@@ -970,7 +952,7 @@ class CLI(cmd.Cmd):
         pass
 
     def filename_completions(self, text):
-        wd = json_loader.get_working_directory_path()
+        wd = json_loader.get_wd_path()
         try:
             return [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)

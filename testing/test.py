@@ -124,9 +124,9 @@ if __name__ == '__main__':
     # Generate file from the dictionary:
     file_generator.generate_bib(examples, bib_examples_generated)
 
-    if not os.listdir(json_loader.get_working_directory_path()):
+    if not os.listdir(json_loader.get_wd_path()):
         print("The working directory is empty!")
-    elif test_files(json_loader.get_working_directory_path()):
+    elif test_files(json_loader.get_wd_path()):
         print("All files in the working directory seem correctly parsed and generated.")
 
     batch_editor.batch_replace(examples, [], "Cambridge", "Cam")

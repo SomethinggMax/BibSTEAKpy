@@ -29,8 +29,11 @@ def _load_json(path):
     if not os.path.exists(path):
         _dump_json({}, path, 2, True)
 
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f) or {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception as e:
+        return {}
 
 
 def _dump_json(dictionary: dict, path, indent: int, ensure_ascii: bool):

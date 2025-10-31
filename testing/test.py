@@ -109,13 +109,13 @@ def test_files(directory_path) -> bool:
 
 
 if __name__ == '__main__':
-    bib_examples_original = "bib_files/biblatex-examples.bib"
-    bib_examples_generated = "bib_files/biblatex-examples-generated.bib"
-    bib_examples_edited = "bib_files/biblatex-examples-edited.bib"
-    articles_examples = "bib_files/articles-examples.bib"
-    bib_tests = "bib_files/bibtests.bib"
-    bib_merge_test = "bib_files/bib-merge-test.bib"
-    merge_result = "bib_files/merge-result.bib"
+    bib_examples_original = "../bib_files/biblatex-examples.bib"
+    bib_examples_generated = "../bib_files/biblatex-examples-generated.bib"
+    bib_examples_edited = "../bib_files/biblatex-examples-edited.bib"
+    articles_examples = "../bib_files/articles-examples.bib"
+    bib_tests = "../bib_files/bibtests.bib"
+    bib_merge_test = "../bib_files/bib-merge-test.bib"
+    merge_result = "../bib_files/merge-result.bib"
 
     examples = file_parser.parse_bib(bib_examples_original)
     test = file_parser.parse_bib(bib_tests)

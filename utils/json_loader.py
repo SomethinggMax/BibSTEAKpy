@@ -18,10 +18,13 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
 }
-CONFIG_FILE = "jsons/config.json"
-TAGS_FILE = "jsons/tags.json"
-ABBREVIATIONS_FILE = "jsons/abbreviations.json"
-SYNONYMS_FILE = "jsons/synonyms.json"
+
+# Get the directories relative to the  json_loader directory.
+json_loader_directory = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(json_loader_directory, "../jsons/config.json")
+TAGS_FILE = os.path.join(json_loader_directory, "../jsons/tags.json")
+ABBREVIATIONS_FILE = os.path.join(json_loader_directory, "../jsons/abbreviations.json")
+SYNONYMS_FILE = os.path.join(json_loader_directory, "../jsons/synonyms.json")
 
 
 def _load_json(path):

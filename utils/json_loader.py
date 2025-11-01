@@ -6,6 +6,7 @@ CONFIG_TEMPLATE = {
     "abstract_strong_mismatch": 0.5,
     "user_interface": "CLI",
     "working_directory": "",
+    "add_abbreviations_as_strings": False,
     "remove_newlines_in_fields": False,
     "convert_special_symbols_to_unicode": True,
     "prefer_url_over_doi": False,

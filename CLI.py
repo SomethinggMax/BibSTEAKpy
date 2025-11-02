@@ -7,8 +7,20 @@ from nicegui import ui
 import re
 
 from objects import BibFile
-from utils import merge, cleanup, enrichment, json_loader, file_parser, filtering, file_generator, batch_editor, \
-    ordering, abbreviations_exec, sub_bib
+from utils import (
+    merge,
+    cleanup,
+    enrichment,
+    json_loader,
+    file_parser,
+    filtering,
+    file_generator,
+    batch_editor,
+    ordering,
+    abbreviations_exec,
+    sub_bib,
+    tagging,
+)
 import ast
 import graph
 from graph import generate_graph
@@ -20,7 +32,7 @@ from history_manager import (
     checkout,
     history,
     delete_history,
-    comment
+    comment,
 )
 
 if os.name == "nt" and not hasattr(readline, "backend"):
@@ -50,67 +62,87 @@ def print_error_msg(error_type: Exception, msg):
     error_type = error_type.__class__.__name__
     match error_type:
         case "JSONDecodeError":
-            print_in_yellow(f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually")
+            print_in_yellow(
+                f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually"
+            )
         case "ValueError" | "IndexError":
             print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
         case "FileNotFoundError":
-            print_in_yellow(f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling")
+            print_in_yellow(
+                f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling"
+            )
         case "PermissionError":
-            print_in_yellow(f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied")
+            print_in_yellow(
+                f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied"
+            )
         case "Exception":
             print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
         case _:
             print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
+
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}": [
         ("help", "Display the current menu"),
-        (
-            "load <absolute/path/to/file>",
-            "Load a particular file into the working directory",
-        ),
+        ("quit", "Close the BibSteak CLI"),
+    ],
+
+    f"{MAGENTA}FILE MANAGEMENT{RESET}": [
+        ("load <absolute/path/to/file>","Load a particular file into the working directory"),
         ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
         ("list", "Lists all the bib files in the current working directory"),
         ("pwd", "Prints the current working directory"),
         ("abb", "Display the abbreviations legend"),
-        (
-            "view <filename>",
-            "View the content of a certain .bib file from your current working directory",
-        ),
-        ("quit", "Close the BibSteak CLI"),
+        ("view <filename>","View the content of a certain .bib file in your current working directory"),
+        # ("del <filename>", "Deletes a file"),
     ],
+
+    # f"{MAGENTA}CONFIGS{RESET}": [
+    #     ("c_view", "Displays the current configurations"),
+    #     ("config <setting> <value>", "Set a configuration"),
+    #     ("reset", "Resets the configs to the base template"),
+    # ],
 
     f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
         (
-            "br <filename> <old string> <new string> [OPT=fieldslist]",
+            "br <filename> <old term> <new term> [fieldslist]",
             "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
         ),
-        ("clean <filename>", "Cleans file according to rules in config."),
-        ("ord <filename> [reverse=False]",
-         "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)"),
+        ("clean <filename>", "Cleans file according to rules in config"),
+        (
+            "ord <filename> [reverse=False]",
+            "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)",
+        ),
         (
             "sub -e <filename> <new filename> <entrytypes list>",
-            "Creates a sub .bib file with only specified entry " "types.",
+            "Creates a sub .bib file with only specified entry types",
         ),
         (
             "sub -t <filename> <new filename> <tags list>",
-            "Creates a sub .bib file with only references with specified tags.",
+            "Creates a sub .bib file with only references with specified tags",
         ),
-        ("tag <tag> <query>",
-         "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
+        (
+            "tag <tag> <query>",
+            "Adds a tag to all the references that return from a query. A query can either be a filter or search command",
+        ),
         ("tag -ls", "Lists all added tags"),
-        ("untag <tag> <query>",
-         "Untags all references that return from a query. A query can either be a filter or search command"),
-        ("untag <tag> <citekey list>", "Untags all references that are passed in the list of citekeys"),
+        (
+            "untag <tag> <query>",
+            "Untags all references that return from a query. A query can either be a filter or search command",
+        ),
+        (
+            "untag <tag> <citekey list>",
+            "Untags all references that are passed in the list of citekeys",
+        ),
         (
             "mer <filename1> <filename2> <new_filename>",
-            "Merge the references from two bib files into one file.",
+            "Merge the references from two bib files into one file",
         ),
         (
             "mer -all <new_filename>",
-            "Merge all bib files in the current working directory.",
+            "Merge all bib files in the current working directory",
         ),
         ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
         (
@@ -121,19 +153,27 @@ COMMANDS = {
             "filter <filename> <field> [value=None]",
             "Displays references with a certain field (OPTIONAL: a value in that field)",
         ),
-        ("enr <filename>", "Enriches a bibfiles empty DOI and URL fields by getting information from the web"),
+        (
+            "enr <filename>",
+            "Enriches a bibfiles empty DOI and URL fields by getting information from the web",
+        ),
     ],
-
     f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
-        ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
-        ("del <filename>", "Delete all the history logs for a file"),
+        (
+            "checkout <filename> <commit_hash>",
+            "Checkout to a historic version of the file",
+        ),
+        ("h_del <filename>", "Delete all the history logs for a file"),
         ("history <filename>", "Show the historic commit graph"),
-        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
-    ]
-
+        (
+            "comment <filename> <commit_hash> <comment>",
+            "Add a comment to a specific commit",
+        ),
+    ],
 }
+
 
 def completer(text, state):
     line = readline.get_line_buffer()
@@ -176,7 +216,7 @@ def check_extension(filename):
         raise Exception(
             f"The file name must have a .bib extension or no extension at all."
         )
-    return filename 
+    return filename
 
 
 def load_file_to_storage(source_path):
@@ -224,11 +264,11 @@ def load_file_to_storage(source_path):
 
 
 def path_to_bibfileobj(filename) -> BibFile:
-    #if no working dir set raise error
+    # if no working dir set raise error
     wd_path = json_loader.get_wd_path()
     # if wd_path == "":
     #     raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
-    
+
     filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
     bibfileobj = file_parser.parse_bib(path)
@@ -237,20 +277,22 @@ def path_to_bibfileobj(filename) -> BibFile:
 
 def parse_args(args) -> list:
     try:
-        pattern = re.split(r'(\".*?\"|\'.*?\'|\[[^][]*]| )', args)
+        pattern = re.split(r"(\".*?\"|\'.*?\'|\[[^][]*]| )", args)
         pattern = [x for x in pattern if x.strip()]
         res = []
         for x in pattern:
-            if(x.startswith('"') and x.endswith('"')):
-                x=x.replace('"',"")
-            elif(x.startswith('\'') and x.endswith('\'')):
-                x=x.replace('\'',"")
-            elif(x.startswith('[') and x.endswith(']')):
+            if x.startswith('"') and x.endswith('"'):
+                x = x.replace('"', "")
+            elif x.startswith("'") and x.endswith("'"):
+                x = x.replace("'", "")
+            elif x.startswith("[") and x.endswith("]"):
                 x = json.loads(x)
             res.append(x)
         return res
     except json.JSONDecodeError as e:
-        print_in_yellow("Please check the syntax of your list. Do not use mixed quotation marks!")
+        print_in_yellow(
+            "Please check the syntax of your list. Do not use mixed quotation marks!"
+        )
 
 
 class CLI(cmd.Cmd):
@@ -273,7 +315,7 @@ class CLI(cmd.Cmd):
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
     The current/last working directory is: {CYAN}{("'" + json_loader.get_wd_path() + "'") if json_loader.is_wd_path_set() else "None set"}{RESET}
-    If you want to change it use cwd <absolute/path/to/directory> 
+    If you want to change it use the cwd command 
     """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
@@ -298,20 +340,28 @@ class CLI(cmd.Cmd):
             check_extension(filename)
             destination_path = os.path.join(json_loader.get_wd_path(), filename)
 
-            #TODO: CHECK IF OVERRIDING FILE?
+            # TODO: CHECK IF OVERRIDING FILE?
 
             shutil.copy(source_path, destination_path)
-            print_in_green(f"File {CYAN}'{source_path}'{GREEN} loaded into the storage successfully!")
+            print_in_green(
+                f"File {CYAN}'{source_path}'{GREEN} loaded into the storage successfully!"
+            )
 
         except (IndexError, ValueError) as e:
             print_error_msg(e, "load <absolute/path/to/file>")
-        except (FileNotFoundError, PermissionError, shutil.SameFileError, OSError, Exception) as e:
+        except (
+            FileNotFoundError,
+            PermissionError,
+            shutil.SameFileError,
+            OSError,
+            Exception,
+        ) as e:
             print_error_msg(e, e)
 
     def do_list(self, arg):
         try:
             folder_path = json_loader.get_wd_path()
-    
+
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
@@ -326,7 +376,9 @@ class CLI(cmd.Cmd):
 
     def do_pwd(self, arg):
         if json_loader.is_wd_path_set():
-            print(f"The current working directory is {CYAN}'{json_loader.get_wd_path()}'")
+            print(
+                f"The current working directory is {CYAN}'{json_loader.get_wd_path()}'"
+            )
         else:
             print_in_yellow("No working directory is selected")
 
@@ -337,7 +389,9 @@ class CLI(cmd.Cmd):
             if not os.path.exists(wd_path):
                 raise FileNotFoundError(None, None, wd_path)
             if not os.path.isdir(wd_path):
-                raise TypeError(f"the provided path is not a directory: {CYAN}'{wd_path}'")
+                raise TypeError(
+                    f"the provided path is not a directory: {CYAN}'{wd_path}'"
+                )
 
             config = json_loader.load_config()
             config["working_directory"] = wd_path
@@ -355,21 +409,26 @@ class CLI(cmd.Cmd):
         return
 
     def do_help(self, arg):
-        print("")
-
         for category, commands in COMMANDS.items():
-            print(f"{MAGENTA}{category}{RESET}")
-            ordered_commands = sorted(commands, key=lambda command: command[0])
+            print(f"\n{MAGENTA}{category}{RESET}")
+            ordered_commands = sorted(commands, key=lambda command: len(command[1]))
             for command in ordered_commands:
-                print(f"{BLUE}> {RESET}", command[0], (60 - len(command[0])) * " ", command[1])
+                print(
+                    f"{BLUE}> {RESET}",
+                    command[0],
+                    (50 - len(command[0])) * " ",
+                    f"{GREEN}{command[1]}",
+                )
 
     def do_abb(self, arg):
         try:
             abbs = json_loader.load_abbreviations()
             for key, value in abbs.items():
-                print(f"{BLUE}{key}{RESET} {(15 - len(key)) * ' '} {value[0]}") #TODO: REFACTOR?
+                print(
+                    f"{BLUE}{key}{RESET} {(15 - len(key)) * ' '} {value[0]}"
+                )  # TODO: REFACTOR?
         except json.JSONDecodeError as e:
-            print_error_msg(e,json_loader.ABBREVIATIONS_FILE)
+            print_error_msg(e, json_loader.ABBREVIATIONS_FILE)
 
     def do_quit(self, arg):
 
@@ -417,13 +476,16 @@ class CLI(cmd.Cmd):
 
                 if array == -1:
                     print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'")
+                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
+                    )
                     return
                 self.do_view_array(array)
             else:
                 array = filtering.filterByFieldExistence(bibfileobj, field)
                 if array == -1:
-                    print_in_yellow(f"No references found with a field named {CYAN}'{field}'")
+                    print_in_yellow(
+                        f"No references found with a field named {CYAN}'{field}'"
+                    )
                     return
                 self.do_view_array(array)
         except (ValueError, IndexError) as e:
@@ -438,7 +500,9 @@ class CLI(cmd.Cmd):
 
             array = filtering.search(bibfileobj, searchterm)
             if array == -1:
-                print_in_yellow(f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'")
+                print_in_yellow(
+                    f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'"
+                )
                 return
 
             self.do_view_array(array)
@@ -462,22 +526,24 @@ class CLI(cmd.Cmd):
                 filename, old_string, new_string, fields = arguments
             else:
                 raise ValueError()
-            
+
             # generate fileobj
             bib_file = path_to_bibfileobj(filename)
 
-            #get and save history of file
+            # get and save history of file
             initialise_history(bib_file)
-    
+
             # do batch replace
-            bib_file = batch_editor.batch_replace(bib_file, fields, old_string, new_string)
+            bib_file = batch_editor.batch_replace(
+                bib_file, fields, old_string, new_string
+            )
             file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
 
         except ValueError as e:
-            print_error_msg(e, "br <filename> <old string> <new string> [OPT=fieldslist]")
+            print_error_msg(e, "br <filename> <old string> <new string> [fieldslist]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -503,7 +569,9 @@ class CLI(cmd.Cmd):
             file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
 
-            print_in_green(f"Grouping by reference done successfully in {order.name} order")
+            print_in_green(
+                f"Grouping by reference done successfully in {order.name} order"
+            )
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, "ord <filename> [reverse=False]")
@@ -577,7 +645,9 @@ class CLI(cmd.Cmd):
                         if len(query) == 3:
                             array = filtering.filterByFieldExistence(bibfileobj, term)
                         elif len(query) == 4:
-                            array = filtering.filterByFieldValue(bibfileobj, term, query[3])
+                            array = filtering.filterByFieldValue(
+                                bibfileobj, term, query[3]
+                            )
                     case _:
                         print_in_yellow("Invalid query!")
                         raise ValueError()
@@ -587,30 +657,15 @@ class CLI(cmd.Cmd):
                     print_in_yellow("Query returns no matches! No tags have been added")
                     return
 
-                # get cite_keys only
-                newarr = [ref.cite_key for ref in array]
-
-                # add the new tagged references
-                tags = json_loader.load_tags()
-                if tag in tags.keys():
-                    citekeyarr = tags[tag]
-                    for citekey in newarr:
-                        if citekey not in citekeyarr:
-                            citekeyarr.append(citekey)
-                else:
-                    tags[tag] = newarr
-
-                json_loader.dump_tags(tags)  # replace content
+                tagging.tag_refs(tag, array)
                 print_in_green("Successfully added tags!")
-                for key, value in tags.items():
-                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: refactor?
 
-        except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
             print_error_msg(e,f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command")
         except FileNotFoundError as e:
-                print_error_msg(e, e)
+            print_error_msg(e, e)
         except Exception as e:
             print_error_msg(e, e)
 
@@ -634,9 +689,13 @@ class CLI(cmd.Cmd):
                     case "filter":
                         bibfileobj = path_to_bibfileobj(query[1])
                         if len(query) == 3:
-                            array = filtering.filterByFieldExistence(bibfileobj, query[2])
+                            array = filtering.filterByFieldExistence(
+                                bibfileobj, query[2]
+                            )
                         else:
-                            array = filtering.filterByFieldValue(bibfileobj, query[2], query[3])
+                            array = filtering.filterByFieldValue(
+                                bibfileobj, query[2], query[3]
+                            )
                     case _:
                         print_in_yellow("Invalid query!")
                         raise ValueError()
@@ -649,28 +708,12 @@ class CLI(cmd.Cmd):
                 # get cite_keys only
                 array = [ref.cite_key for ref in array]
 
-            # remove the tagged references
-            tags = json_loader.load_tags()
-            if tag in tags.keys():
-                citekeyarr = tags[tag]
-                for citekey in array:
-                    if citekey in citekeyarr:
-                        citekeyarr.remove(citekey)
-
-                # if we have removed all the citekeys in a tag, remove the full tag
-                if citekeyarr == []:
-                    tags.pop(tag)
-            else:
-                print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
-                return
-
-            json_loader.dump_tags(tags)
-            print_in_green("Successfully removed tags!")
-
-        except json.JSONDecodeError as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
-            print_error_msg(e, json_loader.TAGS_FILE) 
+            return print_in_green("Successfully removed tags!") if not tagging.untag_refs(tag, array) == -1 else print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
+            
+        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            print_error_msg(e, json_loader.TAGS_FILE)
         except (IndexError, ValueError) as e:
-            print_error_msg(e, f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
+            print_error_msg(e,f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
         except Exception as e:
             print_error_msg(e, e)
 
@@ -691,12 +734,12 @@ class CLI(cmd.Cmd):
             new_filename = arguments[2]
             new_filename = check_extension(new_filename)
 
-            list = arguments[3] 
+            list = arguments[3]
 
             match flag:
                 case "-e":
                     sub_file = sub_bib.filter_entry_types(file, list)
-                case "-t": 
+                case "-t":
                     sub_file = sub_bib.filter_tags(file, list)
 
             new_path = os.path.join(json_loader.get_wd_path(), new_filename)
@@ -705,7 +748,10 @@ class CLI(cmd.Cmd):
             print_in_green("Sub operation done successfully!")
 
         except (ValueError, IndexError) as e:
-            print_error_msg(e,f"\nsub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like [\"item1\", \"item2\", ...]")
+            print_error_msg(
+                e,
+                f'\nsub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like ["item1", "item2", ...]',
+            )
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -781,7 +827,7 @@ class CLI(cmd.Cmd):
                 k_regular = int(args)
             else:
                 k_regular = 2
-            
+
             print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
             self.do_list(None)
 
@@ -863,7 +909,9 @@ class CLI(cmd.Cmd):
             checkout_path = os.path.join(hist_dir_path, commit_hash)
 
             if not os.path.isfile(checkout_path):
-                raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
+                raise Exception(
+                    f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid"
+                )
 
             bib_file = path_to_bibfileobj(filename)
             checkout(bib_file, commit_hash)
@@ -888,7 +936,9 @@ class CLI(cmd.Cmd):
             checkout_path = os.path.join(hist_dir_path, commit_hash)
 
             if not os.path.isfile(checkout_path):
-                raise Exception(f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid")
+                raise Exception(
+                    f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid"
+                )
 
             path = os.path.join(json_loader.get_wd_path(), filename)
             bib_file = file_parser.parse_bib(path)
@@ -912,7 +962,7 @@ class CLI(cmd.Cmd):
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
-    def do_del(self, args):
+    def do_h_del(self, args):
         try:
             filename = args
             if filename == "":

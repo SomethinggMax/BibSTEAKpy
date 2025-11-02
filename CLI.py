@@ -275,7 +275,7 @@ def path_to_bibfileobj(filename) -> BibFile:
     wd_path = json_loader.get_wd_path()
     filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
-    bibfileobj = file_parser.parse_bib(path, False)
+    bibfileobj = file_parser.parse_bib(path)
     return bibfileobj
 
 

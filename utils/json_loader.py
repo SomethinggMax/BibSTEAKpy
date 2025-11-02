@@ -59,10 +59,9 @@ def dump_config(dictionary: dict):
 
 
 def get_wd_path():
-    wd_path = load_config().get("working_directory")
-    if wd_path == "":
+    if not is_wd_path_set:
         raise Exception(f"working directory not set! Use cwd <absolute/path/to/directory> to set it")
-    return wd_path
+    return load_config().get("working_directory")
 
 
 def is_wd_path_set():

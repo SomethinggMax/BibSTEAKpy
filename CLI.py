@@ -20,6 +20,7 @@ from utils import (
     abbreviations_exec,
     sub_bib,
     tagging,
+    view
 )
 import ast
 import graph
@@ -49,60 +50,37 @@ M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
-
-def print_in_green(arg):
-    print(f"{GREEN}{arg}{RESET}")
-
-
-def print_in_yellow(arg):
-    print(f"{YELLOW}{arg}{RESET}")
-
-
-def print_error_msg(error_type: Exception, msg):
-    error_type = error_type.__class__.__name__
-    match error_type:
-        case "JSONDecodeError":
-            print_in_yellow(
-                f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually"
-            )
-        case "ValueError" | "IndexError":
-            print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
-        case "FileNotFoundError":
-            print_in_yellow(
-                f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling"
-            )
-        case "PermissionError":
-            print_in_yellow(
-                f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied"
-            )
-        case "Exception":
-            print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
-        case _:
-            print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
-
-
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}": [
         ("help", "Display the current menu"),
         ("quit", "Close the BibSteak CLI"),
     ],
-
     f"{MAGENTA}FILE MANAGEMENT{RESET}": [
-        ("load <absolute/path/to/file>","Load a particular file into the working directory"),
+        (
+            "load <absolute/path/to/file>",
+            "Load a particular file into the working directory",
+        ),
         ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
         ("list", "Lists all the bib files in the current working directory"),
         ("pwd", "Prints the current working directory"),
-        ("abb", "Display the abbreviations legend"),
-        ("view <filename>","View the content of a certain .bib file in your current working directory"),
+        (
+            "view <filename> [-abb]",
+            "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)",
+        ),
         # ("del <filename>", "Deletes a file"),
     ],
 
+    f"{MAGENTA}DISPLAYING{RESET}": [
+         ("abb", "Display the abbreviations legend"),
+         ("tag -ls", "Displays all added tags"),
+         ("config", "Displays the configurations"),
+         
+    ],
     # f"{MAGENTA}CONFIGS{RESET}": [
     #     ("c_view", "Displays the current configurations"),
     #     ("config <setting> <value>", "Set a configuration"),
     #     ("reset", "Resets the configs to the base template"),
     # ],
-
     f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
@@ -127,7 +105,6 @@ COMMANDS = {
             "tag <tag> <query>",
             "Adds a tag to all the references that return from a query. A query can either be a filter or search command",
         ),
-        ("tag -ls", "Lists all added tags"),
         (
             "untag <tag> <query>",
             "Untags all references that return from a query. A query can either be a filter or search command",
@@ -173,6 +150,36 @@ COMMANDS = {
         ),
     ],
 }
+
+def print_in_green(arg):
+    print(f"{GREEN}{arg}{RESET}")
+
+
+def print_in_yellow(arg):
+    print(f"{YELLOW}{arg}{RESET}")
+
+
+def print_error_msg(error_type: Exception, msg):
+    error_type = error_type.__class__.__name__
+    match error_type:
+        case "JSONDecodeError":
+            print_in_yellow(
+                f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually"
+            )
+        case "ValueError" | "IndexError":
+            print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
+        case "FileNotFoundError":
+            print_in_yellow(
+                f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling"
+            )
+        case "PermissionError":
+            print_in_yellow(
+                f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied"
+            )
+        case "Exception":
+            print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
+        case _:
+            print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
 
 def completer(text, state):
@@ -266,9 +273,6 @@ def load_file_to_storage(source_path):
 def path_to_bibfileobj(filename) -> BibFile:
     # if no working dir set raise error
     wd_path = json_loader.get_wd_path()
-    # if wd_path == "":
-    #     raise Exception(f"no working directory selected. Use {GREEN}cwd <absolute/path/to/directory>{YELLOW} to set it")
-
     filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
     bibfileobj = file_parser.parse_bib(path, False)
@@ -293,6 +297,23 @@ def parse_args(args) -> list:
         print_in_yellow(
             "Please check the syntax of your list. Do not use mixed quotation marks!"
         )
+
+
+def print_abb_pretty():
+    abbs = json_loader.load_abbreviations()
+    if abbs == {}:
+        print_in_yellow("The tags file is empty")
+    else:
+        for key, value in abbs.items():
+            print(f"{BLUE}{key}{RESET} {(10 - len(key)) * ' '} {value[0]}")
+
+
+def print_json_pretty(jsondict: dict, spacelen: int):
+    if jsondict == {}:
+        print_in_yellow("The tags file is empty")
+    else:
+        for key, value in jsondict.items():
+            print(f"{BLUE}{key}{RESET} {(spacelen - len(key)) * ' '} {value}")
 
 
 class CLI(cmd.Cmd):
@@ -422,13 +443,20 @@ class CLI(cmd.Cmd):
 
     def do_abb(self, arg):
         try:
-            abbs = json_loader.load_abbreviations()
-            for key, value in abbs.items():
-                print(
-                    f"{BLUE}{key}{RESET} {(15 - len(key)) * ' '} {value[0]}"
-                )  # TODO: REFACTOR?
+            print_abb_pretty()
         except json.JSONDecodeError as e:
             print_error_msg(e, json_loader.ABBREVIATIONS_FILE)
+        except Exception as e:
+            print(e, e)
+
+    def do_config(self, arg):
+        try:
+            config = json_loader.load_config()
+            print_json_pretty(config, 40)
+        except json.JSONDecodeError as e:
+            print_error_msg(e, json_loader.CONFIG_FILE)
+        except Exception as e:
+            print(e, e)
 
     def do_quit(self, arg):
 
@@ -441,22 +469,34 @@ class CLI(cmd.Cmd):
 
         return True  # returning True exits the loop
 
-    # TODO: pretty up?
     def do_view(self, arg):
         try:
-            if arg == "":
+
+            arguments = parse_args(arg)
+
+            if arguments == []:
                 print(f"{BLUE}Choose one of the following files to view:")
                 self.do_list(None)
-                raise ValueError()
 
-            filename = check_extension(arg)
-            path = os.path.join(json_loader.get_wd_path(), filename)
-            with open(path, "r") as f:
-                for line in f:
-                    print(f"", line, end="")
-            print("\n")
+                index_str = input(f"{BLUE}Enter file index: {RESET}")
+
+                files = get_bib_file_names(json_loader.get_wd_path())  # Check if index is in range
+                index = int(index_str)
+                print(f"You selected {CYAN}'{files[index - 1][0]}'{RESET}")
+                file = files[index - 1]
+                filename = file[0]
+            else:
+                filename = check_extension(arguments[0])
+
+            bibfileobj = path_to_bibfileobj(filename)
+
+            if len(arguments) > 1 and arguments[1] == "-abb":
+                    view.print_bibfile_short(bibfileobj)
+            else:
+                view.print_bibfile_pretty(bibfileobj)
+
         except (ValueError, IndexError) as e:
-            print_error_msg(e, "view <filename>")
+            print_error_msg(e, "view <filename> [-abb]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -625,10 +665,7 @@ class CLI(cmd.Cmd):
 
             if flag == "-ls":
                 tags = json_loader.load_tags()
-                if tags == {}:
-                    print_in_yellow("The tags file is empty")
-                for key, value in tags.items():
-                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: pretty
+                print_json_pretty(tags,10)
             else:
                 tag = arguments[0]
                 query = arguments[1:]
@@ -660,10 +697,15 @@ class CLI(cmd.Cmd):
                 tagging.tag_refs(tag, array)
                 print_in_green("Successfully added tags!")
 
-        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+        except (
+            json.JSONDecodeError
+        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
-            print_error_msg(e,f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command")
+            print_error_msg(
+                e,
+                f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command",
+            )
         except FileNotFoundError as e:
             print_error_msg(e, e)
         except Exception as e:
@@ -708,12 +750,23 @@ class CLI(cmd.Cmd):
                 # get cite_keys only
                 array = [ref.cite_key for ref in array]
 
-            return print_in_green("Successfully removed tags!") if not tagging.untag_refs(tag, array) == -1 else print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
-            
-        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            return (
+                print_in_green("Successfully removed tags!")
+                if not tagging.untag_refs(tag, array) == -1
+                else print_in_yellow(
+                    f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing..."
+                )
+            )
+
+        except (
+            json.JSONDecodeError
+        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, json_loader.TAGS_FILE)
         except (IndexError, ValueError) as e:
-            print_error_msg(e,f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
+            print_error_msg(
+                e,
+                f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command",
+            )
         except Exception as e:
             print_error_msg(e, e)
 

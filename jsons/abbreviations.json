@@ -7,5 +7,6 @@
   "jchph": ["J.~Chem. Phys.",["journaltitle"]],
   "jomch": ["J.~Organomet. Chem.",["journaltitle"]],
   "anch-ie": ["Angew.~Chem. Int.~Ed.",["journaltitle"]],
-  "wg": ["Westfahl, Gary",["author"]]
+  "wg": ["Westfahl, Gary",["author"]],
+  "ACM": ["Association for Computing Machinery", ["publisher"]]
 }

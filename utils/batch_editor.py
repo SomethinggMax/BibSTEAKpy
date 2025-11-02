@@ -87,19 +87,14 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
 
 def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: String) -> BibFile:
     """
-    Shortens all occurrences of the string long form and adds the String to the file if new.
+    Shortens all occurrences of the string long form.
+    Adds the String to the file if it is new and the long_form occurs in the file.
     :param bib_file: input BibFile object.
     :param fields_to_edit: the fields to check for occurrences of the long form.
     :param string: the String to shorten.
     :return: output BibFile object.
     """
-    existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
-    if string.abbreviation not in existing_string_dict:
-        bib_file.content.insert(0, string)
-    elif (string.long_form != existing_string_dict[string.abbreviation] and
-          existing_string_dict[string.abbreviation] != string.abbreviation):
-        raise ValueError("Abbreviation is already in use with a different long form!")
-
+    found = False
     for entry in bib_file.content:
         if isinstance(entry, Reference):
             fields = entry.get_fields()
@@ -110,6 +105,7 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: S
                     number_of_occurrences = data.count(string.long_form)
                     if number_of_occurrences == 0:
                         continue
+                    found = True
 
                     def replace_string_and_return_count(old_string: str, new_string: str) -> int:
                         updated_data = fields[field_type]
@@ -145,6 +141,13 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: S
                                 raise ValueError("Could not determine type of enclosure for field.")
                     if number_of_occurrences != 0:
                         raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
+    if found:
+        existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
+        if string.abbreviation not in existing_string_dict:
+            bib_file.content.insert(0, string)
+        elif (string.long_form != existing_string_dict[string.abbreviation] and
+              existing_string_dict[string.abbreviation] != string.abbreviation):
+            raise ValueError("Abbreviation is already in use with a different long form!")
     return bib_file
 
 

@@ -6,10 +6,11 @@ CONFIG_TEMPLATE = {
     "abstract_strong_mismatch": 0.5,
     "user_interface": "CLI",
     "working_directory": "",
+    "add_abbreviations_as_strings": False,
     "remove_newlines_in_fields": False,
     "convert_special_symbols_to_unicode": True,
-    "prefer_url": False,
-    "prefer_doi": True,
+    "prefer_url_over_doi": False,
+    "prefer_doi_over_url": True,
     "keep_comments": True,
     "keep_comment_entries": True,
     "lowercase_entry_types": False,
@@ -18,30 +19,36 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
 }
-CONFIG_FILE = "jsons/config.json"
-TAGS_FILE = "jsons/tags.json"
-ABBREVIATIONS_FILE = "jsons/abbreviations.json"
-SYNONYMS_FILE = "jsons/synonyms.json"
+
+# Get the directories relative to the  json_loader directory.
+json_loader_directory = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(json_loader_directory, "../jsons/config.json")
+TAGS_FILE = os.path.join(json_loader_directory, "../jsons/tags.json")
+ABBREVIATIONS_FILE = os.path.join(json_loader_directory, "../jsons/abbreviations.json")
+SYNONYMS_FILE = os.path.join(json_loader_directory, "../jsons/synonyms.json")
 
 
 def _load_json(path):
-    #error recovery: if file does not exist create it with empty json
+    # error recovery: if file does not exist create it with empty json
     if not os.path.exists(path):
         _dump_json({}, path, 2, True)
 
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f) or {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception as e:
+        return {}
 
 
 def _dump_json(dictionary: dict, path, indent: int, ensure_ascii: bool):
     with open(path, "w", encoding="utf-8") as file:
-        file.seek(0) #move pointer to first position
-        json.dump(dictionary, file, indent, ensure_ascii)
-        file.truncate() #remove all that comes after replaced text
+        file.seek(0)  # move pointer to first position
+        json.dump(dictionary, file, indent=indent, ensure_ascii=ensure_ascii)
+        file.truncate()  # remove all that comes after replaced text
 
 
 def load_config():
-    #error recovery: in case of deletion of file, dump template
+    # error recovery: in case of deletion of file, dump template
     if _load_json(CONFIG_FILE) == {}:
         dump_config(CONFIG_TEMPLATE)
     return _load_json(CONFIG_FILE)

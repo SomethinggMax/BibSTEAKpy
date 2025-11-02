@@ -9,18 +9,17 @@ def batch_replace(bib_file: BibFile, fields_to_edit: list[str], old_string: str,
     Also replaces the long_form of string definitions, does not replace string abbreviations.
     """
     for entry in bib_file.content:
-        #keep strings
+        # keep strings
         if type(entry) is String:
             entry.long_form = entry.long_form.replace(old_string, new_string)
-
 
         if type(entry) is Reference:
             fields = entry.get_fields()
             for field_type, data in fields.items():
-                #simply keep comments, entry types and citekeys
+                # simply keep comments, entry types and citekeys
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
-                #we either look through all fields OR if the specific field type is found we also go ahead
+                # we either look through all fields OR if the specific field type is found we also go ahead
                 if fields_to_edit == [] or field_type in fields_to_edit:
                     if "#" not in data:
                         if "\"" in data or "{" in data:
@@ -97,7 +96,8 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: S
     existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
     if string.abbreviation not in existing_string_dict:
         bib_file.content.insert(0, string)
-    elif string.long_form != existing_string_dict[string.abbreviation]:
+    elif (string.long_form != existing_string_dict[string.abbreviation] and
+          existing_string_dict[string.abbreviation] != string.abbreviation):
         raise ValueError("Abbreviation is already in use with a different long form!")
 
     for entry in bib_file.content:
@@ -145,6 +145,21 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: S
                                 raise ValueError("Could not determine type of enclosure for field.")
                     if number_of_occurrences != 0:
                         raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
+    return bib_file
+
+
+def replace_string(bib_file: BibFile, old_long_form, new_long_form) -> BibFile:
+    """
+    Replaces the long form of the strings in the bib file with the new_long_form, if the long_form == old_long_form.
+    :param bib_file:
+    :param old_long_form:
+    :param new_long_form:
+    :return:
+    """
+    for entry in bib_file.content:
+        if isinstance(entry, String):
+            if entry.long_form == old_long_form:
+                entry.long_form = new_long_form
     return bib_file
 
 

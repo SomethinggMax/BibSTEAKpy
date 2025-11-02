@@ -8,5 +8,6 @@
   "jomch": ["J.~Organomet. Chem.",["journaltitle"]],
   "anch-ie": ["Angew.~Chem. Int.~Ed.",["journaltitle"]],
   "wg": ["Westfahl, Gary",["author"]],
-  "ACM": ["Association for Computing Machinery", ["publisher"]]
+  "ACM": ["Association for Computing Machinery", ["publisher"]],
+  "LNCS": ["Lecture Notes in Computer Science", ["series"]]
 }

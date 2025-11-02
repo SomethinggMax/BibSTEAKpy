@@ -1,9 +1,10 @@
-@INPROCEEDINGS{Hills14,
-  Author    = {Mark Hills},
-  Title     = "{Streamlining Control Flow Graph Construction with DCFlow}",
-  Booktitle = {7th International Conference on Software Language Engineering},
-  editor    = {Beno{\^{\i}}t Combemale and David J. Pearce and Olivier Barais and Jurgen J. Vinju},
-  series    = {Lecture Notes in Computer Science},
-  volume    = {8706},
-  publisher = {Springer},
+ @INPROCEEDINGS{Hills14,
+    Author= {Mark Hills},
+    Title = "{Streamlining Control Flow Graph Construction with DCFlow}",
+    Booktitle = {7th International Conference on Software Language Engineering},
+    editor= {Beno{\^{\i}}t Combemale and David J. Pearce and Olivier Barais and Jurgen J. Vinju},
+    series = {Lecture Notes in Computer Science},
+    volume =  {8706},
+    publisher={Springer},
+    abstract ="A control flow graph (CFG) is used to model possible paths through a program, and is an essential part of many program analysis algorithms. While programs to construct CFGs can be written in meta-programming languages such as Rascal, writing such programs is currently quite tedious. With the goal of streamlining this process, in this paper we present DCFlow, a domain-specific language and Rascal library for defining control flow rules and building control flow graphs. Control flow rules in DCFlow are defined declaratively, based directly on the abstract syntax of the language under analysis and a number of operations representing types of control flow. Standard Rascal code is then generated based on the DCFlow definition. This code makes use of the DCFlow libraries to build CFGs for programs, which can then be visualized or used inside program analysis algorithms. To demonstrate the design of DCFlow we apply it to Pico---a very simple imperative language---and to a significant subset of PHP."
 }

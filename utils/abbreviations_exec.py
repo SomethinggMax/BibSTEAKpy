@@ -11,6 +11,9 @@ def execute_abbreviations(bib_file, minimize, max_abbreviations):
     # Minimize everything.
     for abbreviation, list in data.items():
         if add_abbreviations_as_strings:
+            # First replace everything for the long_form, to ensure that shorten_string finds all occurrences.
+            batch_editor.batch_replace(bib_file, list[1], abbreviation, list[0])
+
             batch_editor.batch_shorten_string(bib_file, list[1], String("", abbreviation, list[0]))
             batch_editor.replace_string(bib_file, list[0], abbreviation)
         else:

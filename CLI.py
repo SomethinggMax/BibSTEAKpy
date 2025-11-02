@@ -271,7 +271,7 @@ def path_to_bibfileobj(filename) -> BibFile:
 
     filename = check_extension(filename)
     path = os.path.join(wd_path, filename)
-    bibfileobj = file_parser.parse_bib(path, False)
+    bibfileobj = file_parser.parse_bib(path)
     return bibfileobj
 
 

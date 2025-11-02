@@ -19,6 +19,7 @@ from utils import (
     ordering,
     abbreviations_exec,
     sub_bib,
+    tagging,
 )
 import ast
 import graph
@@ -656,33 +657,13 @@ class CLI(cmd.Cmd):
                     print_in_yellow("Query returns no matches! No tags have been added")
                     return
 
-                # get cite_keys only
-                newarr = [ref.cite_key for ref in array]
-
-                # add the new tagged references
-                tags = json_loader.load_tags()
-                if tag in tags.keys():
-                    citekeyarr = tags[tag]
-                    for citekey in newarr:
-                        if citekey not in citekeyarr:
-                            citekeyarr.append(citekey)
-                else:
-                    tags[tag] = newarr
-
-                json_loader.dump_tags(tags)  # replace content
+                tagging.tag_refs(tag, array)
                 print_in_green("Successfully added tags!")
-                for key, value in tags.items():
-                    print(f"{BLUE}{key}   {RESET}{value}")  # TODO: refactor?
 
-        except (
-            json.JSONDecodeError
-        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
         except (ValueError, IndexError) as e:
-            print_error_msg(
-                e,
-                f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command",
-            )
+            print_error_msg(e,f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command")
         except FileNotFoundError as e:
             print_error_msg(e, e)
         except Exception as e:
@@ -727,35 +708,12 @@ class CLI(cmd.Cmd):
                 # get cite_keys only
                 array = [ref.cite_key for ref in array]
 
-            # remove the tagged references
-            tags = json_loader.load_tags()
-            if tag in tags.keys():
-                citekeyarr = tags[tag]
-                for citekey in array:
-                    if citekey in citekeyarr:
-                        citekeyarr.remove(citekey)
-
-                # if we have removed all the citekeys in a tag, remove the full tag
-                if citekeyarr == []:
-                    tags.pop(tag)
-            else:
-                print_in_yellow(
-                    f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing..."
-                )
-                return
-
-            json_loader.dump_tags(tags)
-            print_in_green("Successfully removed tags!")
-
-        except (
-            json.JSONDecodeError
-        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            return print_in_green("Successfully removed tags!") if not tagging.untag_refs(tag, array) == -1 else print_in_yellow(f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing...")
+            
+        except (json.JSONDecodeError) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
             print_error_msg(e, json_loader.TAGS_FILE)
         except (IndexError, ValueError) as e:
-            print_error_msg(
-                e,
-                f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command",
-            )
+            print_error_msg(e,f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command")
         except Exception as e:
             print_error_msg(e, e)
 

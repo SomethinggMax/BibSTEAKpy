@@ -1,4 +1,5 @@
 from enum import Enum
+import utils.json_loader
 from objects import BibFile, Reference, String, Comment, Preamble, Enclosure
 
 
@@ -8,7 +9,7 @@ class Token(Enum):
     FIELD_KEY = 3
     VALUE = 4
     QUOTATION_MARKS_ENCLOSURE = 5
-    BRACKETS_ENCLOSURE = 6
+    BRACES_ENCLOSURE = 6
     EXTRA = 7
 
 
@@ -27,7 +28,9 @@ def add_field(fields, field_type, field_value):
     fields[field_type] = field_value
 
 
-def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
+def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
+    if remove_newlines_in_fields is None:
+        remove_newlines_in_fields = utils.json_loader.load_config().get("remove_newlines_in_fields", False)
     result = BibFile(file_path)
 
     with open(file_path, encoding='utf-8') as file:
@@ -39,7 +42,7 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
         fields = {}
         ignore_next = False
         remove_whitespace = False
-        curly_bracket_level = 0
+        braces_level = 0
         token_type = Token.EXTRA
         for line in file:
             for char in line:
@@ -63,10 +66,10 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                                 token_type = Token.VALUE
                             continue
                         elif token_type == Token.VALUE:
-                            token_type = Token.BRACKETS_ENCLOSURE
-                            curly_bracket_level += 1
-                        elif token_type == Token.BRACKETS_ENCLOSURE:
-                            curly_bracket_level += 1
+                            token_type = Token.BRACES_ENCLOSURE
+                            braces_level += 1
+                        elif token_type == Token.BRACES_ENCLOSURE:
+                            braces_level += 1
                     case "=":
                         if token_type == Token.KEY:
                             key = token.strip()
@@ -102,8 +105,8 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                         if token_type == Token.QUOTATION_MARKS_ENCLOSURE:
                             ignore_next = True
                     case "\n":
-                        if token_type == Token.VALUE:
-                            if remove_whitespace_in_fields:
+                        if token_type == Token.VALUE or token_type == Token.QUOTATION_MARKS_ENCLOSURE or token_type == Token.BRACES_ENCLOSURE:
+                            if remove_newlines_in_fields:
                                 remove_whitespace = True
                                 continue
                     case " ":
@@ -124,7 +127,7 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                                                      f"preamble entry: {token}, unsupported comment: {comment}")
                             elif ref_type.lower() == "string":
                                 if token.startswith("{") and token.endswith("}"):
-                                    enclosure = Enclosure.BRACKETS
+                                    enclosure = Enclosure.BRACES
                                 elif token.startswith("\"") and token.endswith("\""):
                                     enclosure = Enclosure.QUOTATION_MARKS
                                 else:
@@ -142,13 +145,13 @@ def parse_bib(file_path, remove_whitespace_in_fields) -> BibFile:
                             fields = {}
                             comment = ""
                             continue
-                        elif token_type == Token.BRACKETS_ENCLOSURE:
-                            curly_bracket_level -= 1
-                            if curly_bracket_level == 0:
+                        elif token_type == Token.BRACES_ENCLOSURE:
+                            braces_level -= 1
+                            if braces_level == 0:
                                 token_type = Token.VALUE
                 if remove_whitespace:
                     remove_whitespace = False
                     token += " "
                 token += char
-    result.content.append(token)
+    result.content.append(token.strip())
     return result

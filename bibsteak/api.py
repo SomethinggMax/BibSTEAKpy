@@ -1,8 +1,8 @@
 
 import utils
 import os
-from utils.Reftype import GroupingType
-from utils import file_parser, file_generator, Reftype, order_by_field, filtering
+from utils.ordering import GroupingType
+from utils import file_parser, file_generator, ordering, order_by_field, filtering
 
 
 
@@ -73,11 +73,11 @@ class API(object):
         try:
             order = GroupingType.ZTOA if order is True else GroupingType.ATOZ
             path = os.path.join(self.wd_path, filename)
-            bib_file = file_parser.parse_bib(path, False)
+            bib_file = file_parser.parse_bib(path)
 
             # # initialise_history(bib_file)
-            Reftype.sortByReftype(bib_file, order); 
-            file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            ordering.order_by_entry_type(bib_file, order)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
             # # commit(bib_file)
 
         except Exception as e:
@@ -95,11 +95,11 @@ class API(object):
         """
         try:
             path = os.path.join(self.wd_path, filename)
-            file = file_parser.parse_bib(path, True)
+            file = file_parser.parse_bib(path)
             
             # initialise_history(file)
             order_by_field.order_by_field(file, field, descending)
-            file_generator.generate_bib(file, path, 15)
+            file_generator.generate_bib(file, path)
             # commit(file)
 
         except Exception as e:
@@ -120,7 +120,7 @@ class API(object):
         """
         try:
             path = os.path.join(self.wd_path, filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            bibfileobj = utils.file_parser.parse_bib(path)
 
             newFile = filtering.search(bibfileobj, searchterm)
             

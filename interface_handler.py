@@ -36,7 +36,11 @@ def colorize(text: str, color: str) -> str:
     return f"{ANSI[color]}{text}{ANSI['reset']}"
 
 
-def show_lines(lines: [str]):
+def print_msg(text: str):
+    show_lines([text])
+
+
+def show_lines(lines: list[str]):
     if user_interface == "CLI":
         # Print the prompt
         for line in lines:
@@ -44,6 +48,16 @@ def show_lines(lines: [str]):
     elif user_interface == "GUI":
         for line in lines:
             merge_object.print_hook(line)
+
+
+def show_toast(msg: str, level: str = "info"):
+    if user_interface == "CLI":
+        print_msg(msg)
+    elif user_interface == "GUI":
+        if hasattr(merge_object, 'toast_hook'):
+            merge_object.toast_hook(msg, level)
+        else:
+            merge_object.print_hook(msg)
 
 
 def get_selection(prompt: str, number_of_options: int) -> int:
@@ -79,3 +93,66 @@ def get_input(prompt: str) -> str:
     elif user_interface == "GUI":
         user_input = merge_object.input_hook(prompt)
     return user_input
+
+
+def prompt_reference_comparison(ref1_text: str, ref2_text: str,
+                               header: str = "Possible duplicate references",
+                               option1: str = "Merge references",
+                               option2: str = "Keep ref 1 only",
+                               option3: str = "Keep ref 2 only",
+                               option4: str = "Keep both") -> int:
+    if user_interface == "CLI":
+        print_msg(colorize(header, 'bold'))
+        print_msg(colorize("Reference 1:", 'dim'))
+        show_lines([ref1_text])
+        print_msg(colorize("Reference 2:", 'dim'))
+        show_lines([ref2_text])
+        show_lines([
+            f"1: {option1}",
+            f"2: {option2}",
+            f"3: {option3}",
+            f"4: {option4}",
+        ])
+        return get_selection("Enter your choice (1-4): ", 4)
+    elif user_interface == "GUI":
+        resp = merge_object.prompt_reference_comparison(header, ref1_text, ref2_text,
+                                                       option1, option2, option3, option4)
+        s = str(resp).strip()
+        try:
+            n = int(s)
+            return n if 1 <= n <= 4 else 1
+        except Exception:
+            return 1
+
+
+def prompt_field_conflict(field_name: str, value1: str, value2: str, header: str | None = None) -> int:
+    title = header or f"Conflict in field '{field_name}'"
+    if user_interface == "CLI":
+        print_msg(colorize(title, 'bold'))
+        print_msg(colorize("1. Value from reference 1:", 'dim'))
+        show_lines([value1])
+        print_msg(colorize("2. Value from reference 2:", 'dim'))
+        show_lines([value2])
+        show_lines(["3. Manual input"])
+        return get_selection("Choose which to keep or manual (1, 2, or 3): ", 3)
+    elif user_interface == "GUI":
+        resp = merge_object.prompt_field_conflict(title, value1, value2)
+        s = str(resp).strip()
+        return 1 if s == '1' else (2 if s == '2' else 3)
+
+
+def prompt_abbreviation_conflict(long1: str, long2: str, abbr: str) -> int:
+    header = f"Conflict with string abbreviation '{abbr}'!"
+    if user_interface == "CLI":
+        show_lines([header, "You can select an abbreviation to rename.", f"1: {long1}", f"2: {long2}"])
+        return get_selection("Enter your choice (1 or 2): ", 2)
+    elif user_interface == "GUI":
+        resp = merge_object.prompt_abbreviation_conflict(header, long1, long2)
+        return 1 if str(resp).strip() == '1' else 2
+
+
+def prompt_text_input(prompt: str, default: str = "") -> str:
+    if user_interface == "CLI":
+        return input(prompt)
+    elif user_interface == "GUI":
+        return merge_object.prompt_text_input(prompt, default)

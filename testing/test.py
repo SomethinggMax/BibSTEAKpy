@@ -3,9 +3,8 @@ import os
 import re
 import utils.file_generator as file_generator
 import utils.file_parser as file_parser
-from CLI import get_bib_file_names, get_working_directory_path
-from utils import batch_editor, sub_bib, merge, cleanup
-from utils.Reftype import sortByReftype, GroupingType
+from CLI import get_bib_file_names
+from utils import batch_editor, sub_bib, merge, cleanup, ordering, json_loader
 
 
 def file_to_string(file_name):
@@ -84,18 +83,22 @@ def test_files(directory_path) -> bool:
         print(f"Testing parsing and generation of file '{file_name}'")
         path = os.path.join(directory_path, file_name)
         try:
-            bib_file = file_parser.parse_bib(path, False)
+            bib_file = file_parser.parse_bib(path)
         except UnicodeDecodeError:
             try:
                 convert_to_utf8(path, path, 'windows-1252')
-                bib_file = file_parser.parse_bib(path, False)
+                bib_file = file_parser.parse_bib(path)
             except Exception as e:
                 print(f"Skipping file {file_name}, it cannot be decoded with UTF-8 or windows-1252. {e}")
                 continue
         except ValueError as e:
             print(f"Skipping file {file_name}, it cannot be correctly parsed: {e}")
             continue
-        file_generator.generate_bib(bib_file, temp_file_name, 15)
+        file_generator.generate_bib(bib_file, temp_file_name)
+
+        # Check if the contents are the same when the generated file is parsed again:
+        assert file_parser.parse_bib(temp_file_name).content == bib_file.content
+
         if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
@@ -106,42 +109,42 @@ def test_files(directory_path) -> bool:
 
 
 if __name__ == '__main__':
-    bib_examples_original = "bib_files/biblatex-examples.bib"
-    bib_examples_generated = "bib_files/biblatex-examples-generated.bib"
-    bib_examples_edited = "bib_files/biblatex-examples-edited.bib"
-    articles_examples = "bib_files/articles-examples.bib"
-    bib_tests = "bib_files/bibtests.bib"
-    bib_merge_test = "bib_files/bib-merge-test.bib"
-    merge_result = "bib_files/merge-result.bib"
+    bib_examples_original = "../bib_files/biblatex-examples.bib"
+    bib_examples_generated = "../bib_files/biblatex-examples-generated.bib"
+    bib_examples_edited = "../bib_files/biblatex-examples-edited.bib"
+    articles_examples = "../bib_files/articles-examples.bib"
+    bib_tests = "../bib_files/bibtests.bib"
+    bib_merge_test = "../bib_files/bib-merge-test.bib"
+    merge_result = "../bib_files/merge-result.bib"
 
-    examples = file_parser.parse_bib(bib_examples_original, False)
-    test = file_parser.parse_bib(bib_tests, True)
-    merge_test = file_parser.parse_bib(bib_merge_test, True)
+    examples = file_parser.parse_bib(bib_examples_original)
+    test = file_parser.parse_bib(bib_tests)
+    merge_test = file_parser.parse_bib(bib_merge_test)
 
     # Generate file from the dictionary:
-    file_generator.generate_bib(examples, bib_examples_generated, 15)
+    file_generator.generate_bib(examples, bib_examples_generated)
 
-    if not os.listdir(get_working_directory_path()):
+    if not os.listdir(json_loader.get_wd_path()):
         print("The working directory is empty!")
-    elif test_files(get_working_directory_path()):
+    elif test_files(json_loader.get_wd_path()):
         print("All files in the working directory seem correctly parsed and generated.")
-
-    print_differences(bib_examples_original, bib_examples_generated)
 
     batch_editor.batch_replace(examples, [], "Cambridge", "Cam")
     cleanup.cleanup(examples)
-    file_generator.generate_bib(examples, bib_examples_edited, 15)
+    file_generator.generate_bib(examples, bib_examples_edited)
 
     print_differences(bib_examples_generated, bib_examples_edited)
 
     articles = sub_bib.filter_entry_types(test, ["article"])
-    file_generator.generate_bib(articles, articles_examples, 15)
+    file_generator.generate_bib(articles, articles_examples)
 
-    file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result, 15)
+    file_generator.generate_bib(merge.merge_files(merge_test, test), merge_result)
 
     tagged_sub_file = sub_bib.filter_tags(examples, ["Computer Science", "Virtual memory and storage"])
-    file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib", 15)
+    file_generator.generate_bib(tagged_sub_file, "bib_files/tagged-examples.bib")
 
     # testing grouping
-    sortByReftype(examples, GroupingType.ZTOA)
-    file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib", 15)
+    ordering.order_by_entry_type(examples, ordering.GroupingType.ZTOA)
+    file_generator.generate_bib(examples, "bib_files/bib-examples-grouped.bib")
+
+    

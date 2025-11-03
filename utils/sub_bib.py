@@ -1,9 +1,7 @@
-import json
-
 import utils.file_parser as file_parser
 import utils.file_generator as file_generator
-
 from objects import BibFile, Reference
+from utils import json_loader
 
 
 def filter_entry_types(file: BibFile, entry_types: list) -> BibFile:
@@ -30,8 +28,7 @@ def filter_tags(file: BibFile, tags: list) -> BibFile:
     :param tags: a list of tags
     :return: the output file
     """
-    with open('tags.json') as tags_data:
-        tags_dict = json.load(tags_data)
+    tags_dict = json_loader.load_tags()
 
     relevant_cite_keys = set()
     for tag, cite_keys in tags_dict.items():
@@ -52,6 +49,6 @@ def filter_tags(file: BibFile, tags: list) -> BibFile:
 
 # JUST FOR TESTING
 if __name__ == "__main__":
-    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib", True)
+    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib")
     article_file = filter_entry_types(test_file, ["article", "collection"])
-    file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib", 15)
+    file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib")

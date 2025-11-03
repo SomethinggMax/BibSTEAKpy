@@ -162,77 +162,7 @@ def print_in_yellow(arg):
 CONFIG_FILE = "config.json"
 TAGS_FILE = "tags.json"  # TODO
 
-COMMANDS = {
-    f"{MAGENTA}BASE COMMANDS{RESET}" : [
-        ("help", "Display the current menu"),
-        (
-            "load <absolute/path/to/file>",
-            "Load a particular file into the working directory",
-        ),
-        ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
-        ("list", "Lists all the bib files in the current working directory"),
-        ("pwd", "Prints the current working directory"),
-        ("abb", "Display the abbreviations legend"),
-        (
-            "view <filename>",
-            "View the content of a certain .bib file from your current working directory",
-        ),
-        ("quit", "Close the BibSteak CLI"),
-    ],
     
-    f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
-        ("exp <filename>", "Expand all abbreviations in the file"),
-        ("col <filename>", "Collapse all abbreviations in the file"),
-        (
-            "br <filename> <old string> <new string> [fieldslist=None]",
-            "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
-        ),
-        ("clean <filename>", "Cleans file according to rules in config."),
-        (
-            "sub -e <filename> <new filename> <entry types list>",
-            "Creates a sub .bib file with only specified entry " "types.",
-        ),
-        (
-            "sub -t <filename> <new filename> <tags>",
-            "Creates a sub .bib file with only references with specified " "tags.",
-        ),
-        (
-            "mer <filename1> <filename2> <new_filename>",
-            "Merge the references from two bib files into one file.",
-        ),
-        (
-            "mer -all <new_filename>",
-            "Merge all bib files in the current working directory.",
-        ),
-        ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
-        (
-            "search <filename> <searchterm>",
-            "Displays references with a certain searchterm",
-        ),
-        (
-            "gr <filename> [descending=False]",
-            "Group references of a bib file based on a certain field",
-        ),
-        (
-            "filter <filename> <field> [value=None]",
-            "Displays references with a certain field (OPTIONAL: a value in that field)",
-        ),
-        ("enr <filename>", "Enriches a bibfile by getting information from the web"), #TODO: better description
-    ],
-    
-    f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
-        ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
-        ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
-        ("checkout <filename> <commit_hash>", "Checkout to a historic version of the file indexed by the commit_hash"),
-        ("del <filename>", "Delete all the history logs for a file"),
-        ("history <filename>", "Show the historic commit graph"),
-        ("comment <filename> <commit_hash> <comment>", "Add a comment to a specific commit"),
-        
-        
-        
-    ]
-    
-}
 def print_error_msg(e: Exception, msg):
     ERROR_SIGN = ">|"
     def print_err(red_txt: str, yellow_txt:str):

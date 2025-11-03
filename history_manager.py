@@ -1,19 +1,16 @@
 
 # TODO: Make sure hashes do not collide
 # TODO: Better handle exceptions in the CLI and success/failure messages
+# TODO: Integrate timestamps and comments
+# TODO: First File Change
+# TODO: Improve history visualisation
 
 import os, json
 import time
 import json
-import rich
-
 from objects import BibFile
 from utils import file_generator, file_parser
 from secrets import token_hex
-from textual import on
-from textual.app import App, ComposeResult
-from textual.widgets import Tree
-from rich.text import Text
 from datetime import datetime
 
 RESET = "\033[0m"; RST = "\033[0m"
@@ -34,10 +31,14 @@ DEFAULT_JSON = {"parent_to_childs": {},
                 "comments": {}
                 }
 
+class Node(object):
+    def __init__(self, name):
+        self.name = name
+        self.children = []
+
 def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
     return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
-
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -233,7 +234,6 @@ def history(bibfile: BibFile):
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     os.makedirs(hist_dir_path, exist_ok=True)
     
-    
     # Ensure that there is a tracker file
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
     if not os.path.isfile(tracker_file_path):
@@ -244,47 +244,62 @@ def history(bibfile: BibFile):
     tracker = get_json_object(tracker_file_path)
     parent_root = tracker["BOTTOM"]
     current_parent = tracker["current_parent"]
-    
-    
     adj_list = tracker["parent_to_childs"]
+    tree = Node(parent_root)
+    build_graph(tree, adj_list)
+    print("")
+    print_graph(tree, indent=0, parent=True, current_parent=current_parent)
+    print_table(tracker)
     
-    class Demo(App):
-        BINDINGS = [("q", "quit", "Quit")]  # press q to quit
+    
+def print_table(tracker):
+    full_list = []
+    for parent, childs in (tracker["parent_to_childs"]).items():
+        if parent not in full_list:
+            full_list.append(parent)
+            
+        for child in childs:
+            if child not in full_list:
+                full_list.append(child)
+          
+    print("\n")
+    print(60 * "-")
+    print(f"| {10*' '} COMMIT HASH {10*' '} | {4*' '}  TIMESTAMP {4*' '} |")
+    print(60 * "-")
+          
+    for hash in full_list:
+        print(f"| {hash}  |  {tracker['timestamp'][hash]} |")
         
-
-        def compose(self) -> ComposeResult:
-            if parent_root == current_parent:
-                if parent_root in tracker["comments"]:
-                    tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}\nComment: {tracker['comments'][parent_root]}")
-                else:
-                    tree = Tree(Text(parent_root, "blue"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
-            else:
-                if parent_root in tracker["comments"]:
-                    tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}\nComment: {tracker['comments'][parent_root]}")
-                else:
-                    tree = Tree(Text(parent_root, "white"), data = f"Commit Time: {tracker['timestamp'][parent_root]}")
-                
-            tree.root.expand()
-            
-            for child in adj_list[tracker["BOTTOM"]]:
-                add_child_to_parent(tree.root, child, current_parent, tracker)
-                
-            for child in tree.root.children:
-                update_tree(adj_list, child, tracker, current_parent)
-            
-            yield tree
-            
+    print(60 * "-")
+    
+    # TODO: If comment, display comment column as well
+    
+    
+    
+def build_graph(parent, adj_list):
+    if parent.name in adj_list:
+        for child_name in adj_list[parent.name]:
+            parent.children.append(Node(child_name))
         
-        @on(Tree.NodeSelected)
-        def show_data(self, event: Tree.NodeSelected) -> None:
-            self.notify(str(event.node.data or "(no data)"))  # popup with the node's data
-            
-        @on(Tree.NodeCollapsed)
-        def keep_open(self, event: Tree.NodeCollapsed) -> None:
-            event.stop()           
-            event.node.expand()    # reopen instantly
-                    
-    Demo().run()
+    for child in parent.children:
+        build_graph(child, adj_list) 
+        
+        
+def print_graph(tree, indent, parent=False, current_parent="None"):
+    offset = 5
+    visited = []
+    if tree.name == current_parent:
+        display_name = f"{MAGENTA}{tree.name}{RESET}"
+    else:
+        display_name = f"{WHITE}{tree.name}{RESET}"
+        
+    if parent == False:
+        print(f"{MAGENTA}{(indent-1) * offset * ' '}|{1 * (offset-1) * '-'}| {RESET}{display_name}")
+    else:
+         print(f"{MAGENTA}| {display_name}{RESET}")
+               
+    for child in tree.children:
+        print_graph(child, indent + 1, parent=False, current_parent=current_parent)
     
     
 def update_tree(adj_list, parent, tracker, current_parent):

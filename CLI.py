@@ -1152,7 +1152,7 @@ class CLI(cmd.Cmd):
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
-    def do_h_del(self, args):
+    def do_del(self, args):
         try:
             filename = args
             if filename == "":
@@ -1174,7 +1174,7 @@ class CLI(cmd.Cmd):
                 raise ValueError("no filename given!")
 
             bib_file = path_to_bibfileobj(filename)
-            # initialise_history(bib_file)
+            initialise_history(bib_file)
             enrichment.sanitize_bib_file(bib_file)
             file_generator.generate_bib(bib_file, bib_file.file_name)
             commit(bib_file)
@@ -1240,6 +1240,24 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     def complete_enr(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_comment(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_history(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_undo(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_redo(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_checkout(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+    
+    def complete_del(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments

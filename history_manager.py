@@ -262,7 +262,7 @@ def print_table(tracker):
             if child not in full_list:
                 full_list.append(child)
           
-    print("")
+    print("\n")
     print(60 * "-")
     print(f"| {10*' '} COMMIT HASH {10*' '} | {4*' '}  TIMESTAMP {4*' '} |")
     print(60 * "-")

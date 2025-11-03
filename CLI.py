@@ -158,10 +158,6 @@ def print_in_green(arg):
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
 
-
-CONFIG_FILE = "config.json"
-TAGS_FILE = "tags.json"  # TODO
-
     
 def print_error_msg(e: Exception, msg):
     ERROR_SIGN = ">|"

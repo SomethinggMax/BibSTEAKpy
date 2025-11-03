@@ -2,33 +2,154 @@ import cmd
 import os
 import shutil
 import readline
-from utils import merge, cleanup
-from utils.Reftype import GroupingType
-import utils.file_generator as file_generator
-import utils.abbreviations_exec as abbreviations_exec
+import json
+from nicegui import ui
+import re
 
-import utils
-from utils.sub_bib import *
-from utils.Reftype import *
-from utils.order_by_field import *
-from utils.abbreviations_exec import *
-from utils.filtering import *
+from objects import BibFile
+from utils import (
+    merge,
+    cleanup,
+    enrichment,
+    json_loader,
+    file_parser,
+    filtering,
+    file_generator,
+    batch_editor,
+    ordering,
+    abbreviations_exec,
+    sub_bib,
+    tagging,
+    view
+)
 import ast
 import graph
 from graph import generate_graph
+from history_manager import (
+    commit,
+    redo,
+    undo,
+    initialise_history,
+    checkout,
+    history,
+    delete_history,
+    comment,
+)
 
 if os.name == "nt" and not hasattr(readline, "backend"):
     readline.backend = "unsupported"
 
-RESET = "\033[0m"; RST = "\033[0m"
+RESET = "\033[0m"
+RST = "\033[0m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 BLUE = "\033[34m"
-MAGENTA = "\033[35m"; M = "\033[35m"
+MAGENTA = "\033[35m"
+M = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 
+COMMANDS = {
+    f"{MAGENTA}BASE COMMANDS{RESET}": [
+        ("help", "Display the current menu"),
+        ("quit", "Close the BibSteak CLI"),
+    ],
+    f"{MAGENTA}FILE MANAGEMENT{RESET}": [
+        (
+            "load <absolute/path/to/file>",
+            "Load a particular file into the working directory",
+        ),
+        ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
+        ("list", "Lists all the bib files in the current working directory"),
+        ("pwd", "Prints the current working directory"),
+        (
+            "view <filename> [-abb]",
+            "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)",
+        ),
+        # ("del <filename>", "Deletes a file"),
+    ],
+
+    f"{MAGENTA}DISPLAYING{RESET}": [
+         ("abb", "Display the abbreviations legend"),
+         ("tag -ls", "Displays all added tags"),
+         ("config", "Displays the configurations"),
+         
+    ],
+    # f"{MAGENTA}CONFIGS{RESET}": [
+    #     ("c_view", "Displays the current configurations"),
+    #     ("config <setting> <value>", "Set a configuration"),
+    #     ("reset", "Resets the configs to the base template"),
+    # ],
+    f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
+        ("exp <filename>", "Expand all abbreviations in the file"),
+        ("col <filename>", "Collapse all abbreviations in the file"),
+        (
+            "br <filename> <old term> <new term> [fieldslist]",
+            "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
+        ),
+        ("clean <filename>", "Cleans file according to rules in config"),
+        (
+            "ord <filename> [reverse=False]",
+            "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)",
+        ),
+        (
+            "sub -e <filename> <new filename> <entrytypes list>",
+            "Creates a sub .bib file with only specified entry types",
+        ),
+        (
+            "sub -t <filename> <new filename> <tags list>",
+            "Creates a sub .bib file with only references with specified tags",
+        ),
+        (
+            "tag <tag> <query>",
+            "Adds a tag to all the references that return from a query. A query can either be a filter or search command",
+        ),
+        (
+            "untag <tag> <query>",
+            "Untags all references that return from a query. A query can either be a filter or search command",
+        ),
+        (
+            "untag <tag> <citekey list>",
+            "Untags all references that are passed in the list of citekeys",
+        ),
+        (
+            "mer <filename1> <filename2> <new_filename>",
+            "Merge the references from two bib files into one file",
+        ),
+        (
+            "mer -all <new_filename>",
+            "Merge all bib files in the current working directory",
+        ),
+        ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
+        (
+            "search <filename> <searchterm>",
+            "Displays references with a certain searchterm",
+        ),
+        (
+            "filter <filename> <field> [value=None]",
+            "Displays references with a certain field (OPTIONAL: a value in that field)",
+        ),
+        (
+            "enr <filename>",
+            "Enriches a bibfiles empty DOI and URL fields by getting information from the web",
+        ),
+    ],
+    f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
+        ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
+        ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
+        (
+            "checkout <filename> <commit_hash>",
+            "Checkout to a historic version of the file",
+        ),
+        ("h_del <filename>", "Delete all the history logs for a file"),
+        ("history <filename>", "Show the historic commit graph"),
+        (
+            "comment <filename> <commit_hash> <comment>",
+            "Add a comment to a specific commit",
+        ),
+    ],
+}
 
 def print_in_green(arg):
     print(f"{GREEN}{arg}{RESET}")
@@ -38,61 +159,27 @@ def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
 
 
-CONFIG_FILE = "config.json"
-
-COMMANDS = [
-    ("help", "Display the current menu"),
-    ("load <absolute/path/to/file>", "Load a particular file into the working directory"),
-    ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
-    ("list", "Lists all the bib files in the current working directory"),
-    ("pwd", "Prints the current working directory"),
-    ("abb", "Display the abbreviations legend"),
-    (
-        "view <filename>",
-        "View the content of a certain .bib file from your current working directory",
-    ),
-    ("quit", "Close the BibSteak CLI"),
-    ("search <filename> <searchterm>", "Displays references with a certain searchterm"),
-    (
-        "gr <filename> [descending=False]",
-        "Group references of a bib file based on a certain field",
-    ),
-    (
-        "filter <filename> <field>, [value]",
-        "Displays references with a certain field (OPTIONAL: a value in that field)"
-    ),
-    ("exp <filename>", "Expand all abbreviations in the file"),
-    ("col <filename>", "Collapse all abbreviations in the file"),
-    (
-        "br <filename> <fields> <old string> <new string>",
-        "Replace all occurrences in given fields",
-    ),
-    (
-        "ord <filename> <field> [descending=False]",
-        "Order the references based on a certain field",
-    ),
-    ("clean <filename>", "Cleans file according to rules in config."),
-    (
-        "sub -e <filename> <new_filename>, <entry_types>",
-        "Creates a sub .bib file with only specified entry " "types.",
-    ),
-    (
-        "sub -t <filename> <new_filename>, <tags>",
-        "Creates a sub .bib file with only references with specified " "tags.",
-    ),
-    (
-        "mer <filename1> <filename2> <new_filename>",
-        "Merge the references from two bib files into one file.",
-    ),
-    (
-        "mer -all <new_filename>",
-        "Merge all bib files in the current working directory.",
-    ),
-    (
-        "graph [k_regular=2]",
-        "Generates a directed K-regular graph of a bib file"
-    ),
-]
+def print_error_msg(error_type: Exception, msg):
+    error_type = error_type.__class__.__name__
+    match error_type:
+        case "JSONDecodeError":
+            print_in_yellow(
+                f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually"
+            )
+        case "ValueError" | "IndexError":
+            print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
+        case "FileNotFoundError":
+            print_in_yellow(
+                f"Path to {CYAN}'{msg.filename}'{YELLOW} not found! Check your spelling"
+            )
+        case "PermissionError":
+            print_in_yellow(
+                f"Permission to access {CYAN}'{msg.filename}'{YELLOW} was denied"
+            )
+        case "Exception":
+            print_in_yellow(f"{RED}Unexpected error: {YELLOW}{msg}")
+        case _:
+            print_in_yellow(f"{RED}{error_type}: {YELLOW}{msg}")
 
 
 def completer(text, state):
@@ -102,7 +189,7 @@ def completer(text, state):
         options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
     else:
         try:
-            wd = get_working_directory_path()
+            wd = json_loader.get_wd_path()
             files = [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
             ]
@@ -113,32 +200,6 @@ def completer(text, state):
         return options[state]
     else:
         return None
-
-
-
-def completer(text, state):
-    line = readline.get_line_buffer()
-    split_line = line.strip().split()
-    if len(split_line) <= 1:
-        options = [cmd[0] for cmd in COMMANDS if cmd[0].startswith(text)]
-    else:
-        try:
-            wd = get_working_directory_path()
-            files = [f for f in os.listdir(wd) if f.endswith('.bib') and f.startswith(text)]
-            options = files
-        except Exception:
-            options = []
-    if state < len(options):
-        return options[state]
-    else:
-        return None
-
-
-def get_working_directory_path():
-    with open("config.json", "r") as f:
-        config = json.load(f)
-        working_directory_path = config["working_directory"]
-        return working_directory_path
 
 
 def get_bib_file_names(folder_path):
@@ -154,15 +215,15 @@ def get_bib_file_names(folder_path):
     return files
 
 
-def check_extension(new_file_name):
-    root, ext = os.path.splitext(new_file_name)
+def check_extension(filename):
+    root, ext = os.path.splitext(filename)
     if ext == "":
-        new_file_name += ".bib"
+        filename += ".bib"
     elif ext != ".bib":
-        raise ValueError(
-            "The new file name must have a .bib extension or no extension at all."
+        raise Exception(
+            f"The file name must have a .bib extension or no extension at all."
         )
-    return new_file_name
+    return filename
 
 
 def load_file_to_storage(source_path):
@@ -171,7 +232,7 @@ def load_file_to_storage(source_path):
     Creates the folder if it doesn't exist.
     """
     try:
-        working_directory = get_working_directory_path()
+        working_directory = json_loader.get_wd_path()
         os.makedirs(working_directory, exist_ok=True)
         filename = os.path.basename(source_path)
         name, extension = os.path.splitext(filename)
@@ -180,45 +241,79 @@ def load_file_to_storage(source_path):
         if extension == ".bib":
             shutil.copy(source_path, destination_path)
 
-            print(f"{GREEN}File '{filename}' loaded into the storage successfuly!")
+            print_in_green(
+                f"File {CYAN}'{filename}'{GREEN} loaded into the storage successfuly!"
+            )
         else:
             if extension == "":
-                raise ValueError("File has no extension. Only .bib files are allowed.")
+                raise ValueError("File has no extension! Only .bib files are allowed.")
             else:
                 raise ValueError(
-                    f"Invalid file extension: '{extension}'. Only .bib files are allowed."
+                    f"Invalid file extension: {RED}{extension}{YELLOW}! Only .bib files are allowed."
                 )
 
     except ValueError as e:
-        print(f"File Type Error: {e}")
-        return None
+        print_in_yellow(f"{e}")
+        return
     except FileNotFoundError as e:
-        print(f"File Not Found Error: {e.filename} not found.")
-        return None
+        print_in_yellow(f"File not found: {CYAN}'{e.filename}'")
+        return
     except PermissionError as e:
-        print(f"Permission Error: Permission to access '{e.filename}' was denied.")
-        return None
+        print_in_yellow(f"Permission to access {CYAN}'{e.filename}'{YELLOW} was denied")
     except shutil.SameFileError as e:
-        print(f"File Error: Source and destination represents the same file.")
-        return None
+        print_in_yellow(f"File Error: File already loaded to current working directory")
+        return
+    except OSError as e:
+        print_in_yellow(f"Invalid argument!")
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
+        print_in_yellow(f"Unexpected error: {e}")
+        return
 
 
-def display_help_commands(space_length = 60):
-    commands = sorted(COMMANDS, key=lambda command: command[0])
-    for command in commands:
-        print(command[0], (space_length - len(command[0])) * " ", command[1])
+def path_to_bibfileobj(filename) -> BibFile:
+    # if no working dir set raise error
+    wd_path = json_loader.get_wd_path()
+    filename = check_extension(filename)
+    path = os.path.join(wd_path, filename)
+    bibfileobj = file_parser.parse_bib(path)
+    return bibfileobj
 
-    print("")
+
+def parse_args(args) -> list:
+    try:
+        pattern = re.split(r"(\".*?\"|\'.*?\'|\[[^][]*]| )", args)
+        pattern = [x for x in pattern if x.strip()]
+        res = []
+        for x in pattern:
+            if x.startswith('"') and x.endswith('"'):
+                x = x.replace('"', "")
+            elif x.startswith("'") and x.endswith("'"):
+                x = x.replace("'", "")
+            elif x.startswith("[") and x.endswith("]"):
+                x = json.loads(x)
+            res.append(x)
+        return res
+    except json.JSONDecodeError as e:
+        print_in_yellow(
+            "Please check the syntax of your list. Do not use mixed quotation marks!"
+        )
 
 
-def display_abbreviations():
-    with open("abbreviations.json", "r") as f:
-        abreviations = json.load(f)
-        for key, value in abreviations.items():
-            print(f"{key} {(15 - len(key)) * ' '} {value[0]}")
+def print_abb_pretty():
+    abbs = json_loader.load_abbreviations()
+    if abbs == {}:
+        print_in_yellow("The tags file is empty")
+    else:
+        for key, value in abbs.items():
+            print(f"{BLUE}{key}{RESET} {(10 - len(key)) * ' '} {value[0]}")
+
+
+def print_json_pretty(jsondict: dict, spacelen: int):
+    if jsondict == {}:
+        print_in_yellow("The tags file is empty")
+    else:
+        for key, value in jsondict.items():
+            print(f"{BLUE}{key}{RESET} {(spacelen - len(key)) * ' '} {value}")
 
 
 class CLI(cmd.Cmd):
@@ -232,18 +327,16 @@ class CLI(cmd.Cmd):
             pass
 
     intro = f"""{MAGENTA}
-    _____  ___     _____ _______ ______         __  __       _____ __     ______ 
-    |  _ \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
-    | |_) |_| |__| (___    | |  | |__     /  \  | ' /      | |    | |      | |  
-    |  _ <| | '_ \___ \    | |  |  __|   / /\ \ |  <       | |    | |      | |  
+    _____    __     ____________ ______         __  __       _______      ______ 
+    |    \(_) |   / ____|__   __|  ____|   /\   | |/ /      / ____| |    |_   _|
+    | |_) |_| |_ | (___    | |  | |__     /  \  | ' /      | |    | |      | |  
+    |    <| |  _ \___  \   | |  |  __|   / /\ \ |  <       | |    | |      | |  
     | |_) | | |_) |___) |  | |  | |____ / ____ \| . \      | |____| |____ _| |_ 
     |____/|_|_.__/_____/   |_|  |______/_/    \_\_|\_\      \_____|______|_____|
     {RESET}                                                                                                                                                                                                                
     Welcome to BibStShell! Type 'help' to list commands.
-    The current/last working directory is: '{
-    get_working_directory_path() if get_working_directory_path() != "" else "No directory has been set"}'
-    If you want to change it use the set_directory <source_directory> command
-    and add the absolute path as an argument.
+    The current/last working directory is: {CYAN}{("'" + json_loader.get_wd_path() + "'") if json_loader.is_wd_path_set() else "None set"}{RESET}
+    If you want to change it use the cwd command 
     """
     prompt = f"{MAGENTA}BibSTEAK CLI >:{RESET}"
     completekey = "tab"
@@ -254,406 +347,715 @@ class CLI(cmd.Cmd):
 
     # commands
     def do_load(self, arg):
-        load_file_to_storage(arg)
+        """
+        Copy a file from source_path into the storage folder.
+        Creates the folder if it doesn't exist.
+        """
+        try:
+            arguments = parse_args(arg)
+            if arguments == []:
+                raise ValueError()
+
+            source_path = arguments[0]
+            filename = os.path.basename(source_path)
+            check_extension(filename)
+            destination_path = os.path.join(json_loader.get_wd_path(), filename)
+
+            # TODO: CHECK IF OVERRIDING FILE?
+
+            shutil.copy(source_path, destination_path)
+            print_in_green(
+                f"File {CYAN}'{source_path}'{GREEN} loaded into the storage successfully!"
+            )
+
+        except (IndexError, ValueError) as e:
+            print_error_msg(e, "load <absolute/path/to/file>")
+        except (
+            FileNotFoundError,
+            PermissionError,
+            shutil.SameFileError,
+            OSError,
+            Exception,
+        ) as e:
+            print_error_msg(e, e)
 
     def do_list(self, arg):
         try:
-            folder_path = get_working_directory_path()
+            folder_path = json_loader.get_wd_path()
 
             if os.listdir(folder_path):
                 files = get_bib_file_names(folder_path)
                 if files != []:
-                    print(f"Bib files in {folder_path}")
                     for file, index in files:
                         print(f"{BLUE}[{index}] {RESET}", file)
                 else:
-                    print("No .bib files found in the working directory!")
+                    print_in_yellow("No .bib files found in the working directory!")
             else:
-                print("The working directory is empty!")
-
+                print_in_yellow("The working directory is empty!")
         except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_error_msg(e, e)
 
     def do_pwd(self, arg):
-        print(
-            f"{BLUE}Current working directory: {get_working_directory_path() if get_working_directory_path() != '' else 'No working directory is selected.'}{RESET}"
-        )
+        if json_loader.is_wd_path_set():
+            print(
+                f"The current working directory is {CYAN}'{json_loader.get_wd_path()}'"
+            )
+        else:
+            print_in_yellow("No working directory is selected")
 
-    def do_cwd(self, wd_path):
-
+    def do_cwd(self, args):
         try:
-            if wd_path == "":
-                raise ValueError("No path provided. Please provide an absolute path.")
+            wd_path = parse_args(args)[0]
+
             if not os.path.exists(wd_path):
-                raise FileNotFoundError(f"Path not found: {wd_path}")
+                raise FileNotFoundError(None, None, wd_path)
             if not os.path.isdir(wd_path):
-                raise TypeError(f"The provided path is not a directory: {wd_path}")
+                raise TypeError(
+                    f"the provided path is not a directory: {CYAN}'{wd_path}'"
+                )
 
-            with open("config.json", "r") as f:
-                config = json.load(f)
-
+            config = json_loader.load_config()
             config["working_directory"] = wd_path
+            json_loader.dump_config(config)
 
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=2)
+            print_in_green(f"Directory successfully set to {CYAN}'{wd_path}'")
 
-            print_in_green(f"Directory successfully set to {wd_path}")
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "cwd <absolute/path/to/directory>")
+        except (FileNotFoundError, TypeError, Exception) as e:
+            print_error_msg(e, e)
 
-        except Exception as e:
-            print(f"Path Error: {e}")
-            return None
     def do_cd(self, wd_path):
         self.do_cwd(wd_path)
         return
 
     def do_help(self, arg):
-        display_help_commands()
+        for category, commands in COMMANDS.items():
+            print(f"\n{MAGENTA}{category}{RESET}")
+            ordered_commands = sorted(commands, key=lambda command: len(command[1]))
+            for command in ordered_commands:
+                print(
+                    f"{BLUE}> {RESET}",
+                    command[0],
+                    (50 - len(command[0])) * " ",
+                    f"{GREEN}{command[1]}",
+                )
 
     def do_abb(self, arg):
-        display_abbreviations()
+        try:
+            print_abb_pretty()
+        except json.JSONDecodeError as e:
+            print_error_msg(e, json_loader.ABBREVIATIONS_FILE)
+        except Exception as e:
+            print(e, e)
+
+    def do_config(self, arg):
+        try:
+            config = json_loader.load_config()
+            print_json_pretty(config, 40)
+        except json.JSONDecodeError as e:
+            print_error_msg(e, json_loader.CONFIG_FILE)
+        except Exception as e:
+            print(e, e)
 
     def do_quit(self, arg):
-        
+
         try:
-            ui.shutdown()          # stops uvicorn
+            ui.shutdown()  # stops uvicorn
         except Exception:
             pass
-        
-        print(f"{GREEN}Bye! - Shell closed{RESET}")
-        
 
-        
+        print_in_green("Bye! - Shell closed")
+
         return True  # returning True exits the loop
 
     def do_view(self, arg):
         try:
-            path = os.path.join(get_working_directory_path(), arg)
-            with open(path, "r") as f:
-                for line in f:
-                    print(f"{YELLOW}|>  {RESET}", line, end="")
 
-            print("\n")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            arguments = parse_args(arg)
+
+            if arguments == []:
+                print(f"{BLUE}Choose one of the following files to view:")
+                self.do_list(None)
+
+                index_str = input(f"{BLUE}Enter file index: {RESET}")
+
+                files = get_bib_file_names(json_loader.get_wd_path())  # Check if index is in range
+                index = int(index_str)
+                print(f"You selected {CYAN}'{files[index - 1][0]}'{RESET}")
+                file = files[index - 1]
+                filename = file[0]
+            else:
+                filename = check_extension(arguments[0])
+
+            bibfileobj = path_to_bibfileobj(filename)
+
+            if len(arguments) > 1 and arguments[1] == "-abb":
+                    view.print_bibfile_short(bibfileobj)
+            else:
+                view.print_bibfile_pretty(bibfileobj)
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "view <filename> [-abb]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_filter(self, args):
         try:
-            args_split = args.split()
+            args_split = parse_args(args)
 
             # get bibfileobj
             filename = args_split[0]
-            path = os.path.join(get_working_directory_path(), filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            bibfileobj = path_to_bibfileobj(filename)
 
             field = args_split[1]
 
             if len(args_split) == 3:
                 value = args_split[2].lower()
-                newFile = filterByFieldValue(bibfileobj, field, value)
-                if newFile == -1:
+                array = filtering.filterByFieldValue(bibfileobj, field, value)
+
+                if array == -1:
                     print_in_yellow(
-                        f"No references found with a field named {WHITE}{field}{YELLOW} with value {WHITE}{value}")
-                else:
-                    self.do_view_bibfile_obj(newFile)
+                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
+                    )
+                    return
+                self.do_view_array(array)
             else:
-                newFile = filterByFieldExistence(bibfileobj, field)
-                if newFile == -1:
-                    print_in_yellow(f"No references found with a field named {WHITE}{field}")
-                else:
-                    self.do_view_bibfile_obj(newFile)
-        except IndexError as e:
-            print_in_yellow(f"Index error! Specify arguments: <filename> <field> [OPT: value]")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
-        except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+                array = filtering.filterByFieldExistence(bibfileobj, field)
+                if array == -1:
+                    print_in_yellow(
+                        f"No references found with a field named {CYAN}'{field}'"
+                    )
+                    return
+                self.do_view_array(array)
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "filter <filename> <field> [value=None]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_search(self, args):
-
         try:
-            filename, searchterm = args.split()
-            path = os.path.join(get_working_directory_path(), filename)
-            bibfileobj = utils.file_parser.parse_bib(path, False)
+            filename, searchterm = parse_args(args)
+            bibfileobj = path_to_bibfileobj(filename)
 
-            newFile = search(bibfileobj, searchterm)
-            if newFile == -1:
-                print_in_green("No references match your search :(")
-            else:
-                self.do_view_bibfile_obj(newFile)
-        except IndexError as e:
-            print_in_yellow(f"Index error! Specify two arguments: <filename> <searchterm>")
-        except FileNotFoundError as e:
-            print_in_yellow(f"File {WHITE}\"{filename}\"{YELLOW} not found! Check your spelling.")
-        except Exception as e:
-            print_in_yellow(f"Unexpected error: {e}")
+            array = filtering.search(bibfileobj, searchterm)
+            if array == -1:
+                print_in_yellow(
+                    f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'"
+                )
+                return
 
-    def do_view_bibfile_obj(self, args):
-        for item in args.content:
+            self.do_view_array(array)
+        except (IndexError, ValueError) as e:
+            print_error_msg(e, "search <filename> <searchterm>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_view_array(self, args):
+        for item in args:
             print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
 
     def do_br(self, args):
         try:
-            filename, fields, old_string, new_string = args.split()
-            print(filename, fields, old_string, new_string)
+            arguments = parse_args(args)
 
-            # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            if len(arguments) == 3:
+                filename, old_string, new_string = arguments
+                fields = []
+            elif len(arguments) == 4:
+                filename, old_string, new_string, fields = arguments
+            else:
+                raise ValueError()
 
-            batch_editor.batch_replace(bib_file, fields, old_string, new_string)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            # generate fileobj
+            bib_file = path_to_bibfileobj(filename)
+
+            # get and save history of file
+            initialise_history(bib_file)
+
+            # do batch replace
+            bib_file = batch_editor.batch_replace(
+                bib_file, fields, old_string, new_string
+            )
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
 
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+        except ValueError as e:
+            print_error_msg(e, "br <filename> <old string> <new string> [fieldslist]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
-    def do_gr(self, args):
+    def do_ord(self, args):
         try:
-            if len(args.split()) > 1:
-                filename, order = args.split()
-                order = GroupingType.ZTOA if order in ["True", "true", "1", "Yes", "yes"] else GroupingType.ATOZ
+            arguments = parse_args(args)
+
+            if len(arguments) > 1:
+                filename, order = arguments[0], arguments[1]
+                order = (
+                    ordering.GroupingType.ZTOA
+                    if order in ["True", "true", "1", "Yes", "yes"]
+                    else ordering.GroupingType.ATOZ
+                )
             else:
-                filename = args
-                order = GroupingType.ATOZ
-                
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+                filename = arguments[0]
+                order = ordering.GroupingType.ATOZ
 
-            sortByReftype(bib_file, order)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            bib_file = path_to_bibfileobj(filename)
 
-            print_in_green(f"Grouping by reference done successfully in {order.name} order")
+            initialise_history(bib_file)
+            ordering.order_by_entry_type(bib_file, order)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
 
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_in_green(
+                f"Grouping by reference done successfully in {order.name} order"
+            )
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "ord <filename> [reverse=False]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_exp(self, arg):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
+                raise ValueError()
 
-            # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
 
         except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
-        except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_error_msg(e, "exp <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_col(self, arg):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
+                raise ValueError()
 
-            # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
 
         except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
-        except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_error_msg(e, "col <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
-    def do_sub(self, args):
+    def do_tag(self, args):
         try:
-            argument_list = args.split(maxsplit=3)
-            flag, filename, new_filename = argument_list[:3]
-            search_list = argument_list[3:][0]
-            path = os.path.join(get_working_directory_path(), filename)
-            new_filename = check_extension(new_filename)
-            file = utils.file_parser.parse_bib(path, True)
-            match flag:
-                case "-e":
-                    entry_types_list = ast.literal_eval(search_list)
-                    sub_file = sub_bib_entry_types(file, entry_types_list)
-                case "-t":
-                    tags = ast.literal_eval(search_list)
-                    sub_file = sub_bib_tags(file, tags)
-                case _:
-                    print("Flag not supported!")
+            arguments = parse_args(args)
+            flag = arguments[0]
+
+            if flag == "-ls":
+                tags = json_loader.load_tags()
+                print_json_pretty(tags,10)
+            else:
+                tag = arguments[0]
+                query = arguments[1:]
+                query_type = query[0]
+                filename = query[1]
+                bibfileobj = path_to_bibfileobj(filename)
+                term = query[2]
+                array = []
+
+                match query_type:
+                    case "search":
+                        array = filtering.search(bibfileobj, term)
+                    case "filter":
+                        if len(query) == 3:
+                            array = filtering.filterByFieldExistence(bibfileobj, term)
+                        elif len(query) == 4:
+                            array = filtering.filterByFieldValue(
+                                bibfileobj, term, query[3]
+                            )
+                    case _:
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
+
+                # no queries returned, tell the user
+                if array == -1:
+                    print_in_yellow("Query returns no matches! No tags have been added")
                     return
 
-            new_path = os.path.join(get_working_directory_path(), new_filename)
+                tagging.tag_refs(tag, array)
+                print_in_green("Successfully added tags!")
+
+        except (
+            json.JSONDecodeError
+        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            print_error_msg(e, json_loader.TAGS_FILE)  # TODO: FOR ALL JSON
+        except (ValueError, IndexError) as e:
+            print_error_msg(
+                e,
+                f"\ntag -ls\ntag <tag> <query> {YELLOW}where {GREEN}<query>{YELLOW} is a search or filter command",
+            )
+        except FileNotFoundError as e:
+            print_error_msg(e, e)
+        except Exception as e:
+            print_error_msg(e, e)
+
+    def do_untag(self, args):
+        """
+        Untags either according to a query or according to a list of citekeys
+        """
+        try:
+            arguments = parse_args(args)
+            tag = arguments[0]
+            query = arguments[1:]
+
+            array = []
+            if type(query[0]).__name__ == "list":
+                array = query[0]
+            else:
+                match query[0]:
+                    case "search":
+                        bibfileobj = path_to_bibfileobj(query[1])
+                        array = filtering.search(bibfileobj, query[2])
+                    case "filter":
+                        bibfileobj = path_to_bibfileobj(query[1])
+                        if len(query) == 3:
+                            array = filtering.filterByFieldExistence(
+                                bibfileobj, query[2]
+                            )
+                        else:
+                            array = filtering.filterByFieldValue(
+                                bibfileobj, query[2], query[3]
+                            )
+                    case _:
+                        print_in_yellow("Invalid query!")
+                        raise ValueError()
+
+                # no queries returned, tell the user
+                if array == -1:
+                    print_in_yellow("Query returns no matches! No tags have been added")
+                    return
+
+                # get cite_keys only
+                array = [ref.cite_key for ref in array]
+
+            return (
+                print_in_green("Successfully removed tags!")
+                if not tagging.untag_refs(tag, array) == -1
+                else print_in_yellow(
+                    f"Tag {CYAN}'{tag}'{YELLOW} is not present in {CYAN}'tags.json'{YELLOW}. Removed nothing..."
+                )
+            )
+
+        except (
+            json.JSONDecodeError
+        ) as e:  # NOTE! THIS HAS TO BE ON TOP OF THE VALUEERROR
+            print_error_msg(e, json_loader.TAGS_FILE)
+        except (IndexError, ValueError) as e:
+            print_error_msg(
+                e,
+                f"\nuntag <tag> <citekey list>\nuntag <tag> <query> {YELLOW}where query can be a search or filter command",
+            )
+        except Exception as e:
+            print_error_msg(e, e)
+
+    def do_sub(self, args):
+        """
+        Makes a sub .bib file from a selected list of entry types or tags
+        """
+        try:
+            arguments = parse_args(args)
+
+            flag = arguments[0]
+            if not flag.startswith("-"):
+                raise ValueError()
+
+            filename = arguments[1]
+            file = path_to_bibfileobj(filename)
+
+            new_filename = arguments[2]
+            new_filename = check_extension(new_filename)
+
+            list = arguments[3]
+
+            match flag:
+                case "-e":
+                    sub_file = sub_bib.filter_entry_types(file, list)
+                case "-t":
+                    sub_file = sub_bib.filter_tags(file, list)
+
+            new_path = os.path.join(json_loader.get_wd_path(), new_filename)
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            utils.file_generator.generate_bib(sub_file, new_path, 15)
+            file_generator.generate_bib(sub_file, new_path)
             print_in_green("Sub operation done successfully!")
 
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-
-    def do_ord(self, args):
-        try:
-
-            def str_to_bool(s: str) -> bool:
-                return s.strip().lower() in ("True", "true", "1", "yes", "y", "on")
-
-            args_split = args.split()
-            filename = args_split[0]
-            field = args_split[1]
-            if len(args_split) == 3:
-                descending = str_to_bool(args_split[2])
-            else:
-                descending = False
-
-            path = os.path.join(get_working_directory_path(), filename)
-            file = utils.file_parser.parse_bib(path, True)
-            order_by_field(file, field, descending)
-            utils.file_generator.generate_bib(file, path, 15)
-
-            if descending == False:
-                print_in_green(f"Ascending order by '{field}' field done successfully!")
-            else:
-                print_in_green(
-                    f"Descending order by '{field}' field done successfully!"
-                )
-
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+        except (ValueError, IndexError) as e:
+            print_error_msg(
+                e,
+                f'\nsub -e <filename> <new filename> <entrytypes list>\nsub -t <filename> <new filename> <tags list> \n{YELLOW}Where the lists are structured like ["item1", "item2", ...]',
+            )
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_clean(self, arg):
         try:
             filename = arg
             if filename == "":
-                raise ValueError("No filename provided. Please provide a filename.")
+                raise ValueError()
 
-            # working_direcory =
-            path = os.path.join(get_working_directory_path(), filename)
-            bib_file = utils.file_parser.parse_bib(path, False)
+            bib_file = path_to_bibfileobj(filename)
 
+            initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            utils.file_generator.generate_bib(bib_file, bib_file.file_name, 15)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
 
         except ValueError as e:
-            print(f"Argument error: {e}")
-            return None
-        except FileNotFoundError as e:
-            print(f"File error: {e.filename} not found.")
-            return None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
+            print_error_msg(e, "clean <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def do_mer(self, args):
         try:
-            argument_list = args.split()
+            argument_list = parse_args(args)
             if len(argument_list) == 2 and argument_list[0] == "-all":
                 new_file_name = argument_list[1]
                 new_file_name = check_extension(new_file_name)
-                wd = get_working_directory_path()
+                wd = json_loader.get_wd_path()
                 if not os.listdir(wd):
-                    print("The working directory is empty!")
+                    print_in_yellow("The working directory is empty!")
                     return
                 file_names = get_bib_file_names(wd)
-                path = os.path.join(get_working_directory_path(), file_names[0][0])
-                merged_bib_file = utils.file_parser.parse_bib(path, False)
+                merged_bib_file = path_to_bibfileobj(file_names[0][0])
                 for file_name, index in file_names:
                     if index == 1:
                         continue
-                    path = os.path.join(get_working_directory_path(), file_name)
-                    bib_file = utils.file_parser.parse_bib(path, False)
+                    bib_file = path_to_bibfileobj(file_name)
                     merged_bib_file = merge.merge_files(merged_bib_file, bib_file)
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
-                utils.file_generator.generate_bib(merged_bib_file, out_path, 15)
+                out_path = os.path.join(json_loader.get_wd_path(), new_file_name)
+                file_generator.generate_bib(merged_bib_file, out_path)
 
             else:
-                file_name_1, file_name_2, new_file_name = args.split()
+                file_name_1, file_name_2, new_file_name = parse_args(args)
                 new_file_name = check_extension(new_file_name)
 
-                path_1 = os.path.join(get_working_directory_path(), file_name_1)
-                path_2 = os.path.join(get_working_directory_path(), file_name_2)
-                bib_file_1 = utils.file_parser.parse_bib(path_1, False)
-                bib_file_2 = utils.file_parser.parse_bib(path_2, False)
+                bib_file_1 = path_to_bibfileobj(file_name_1)
+                bib_file_2 = path_to_bibfileobj(file_name_2)
 
                 merge_result = merge.merge_files(bib_file_1, bib_file_2)
+
+                # TODO: check if overriding file?
+
                 # Write output inside the configured working directory
-                out_path = os.path.join(get_working_directory_path(), new_file_name)
-                utils.file_generator.generate_bib(merge_result, out_path, 15)
+                out_path = os.path.join(json_loader.get_wd_path(), new_file_name)
+                file_generator.generate_bib(merge_result, out_path)
 
             print_in_green("Files have been merged successfully!")
 
         except ValueError as e:
-            if "not enough values to unpack" in str(e) or "too many values to unpack" in str(e):
-                print(
-                    "Argument error: Incorrect number of arguments. Please provide three arguments: <filename1> "
-                    "<filename2> <new_filename>."
-                )
-            else:
-                print(f"Argument error: {e}")
-        except FileNotFoundError as e:
-            print(f"File error: {os.path.basename(e.filename)} not found.")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            
-            
+            print_error_msg(e, "mer <filename1> <filename2> <new_filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
     def do_graph(self, args):
-        if args:
-            k_regular = int(args)
-        else:
-            k_regular = 2
-        
-        if get_working_directory_path() == '':
-            print(f"{RED}A working directory is not set! - Pick a folder path with the cd command {RESET}")
-        else:
-            print(f"{BLUE}PLEASE CHOOSE ONE FILE FROM WD BY INDEX FOR GRAPH GENERATION{RESET}")
-            self.do_list("")
-            
+
+        try:
+            if args:
+                if len(parse_args(args)) > 1:
+                    raise ValueError()
+                k_regular = int(args)
+            else:
+                k_regular = 2
+
+            print(f"{BLUE}PLEASE CHOOSE A FILE FOR GRAPH GENERATION{RESET}")
+            self.do_list(None)
+
             index_str = input(f"{BLUE}Enter file index: {RESET}")
-            
-            try:
-                files = get_bib_file_names(get_working_directory_path()) # Check if index is in range
-                index = int(index_str)
-                print(f"You selected the file: {files[index-1][0]}")  
-                file = (files[index-1])    
-                file_name = file[0]
-                path = os.path.join(get_working_directory_path(), file_name)
-                bibfileobj = utils.file_parser.parse_bib(path, False)  
-                graph.generate_graph(bibfileobj, k_regular)
-                
-                
-            except ValueError:
-                print(f"{RED}Invalid index. Please enter a number.{RESET}")
-                
+
+            files = get_bib_file_names(
+                json_loader.get_wd_path()
+            )  # Check if index is in range
+            index = int(index_str)
+            print(f"You selected {CYAN}'{files[index - 1][0]}'{RESET}")
+            file = files[index - 1]
+            file_name = file[0]
+            bibfileobj = path_to_bibfileobj(file_name)
+            graph.generate_graph(bibfileobj, k_regular)
+
+        except KeyboardInterrupt as e:
+            print(f"{RED}ABORTED")
+        except ValueError as e:
+            print_error_msg(e, "graph [k_regular=2]")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_undo(self, args):
+        try:
+            argument_list = parse_args(args)
+
+            if len(argument_list) < 1:
+                raise ValueError()
+            elif len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+            # TODO: handle else case (filename and step will not be initialised)
+
+            path = os.path.join(json_loader.get_wd_path(), filename)
+            bib_file = file_parser.parse_bib(path)
+            undo(bib_file, step)
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "undo <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_redo(self, args):
+        try:
+            argument_list = parse_args(args)
+
+            if len(argument_list) < 1:
+                raise ValueError()
+            elif len(argument_list) == 1:
+                filename = args
+                step = 1
+            elif len(argument_list) == 2:
+                filename = argument_list[0]
+                step = int(argument_list[1])
+            # TODO: handle else case (filename and step will not be initialised)
+
+            path = os.path.join(json_loader.get_wd_path(), filename)
+            bib_file = file_parser.parse_bib(path)
+            redo(bib_file, step)
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "redo <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_checkout(self, args):
+        try:
+            argument_list = parse_args(args)
+            filename = argument_list[0]
+            commit_hash = argument_list[1]
+
+            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
+                raise FileNotFoundError(None, None, filename)
+
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+
+            if not os.path.isfile(checkout_path):
+                raise Exception(
+                    f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid"
+                )
+
+            bib_file = path_to_bibfileobj(filename)
+            checkout(bib_file, commit_hash)
+            print_in_green(f"Checkout done successfully to commit {CYAN}{commit_hash}")
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "checkout <filename> <commit_hash>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_comment(self, args):
+        try:
+            argument_list = parse_args(args)
+            filename = argument_list[0]
+            commit_hash = argument_list[1]
+            checkout_comment = argument_list[2]
+
+            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
+                raise FileNotFoundError(None, None, filename)
+
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            checkout_path = os.path.join(hist_dir_path, commit_hash)
+
+            if not os.path.isfile(checkout_path):
+                raise Exception(
+                    f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid"
+                )
+
+            path = os.path.join(json_loader.get_wd_path(), filename)
+            bib_file = file_parser.parse_bib(path)
+            comment(bib_file, commit_hash, checkout_comment)
+            print_in_green(f"Commenting done successfuly")
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "comment <filename> <commit_hash> <comment>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_history(self, args):
+        try:
+            filename = args
+            path = os.path.join(json_loader.get_wd_path(), filename)
+            bib_file = file_parser.parse_bib(path)
+
+            history(bib_file)
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "history <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_h_del(self, args):
+        try:
+            filename = args
+            if filename == "":
+                raise ValueError()
+
+            bib_file = path_to_bibfileobj(filename)
+            delete_history(bib_file)
+            print_in_green(f"History of {CYAN}'{filename}'{GREEN} deleted successfuly!")
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "del <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
+
+    def do_enr(self, arg):
+        try:
+            filename = arg
+            if filename == "":
+                raise ValueError()
+
+            bib_file = path_to_bibfileobj(filename)
+            enrichment.sanitize_bib_file(bib_file)
+            file_generator.generate_bib(bib_file, bib_file.file_name)
+            commit(bib_file)
+
+            print_in_green("Enrichment has been done successfully!")
+
+        except (ValueError, IndexError) as e:
+            print_error_msg(e, "enr <filename>")
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print_error_msg(e, e)
 
     def default(self, line):
-        print("Command not found!")
+        print_in_yellow("Command not found!")
 
     def emptyline(self):
         pass
 
     def filename_completions(self, text):
-        wd = get_working_directory_path()
+        wd = json_loader.get_wd_path()
         try:
             return [
                 f for f in os.listdir(wd) if f.endswith(".bib") and f.startswith(text)
@@ -673,7 +1075,7 @@ class CLI(cmd.Cmd):
     def complete_exp(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
-    def complete_rg(self, text, line, begidx, endidx):
+    def complete_gr(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
     def complete_br(self, text, line, begidx, endidx):
@@ -697,10 +1099,16 @@ class CLI(cmd.Cmd):
     def complete_mer(self, text, line, begidx, endidx):
         return self.filename_completions(text)
 
+    def complete_enr(self, text, line, begidx, endidx):
+        return self.filename_completions(text)
+
     # Add similar methods for other commands that take filenames as arguments
 
 
 if __name__ == "__main__":
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
-    CLI().cmdloop()
+    try:
+        CLI().cmdloop()
+    except KeyboardInterrupt as e:
+        print_in_green(f"An interruption has occured! - Shell closed")

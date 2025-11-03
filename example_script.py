@@ -17,6 +17,7 @@ def enr_clean_col(absolute_path):
 
 
 if __name__ == '__main__':
+    # You can run this script using 'python example_script.py -path=<absolute\path>'
     parser = argparse.ArgumentParser(
         description="Script that enriches, cleans and collapses original file, while saving history."
     )

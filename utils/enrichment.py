@@ -43,14 +43,14 @@ def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0
         if cr and is_same_paper(title, author, cr):
             responses.append(cr)
     except Exception as e:
-        print(e)
+        raise Exception(e)
 
     try:
         db = _search_dblp(session, query, timeout= timeout)
         if db and is_same_paper(title, author, db):
             responses.append(db)
     except Exception as e:
-        print(e)
+        raise Exception(e)
 
     try:
         dc = _search_datacite(session, query, timeout= timeout)

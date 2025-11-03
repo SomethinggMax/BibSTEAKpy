@@ -1,5 +1,5 @@
 from objects import BibFile, Reference, String
-from utils import file_parser, file_generator
+from utils import file_parser, file_generator, cleanup
 
 
 def batch_replace(bib_file: BibFile, fields_to_edit: list[str], old_string: str, new_string: str) -> BibFile:
@@ -106,41 +106,24 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: S
                     if number_of_occurrences == 0:
                         continue
                     found = True
-
-                    def replace_string_and_return_count(old_string: str, new_string: str) -> int:
-                        updated_data = fields[field_type]
-                        count = updated_data.count(old_string)
-                        fields[field_type] = updated_data.replace(old_string, new_string)
-                        return count
-
                     if data == "{" + string.long_form + "}" or data == "\"" + string.long_form + "\"":
                         fields[field_type] = string.abbreviation
-                        number_of_occurrences -= 1
                     else:
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "{" + string.long_form + "}", "# " + string.abbreviation + " #")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "\"" + string.long_form + "\"", "# " + string.abbreviation + " #")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "{" + string.long_form, "# " + string.abbreviation + " {")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "\"" + string.long_form, "# " + string.abbreviation + " \"")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            string.long_form + "}", "} # " + string.abbreviation)
-                        number_of_occurrences -= replace_string_and_return_count(
-                            string.long_form + "\"", "\" # " + string.abbreviation)
-                        if number_of_occurrences != 0:
-                            first_char = data[0]
-                            if first_char == "{":
-                                number_of_occurrences -= replace_string_and_return_count(
-                                    string.long_form, "} # " + string.abbreviation + " # {")
-                            elif first_char == "\"":
-                                number_of_occurrences -= replace_string_and_return_count(
-                                    string.long_form, "\" # " + string.abbreviation + " # \"")
-                            else:
-                                raise ValueError("Could not determine type of enclosure for field.")
-                    if number_of_occurrences != 0:
-                        raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
+                        updated_data = cleanup.remove_enclosure(fields[field_type])
+                        # Replace start of field.
+                        if updated_data.startswith(string.long_form):
+                            updated_data = string.abbreviation + " # \"" + updated_data[len(string.long_form):]
+                        else:
+                            updated_data = "\"" + updated_data
+                        # Replace end of field
+                        if updated_data.endswith(string.long_form):
+                            updated_data = updated_data[:-len(string.long_form)] + "\" # " + string.abbreviation
+                        else:
+                            updated_data = updated_data + "\""
+                        # Replace all occurrences in the middle.
+                        updated_data = updated_data.replace(string.long_form, "\" # " + string.abbreviation + " # \"")
+
+                        fields[field_type] = updated_data
     if found:
         existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
         if string.abbreviation not in existing_string_dict:

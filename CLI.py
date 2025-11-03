@@ -159,14 +159,15 @@ def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
 
 
-def print_error_msg(error_type: Exception, msg):
-    error_type = error_type.__class__.__name__
+def print_error_msg(e: Exception, msg):
+    error_type = e.__class__.__name__
     match error_type:
         case "JSONDecodeError":
             print_in_yellow(
                 f"Something has gone wrong with {CYAN}'{msg}'{YELLOW}! Please check it manually"
             )
         case "ValueError" | "IndexError":
+            print_in_yellow(f"{RED}Argument Error: {YELLOW}{e}")
             print_in_yellow(f"The command should be invoked as follows: {GREEN}{msg}")
         case "FileNotFoundError":
             print_in_yellow(

@@ -1,6 +1,9 @@
 
 # TODO: Make sure hashes do not collide
 # TODO: Better handle exceptions in the CLI and success/failure messages
+# TODO: Integrate timestamps and comments
+# TODO: First File Change
+# TODO: Improve history visualisation
 
 import os, json
 import time
@@ -36,7 +39,6 @@ class Node(object):
 def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
     return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
-
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -245,8 +247,34 @@ def history(bibfile: BibFile):
     adj_list = tracker["parent_to_childs"]
     tree = Node(parent_root)
     build_graph(tree, adj_list)
+    print("")
     print_graph(tree, indent=0, parent=True, current_parent=current_parent)
-
+    print_table(tracker)
+    
+    
+def print_table(tracker):
+    full_list = []
+    for parent, childs in (tracker["parent_to_childs"]).items():
+        if parent not in full_list:
+            full_list.append(parent)
+            
+        for child in childs:
+            if child not in full_list:
+                full_list.append(child)
+          
+    print("")
+    print(60 * "-")
+    print(f"| {10*' '} COMMIT HASH {10*' '} | {4*' '}  TIMESTAMP {4*' '} |")
+    print(60 * "-")
+          
+    for hash in full_list:
+        print(f"| {hash}  |  {tracker['timestamp'][hash]} |")
+        
+    print(60 * "-")
+    
+    # TODO: If comment, display comment column as well
+    
+    
     
 def build_graph(parent, adj_list):
     if parent.name in adj_list:

@@ -14,7 +14,7 @@ GREY = "\033[030m"
 def print_bibfile(bibfileobj: BibFile):
     for entry in bibfileobj.content:
         if type(entry) == String:
-            print(f"@string{{{entry.abbreviation} {(10 - len(entry.abbreviation)) * ' '}= {entry.long_form}{((10 - len(entry.long_form)) * ' ' + "%" + entry.comment_above_string) if entry.comment_above_string else ""}}}")
+            print(f"@string{{{entry.abbreviation} {(10 - len(entry.abbreviation)) * ' '}= {entry.long_form}{((10 - len(entry.long_form)) * ' ' + '%' + entry.comment_above_string) if entry.comment_above_string else ''}}}")
         elif type(entry) == Reference:
             print("")
             print(f"@{entry.entry_type}{{{entry.cite_key}")
@@ -32,7 +32,7 @@ def print_bibfile(bibfileobj: BibFile):
 def print_bibfile_pretty(bibfileobj: BibFile):
     for entry in bibfileobj.content:
         if type(entry) == String:
-            print(f"{YELLOW}@string {(16 - len("@string")) * ' '}{GREEN}{entry.abbreviation} {WHITE}{(8 - len(entry.abbreviation)) * ' '} {entry.long_form}{((10 - len(entry.long_form)) * ' ' + "%" + entry.comment_above_string) if entry.comment_above_string else ""}")
+            print(f"{YELLOW}@string {(16 - len('@string')) * ' '}{GREEN}{entry.abbreviation} {WHITE}{(8 - len(entry.abbreviation)) * ' '} {entry.long_form}{((10 - len(entry.long_form)) * ' ' + '%' + entry.comment_above_string) if entry.comment_above_string else ''}")
         elif type(entry) == Reference:
             print("")
             print(f"{BLUE}@{entry.entry_type}{(16 - len(entry.entry_type)) * ' '}{GREEN}{entry.cite_key}{WHITE}")
@@ -51,7 +51,7 @@ def print_bibfile_pretty(bibfileobj: BibFile):
             print(f"{GREY}% {entry.comment}{WHITE}")
 
 def print_bibfile_short(bibfileobj: BibFile):
-    print(f"{BLUE}ENTRY TYPE {(15 - len("entry type")) * ' '}{GREEN}CITE KEY {(20 - len("cite key")) * ' '}{WHITE}TITLE{(30 - len("TITLE")) * ' '} AUTHOR{(30 - len("AUTHOR")) * ' '} YEAR")
+    print(f"{BLUE}ENTRY TYPE {(15 - len('entry type')) * ' '}{GREEN}CITE KEY {(20 - len('cite key')) * ' '}{WHITE}TITLE{(30 - len('TITLE')) * ' '} AUTHOR{(30 - len('AUTHOR')) * ' '} YEAR")
     print("")
     for entry in bibfileobj.get_references():
         things = [entry.get_fields().get("title"), entry.get_fields().get("author"), entry.get_fields().get("year")]

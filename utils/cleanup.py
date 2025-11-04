@@ -95,6 +95,9 @@ def lower_fields(reference: Reference):
 
 def order_field_names(reference: Reference, field_order: list[str]) -> Reference:
     def order_key(item: (str, str)):
+        # Use order from field_order.
+        # If field is not in field_order return the len(field_order).
+        # This means that all other fields will have the same value, so the original order will be kept.
         return field_order.index(item[0]) if item[0] in field_order else len(field_order)
 
     fields = copy(reference).get_fields()
@@ -104,6 +107,7 @@ def order_field_names(reference: Reference, field_order: list[str]) -> Reference
             fields.pop(k)
     sorted_fields = sorted(fields.items(), key=order_key)
 
+    # Every field in sorted_fields will be removed and added in the sorted order.
     for field_type, data in sorted_fields:
         delattr(reference, field_type)
         setattr(reference, field_type, data)

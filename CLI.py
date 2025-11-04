@@ -581,7 +581,7 @@ class CLI(cmd.Cmd):
             bib_file = batch_editor.batch_replace(
                 bib_file, fields, old_string, new_string
             )
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
@@ -610,7 +610,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             ordering.order_by_entry_type(bib_file, order)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green(
@@ -632,7 +632,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
@@ -652,7 +652,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
@@ -817,7 +817,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
@@ -1102,7 +1102,7 @@ class CLI(cmd.Cmd):
             bib_file = path_to_bibfileobj(filename)
             initialise_history(bib_file)
             enrichment.sanitize_bib_file(bib_file)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Enrichment has been done successfully!")

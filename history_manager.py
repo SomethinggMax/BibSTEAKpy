@@ -309,7 +309,8 @@ def update_tree(adj_list, parent, tracker, current_parent):
             
         for child in parent.children:
             update_tree(adj_list, child, tracker, current_parent)
-            
+
+
 def add_child_to_parent(parent, child_name, current_parent, tracker):
     if child_name == current_parent:
         if child_name in tracker["comments"]:
@@ -329,85 +330,7 @@ def label_from_node(node) -> str:
         
         
 def same_commit(bib_file1: BibFile, bib_file2: BibFile):
-    same_r = same_references(bib_file1, bib_file2)
-    same_c = same_comments(bib_file1, bib_file2)
-    same_p = same_preambles(bib_file1, bib_file2)
-    same_s = same_strings(bib_file1, bib_file2)
-    same_ord = same_order(bib_file1, bib_file2)
-    
-    return same_r and same_c and same_p and same_s and same_ord
-
-
-def same_order(bib_file1: BibFile, bib_file2:BibFile):
-    references1 = bib_file1.get_references()
-    references2 = bib_file2.get_references()
-    
-    for index in range(len(references2)):
-        if references1[index].cite_key != references2[index].cite_key:
-            return False
-        
-    return True
-
-    
-def same_references(bib_file1: BibFile, bib_file2:BibFile):
-    entries1 = bib_file1.get_references()
-    entries2 = bib_file2.get_references()
-
-    string_entries1 = []
-    for entry in entries1:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if
-                         key not in ["comment_above_reference", "entry_type"]]
-        string_entries1.append(field_strings)
-        
-        
-    string_entries2 = []
-    for entry in entries2:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if
-                         key not in ["comment_above_reference", "entry_type"]]
-        string_entries2.append(field_strings)
-        
-    return string_entries2 == string_entries1
-
-
-def same_comments(bib_file1: BibFile, bib_file2:BibFile):
-    comments1 = bib_file1.get_comments()
-    comments2 = bib_file2.get_comments()
-    
-    string_comments1 = [com.comment for com in comments1]
-    string_comments2 = [com.comment for com in comments2]
-    
-    return string_comments1 == string_comments2
-
-
-def same_preambles(bib_file1: BibFile, bib_file2:BibFile):
-    comments1 = bib_file1.get_preambles()
-    comments2 = bib_file2.get_preambles()
-    
-    string_comments1 = [com.preamble for com in comments1]
-    string_comments2 = [com.preamble for com in comments2]
-    
-    return string_comments1 == string_comments2
-    
-    
-def same_strings(bib_file1: BibFile, bib_file2:BibFile):
-    entries1 = bib_file1.get_strings()
-    entries2 = bib_file2.get_strings()
-    
-    string_entries1 = []
-    for entry in entries1:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items()]
-        string_entries1.append(field_strings)
-
-    string_entries2 = []
-    for entry in entries2:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items()]
-        string_entries2.append(field_strings)
-        
-    return string_entries2 == string_entries1
+    return bib_file1.content == bib_file2.content
 
 
 def comment(bibfile: BibFile, commit_hash: str, comment: str):

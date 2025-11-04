@@ -57,7 +57,7 @@ def get_json_object(tracker_file_path):
 
 
 def initialise_history(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -95,7 +95,7 @@ def initialise_history(bibfile: BibFile):
             
             
 def commit(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -141,7 +141,7 @@ def commit(bibfile: BibFile):
         
 
 def undo(bibfile: BibFile, step=1):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -169,7 +169,7 @@ def undo(bibfile: BibFile, step=1):
     
 
 def redo(bibfile: BibFile, step=1):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -199,7 +199,7 @@ def redo(bibfile: BibFile, step=1):
 
 
 def checkout(bibfile: BibFile, commit_hash: str):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -226,7 +226,7 @@ def checkout(bibfile: BibFile, commit_hash: str):
     
     
 def history(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -300,118 +300,14 @@ def print_graph(tree, indent, parent=False, current_parent="None"):
                
     for child in tree.children:
         print_graph(child, indent + 1, parent=False, current_parent=current_parent)
-    
-    
-def update_tree(adj_list, parent, tracker, current_parent):
-    if label_from_node(parent) in adj_list:
-        for child_name in adj_list[label_from_node(parent)]:
-            add_child_to_parent(parent, child_name, current_parent, tracker)
-            
-        for child in parent.children:
-            update_tree(adj_list, child, tracker, current_parent)
-            
-def add_child_to_parent(parent, child_name, current_parent, tracker):
-    if child_name == current_parent:
-        if child_name in tracker["comments"]:
-            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
-        else:
-            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-    else:
-        if child_name in tracker["comments"]:
-            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
-        else:
-            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-    
-    
-def label_from_node(node) -> str:
-    lab = node.label
-    return lab.plain if isinstance(lab, Text) else str(lab)
         
         
 def same_commit(bib_file1: BibFile, bib_file2: BibFile):
-    same_r = same_references(bib_file1, bib_file2)
-    same_c = same_comments(bib_file1, bib_file2)
-    same_p = same_preambles(bib_file1, bib_file2)
-    same_s = same_strings(bib_file1, bib_file2)
-    same_ord = same_order(bib_file1, bib_file2)
-    
-    return same_r and same_c and same_p and same_s and same_ord
-
-
-def same_order(bib_file1: BibFile, bib_file2:BibFile):
-    references1 = bib_file1.get_references()
-    references2 = bib_file2.get_references()
-    
-    for index in range(len(references2)):
-        if references1[index].cite_key != references2[index].cite_key:
-            return False
-        
-    return True
-
-    
-def same_references(bib_file1: BibFile, bib_file2:BibFile):
-    entries1 = bib_file1.get_references()
-    entries2 = bib_file2.get_references()
-
-    string_entries1 = []
-    for entry in entries1:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if
-                         key not in ["comment_above_reference", "entry_type"]]
-        string_entries1.append(field_strings)
-        
-        
-    string_entries2 = []
-    for entry in entries2:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items() if
-                         key not in ["comment_above_reference", "entry_type"]]
-        string_entries2.append(field_strings)
-        
-    return string_entries2 == string_entries1
-
-
-def same_comments(bib_file1: BibFile, bib_file2:BibFile):
-    comments1 = bib_file1.get_comments()
-    comments2 = bib_file2.get_comments()
-    
-    string_comments1 = [com.comment for com in comments1]
-    string_comments2 = [com.comment for com in comments2]
-    
-    return string_comments1 == string_comments2
-
-
-def same_preambles(bib_file1: BibFile, bib_file2:BibFile):
-    comments1 = bib_file1.get_preambles()
-    comments2 = bib_file2.get_preambles()
-    
-    string_comments1 = [com.preamble for com in comments1]
-    string_comments2 = [com.preamble for com in comments2]
-    
-    return string_comments1 == string_comments2
-    
-    
-def same_strings(bib_file1: BibFile, bib_file2:BibFile):
-    entries1 = bib_file1.get_strings()
-    entries2 = bib_file2.get_strings()
-    
-    string_entries1 = []
-    for entry in entries1:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items()]
-        string_entries1.append(field_strings)
-
-    string_entries2 = []
-    for entry in entries2:
-        fields = entry.get_fields()
-        field_strings = [f"{key}: {value}" for key, value in fields.items()]
-        string_entries2.append(field_strings)
-        
-    return string_entries2 == string_entries1
+    return bib_file1.content == bib_file2.content
 
 
 def comment(bibfile: BibFile, commit_hash: str, comment: str):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -424,7 +320,7 @@ def comment(bibfile: BibFile, commit_hash: str, comment: str):
 
     
 def delete_history(bibfile: BibFile): 
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure

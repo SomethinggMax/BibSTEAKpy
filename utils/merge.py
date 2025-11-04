@@ -480,7 +480,7 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
 
 def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
     # File name will be set when generating the file, this is just temporary.
-    merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
+    merged_bib_file = BibFile(bib_file_1.file_path + '+' + bib_file_2.file_path)
 
     merged_bib_file.content = bib_file_1.get_preambles()  # Add preambles from file 1.
 

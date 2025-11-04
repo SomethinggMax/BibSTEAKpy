@@ -18,6 +18,10 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_braces": False,
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
+    "preferred_field_order": [
+        "author", "title", "year", "journal", "booktitle", "publisher",
+        "volume", "number", "pages", "doi", "url", "isbn", "issn", "abstract"
+    ]
 }
 
 # Get the directories relative to the  json_loader directory.

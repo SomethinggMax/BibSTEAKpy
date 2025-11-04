@@ -161,30 +161,30 @@ def print_in_yellow(arg):
 
 def print_error_msg(e: Exception, msg):
     ERROR_SIGN = ">|"
-    def print_err(red_txt: str, yellow_txt:str):
-        if red_txt == ERROR_SIGN:
-            print(f"{BLUE}{red_txt} {WHITE}{yellow_txt}")
-        else:
-            print(f"{RED}{red_txt} {YELLOW}{yellow_txt}")
+    def print_err1(red_txt: str, yellow_txt:str):
+        print(f"{RED}{red_txt} {YELLOW}{yellow_txt}")
+    
+    def print_err2(txt):
+        print(f"{BLUE}{ERROR_SIGN} {WHITE}{txt}")
 
     error_type = e.__class__.__name__
     match error_type:
         case "JSONDecodeError":
-            print_err("JSON Decode Error:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check {CYAN}'{msg}'{WHITE} manually")
+            print_err1("JSON Decode Error:", f"{e}")
+            print_err2(f"Perhaps check {CYAN}'{msg}'{WHITE} manually")
         case "ValueError" | "IndexError":
-            print_err("Argument Error:", f"{e}")
-            print_err(ERROR_SIGN,f"Invoke the command as follows: {GREEN}{msg}")
+            print_err1("Argument Error:", f"{e}")
+            print_err2(f"Invoke the command as follows: {GREEN}{msg}")
         case "FileNotFoundError":
-            print_err("FileNotFound:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check your spelling of {CYAN}'{msg.filename}'")
+            print_err1("FileNotFound:", f"{e}")
+            print_err2(f"Perhaps check your spelling of {CYAN}'{msg.filename}'")
         case "PermissionError":
-            print_err("Permission Error:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check your permissions on {CYAN}'{msg.filename}'{WHITE} manually")
+            print_err1("Permission Error:", f"{e}")
+            print_err2(f"Perhaps check your permissions on {CYAN}'{msg.filename}'{WHITE} manually")
         case "Exception":
-            print_err("Unexpected error:",f"{msg}")
+            print_err1("Unexpected error:",f"{msg}")
         case _:
-            print_err(f"{error_type}:", f"{msg}")
+            print_err1(f"{error_type}:", f"{msg}")
 
 
 def completer(text, state):

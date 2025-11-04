@@ -57,7 +57,7 @@ def get_json_object(tracker_file_path):
 
 
 def initialise_history(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -95,7 +95,7 @@ def initialise_history(bibfile: BibFile):
             
             
 def commit(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -141,7 +141,7 @@ def commit(bibfile: BibFile):
         
 
 def undo(bibfile: BibFile, step=1):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -169,7 +169,7 @@ def undo(bibfile: BibFile, step=1):
     
 
 def redo(bibfile: BibFile, step=1):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -199,7 +199,7 @@ def redo(bibfile: BibFile, step=1):
 
 
 def checkout(bibfile: BibFile, commit_hash: str):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -226,7 +226,7 @@ def checkout(bibfile: BibFile, commit_hash: str):
     
     
 def history(bibfile: BibFile):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure
@@ -307,7 +307,7 @@ def same_commit(bib_file1: BibFile, bib_file2: BibFile):
 
 
 def comment(bibfile: BibFile, commit_hash: str, comment: str):
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
@@ -320,7 +320,7 @@ def comment(bibfile: BibFile, commit_hash: str, comment: str):
 
     
 def delete_history(bibfile: BibFile): 
-    file_path = bibfile.file_name
+    file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
     # Ensure there exists a history and hist_filename directory structure

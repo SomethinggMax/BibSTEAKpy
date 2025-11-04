@@ -300,33 +300,6 @@ def print_graph(tree, indent, parent=False, current_parent="None"):
                
     for child in tree.children:
         print_graph(child, indent + 1, parent=False, current_parent=current_parent)
-    
-    
-def update_tree(adj_list, parent, tracker, current_parent):
-    if label_from_node(parent) in adj_list:
-        for child_name in adj_list[label_from_node(parent)]:
-            add_child_to_parent(parent, child_name, current_parent, tracker)
-            
-        for child in parent.children:
-            update_tree(adj_list, child, tracker, current_parent)
-
-
-def add_child_to_parent(parent, child_name, current_parent, tracker):
-    if child_name == current_parent:
-        if child_name in tracker["comments"]:
-            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
-        else:
-            parent.add(Text(child_name, "blue"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-    else:
-        if child_name in tracker["comments"]:
-            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}\nComment: {tracker['comments'][child_name]}").expand()
-        else:
-            parent.add(Text(child_name, "white"), data=f"Commit Time: {tracker['timestamp'][child_name]}").expand()
-    
-    
-def label_from_node(node) -> str:
-    lab = node.label
-    return lab.plain if isinstance(lab, Text) else str(lab)
         
         
 def same_commit(bib_file1: BibFile, bib_file2: BibFile):

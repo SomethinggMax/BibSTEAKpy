@@ -34,13 +34,6 @@ def _get_abstract_thresholds():
         weak = strong
     return strong, weak
 
-
-# Pretty printing / CLI formatting
-PREFERRED_FIELD_ORDER = [
-    'cite_key', 'author', 'title', 'year', 'journal', 'booktitle', 'publisher',
-    'volume', 'number', 'pages', 'doi', 'url', 'isbn', 'issn', 'abstract'
-]
-
 # URL domains considered relatively reliable for identity matching
 TRUSTED_URL_DOMAINS = {
     'doi.org', 'dx.doi.org', 'arxiv.org', 'dl.acm.org', 'ieeexplore.ieee.org',
@@ -58,7 +51,8 @@ def _stringify_field_value(value) -> str:
 
 
 def order_key(name: str):
-    return PREFERRED_FIELD_ORDER.index(name) if name in PREFERRED_FIELD_ORDER else len(PREFERRED_FIELD_ORDER), name
+    preferred_field_order = json_loader.load_config().get("preferred_field_order", [])
+    return preferred_field_order.index(name) if name in preferred_field_order else len(preferred_field_order), name
 
 
 def _ordered_field_names(ref: Reference) -> list:

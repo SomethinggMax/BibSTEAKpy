@@ -33,7 +33,7 @@ def print_refarray_short(refarray: list[Reference]):
     For each ref it will print [reftype, citekey, title, author, year]
     """
     print(f"{BLUE}{var_w_space("ENTRY TYPE", 15)}{GREEN}{var_w_space("CITE KEY", 20)}{WHITE}{var_w_space("TITLE", 30)}{var_w_space("AUTHOR", 30)}YEAR")
-    print("")
+    print(f"{BLUE}{15*"."} {GREEN}{20*"."} {WHITE}{30*"."} {30*"."} {4*"."}")
 
     for entry in refarray:
         #since title, author and year could be none, they get added dynamically
@@ -60,7 +60,7 @@ def print_refarray_short(refarray: list[Reference]):
                     str += var_w_space(field, 30)
             else: #if the field is none add a bunch of spaces as a placeholder
                 if field != fields[-1]:
-                    str += f"{30  * ' '}"
+                    str += f"{31  * ' '}"
         print(str)
             
 def print_ref_pretty(ref: Reference):

@@ -127,7 +127,7 @@ COMMANDS = {
             "Displays references with a certain searchterm (OPTIONAL: short form)",
         ),
         (
-            "filter <filename> <field> [value=None] [-sf]",
+            "filter <filename> <field> [value] [-sf]",
             "Displays references with a certain field (OPTIONAL: a value for that field) (OPTIONAL: short form)",
         ),
         (
@@ -494,8 +494,11 @@ class CLI(cmd.Cmd):
 
             bibfileobj = path_to_bibfileobj(filename)
 
-            if len(arguments) > 1 and arguments[1] == "-sf":
+            if len(arguments) > 1:
+                if arguments[1] == "-sf":
                     view.print_bibfile_short(bibfileobj)
+                else:
+                    raise ValueError("Invalid flag!")
             else:
                 view.print_bibfile_pretty(bibfileobj)
 
@@ -506,34 +509,31 @@ class CLI(cmd.Cmd):
 
     def do_filter(self, args):
         try:
-            args_split = parse_args(args)
+            arguments = parse_args(args)
 
             # get bibfileobj
-            filename = args_split[0]
+            filename = arguments[0]
             bibfileobj = path_to_bibfileobj(filename)
+            field = arguments[1]
 
-            field = args_split[1]
-
-            if len(args_split) == 3:
-                value = args_split[2].lower()
-                array = filtering.filterByFieldValue(bibfileobj, field, value)
-
-                if array == -1:
-                    print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
-                    )
-                    return
-                view.print_refarray_pretty(array)
-            else:
-                array = filtering.filterByFieldExistence(bibfileobj, field)
-                if array == -1:
-                    print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'"
-                    )
-                    return
-                view.print_refarray_pretty(array)
+            match len(arguments):
+                case 2:
+                    array = filtering.filterByFieldExistence(bibfileobj, field)
+                    view.print_refarray_pretty(array)
+                case 3:
+                    if arguments[2] == "-sf":
+                        array = filtering.filterByFieldExistence(bibfileobj, field)
+                        view.print_refarray_short(array)
+                    else:
+                        value = arguments[2]
+                        array = filtering.filterByFieldValue(bibfileobj, field, value)
+                        view.print_refarray_pretty(array)
+                case 4:
+                    value = arguments[2]
+                    array = filtering.filterByFieldValue(bibfileobj, field, value)
+                    view.print_refarray_short(array)
         except (ValueError, IndexError) as e:
-            print_error_msg(e, "filter <filename> <field> [value=None]")
+            print_error_msg(e, "filter <filename> <field> [value] [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -544,16 +544,11 @@ class CLI(cmd.Cmd):
             bibfileobj = path_to_bibfileobj(filename)
 
             array = filtering.search(bibfileobj, searchterm)
-            if array == -1:
-                print_in_yellow(
-                    f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'"
-                )
-                return
             
             if len(arguments) > 2 and arguments[2] == "-sf":
+                view.print_refarray_short(array)
+            else:
                 view.print_refarray_pretty(array)
-
-            view.print_refarray_pretty(array)
         except (IndexError, ValueError) as e:
             print_error_msg(e, "search <filename> <searchterm> [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:

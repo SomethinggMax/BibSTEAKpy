@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 import interface_handler
 from objects import BibFile, Reference, String
-from utils import batch_editor, json_loader
+from utils import batch_editor, json_loader, cleanup
 from difflib import SequenceMatcher
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -473,6 +473,11 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
 
 
 def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
+    clean_before_merge = json_loader.load_config().get("clean_before_merge", False)
+    if clean_before_merge:
+        cleanup.cleanup(bib_file_1)
+        cleanup.cleanup(bib_file_2)
+
     # File name will be set when generating the file, this is just temporary.
     merged_bib_file = BibFile(bib_file_1.file_path + '+' + bib_file_2.file_path)
 

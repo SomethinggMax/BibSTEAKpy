@@ -64,7 +64,7 @@ COMMANDS = {
         ("list", "Lists all the bib files in the current working directory"),
         ("pwd", "Prints the current working directory"),
         (
-            "view <filename> [-abb]",
+            "view <filename> [-sf]",
             "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)",
         ),
         # ("del <filename>", "Deletes a file"),
@@ -123,12 +123,12 @@ COMMANDS = {
         ),
         ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
         (
-            "search <filename> <searchterm>",
-            "Displays references with a certain searchterm",
+            "search <filename> <searchterm> [-sf]",
+            "Displays references with a certain searchterm (OPTIONAL: short form)",
         ),
         (
-            "filter <filename> <field> [value=None]",
-            "Displays references with a certain field (OPTIONAL: a value in that field)",
+            "filter <filename> <field> [value=None] [-sf]",
+            "Displays references with a certain field (OPTIONAL: a value for that field) (OPTIONAL: short form)",
         ),
         (
             "enr <filename>",
@@ -494,13 +494,13 @@ class CLI(cmd.Cmd):
 
             bibfileobj = path_to_bibfileobj(filename)
 
-            if len(arguments) > 1 and arguments[1] == "-abb":
+            if len(arguments) > 1 and arguments[1] == "-sf":
                     view.print_bibfile_short(bibfileobj)
             else:
                 view.print_bibfile_pretty(bibfileobj)
 
         except (ValueError, IndexError) as e:
-            print_error_msg(e, "view <filename> [-abb]")
+            print_error_msg(e, "view <filename> [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
@@ -523,7 +523,7 @@ class CLI(cmd.Cmd):
                         f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
                     )
                     return
-                self.do_view_array(array)
+                view.print_refarray_pretty(array)
             else:
                 array = filtering.filterByFieldExistence(bibfileobj, field)
                 if array == -1:
@@ -531,7 +531,7 @@ class CLI(cmd.Cmd):
                         f"No references found with a field named {CYAN}'{field}'"
                     )
                     return
-                self.do_view_array(array)
+                view.print_refarray_pretty(array)
         except (ValueError, IndexError) as e:
             print_error_msg(e, "filter <filename> <field> [value=None]")
         except (FileNotFoundError, PermissionError, Exception) as e:
@@ -539,7 +539,8 @@ class CLI(cmd.Cmd):
 
     def do_search(self, args):
         try:
-            filename, searchterm = parse_args(args)
+            arguments = parse_args(args)
+            filename, searchterm = arguments[0], arguments[1]
             bibfileobj = path_to_bibfileobj(filename)
 
             array = filtering.search(bibfileobj, searchterm)
@@ -548,16 +549,15 @@ class CLI(cmd.Cmd):
                     f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'"
                 )
                 return
+            
+            if len(arguments) > 2 and arguments[2] == "-sf":
+                view.print_refarray_pretty(array)
 
-            self.do_view_array(array)
+            view.print_refarray_pretty(array)
         except (IndexError, ValueError) as e:
-            print_error_msg(e, "search <filename> <searchterm>")
+            print_error_msg(e, "search <filename> <searchterm> [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
-
-    def do_view_array(self, args):
-        for item in args:
-            print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
 
     def do_br(self, args):
         try:

@@ -7,6 +7,7 @@ CONFIG_TEMPLATE = {
     "user_interface": "CLI",
     "working_directory": "",
     "add_abbreviations_as_strings": False,
+    "clean_before_merge": True,
     "remove_newlines_in_fields": False,
     "convert_special_symbols_to_unicode": True,
     "prefer_url_over_doi": False,
@@ -18,6 +19,10 @@ CONFIG_TEMPLATE = {
     "change_enclosures_to_braces": False,
     "change_enclosures_to_quotation_marks": False,
     "unnecessary_fields": ["ee", "venue"],
+    "preferred_field_order": [
+        "author", "title", "year", "journal", "booktitle", "publisher",
+        "volume", "number", "pages", "doi", "url", "isbn", "issn", "abstract"
+    ]
 }
 
 # Get the directories relative to the  json_loader directory.

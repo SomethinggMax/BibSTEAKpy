@@ -95,17 +95,34 @@ def get_input(prompt: str) -> str:
     return user_input
 
 
-def prompt_reference_comparison(ref1_text: str, ref2_text: str, header: str = "Possible duplicate references", option1: str = "Merge references", option2: str = "Keep both") -> int:
+def prompt_reference_comparison(ref1_text: str, ref2_text: str,
+                               header: str = "Possible duplicate references",
+                               option1: str = "Merge references",
+                               option2: str = "Keep ref 1 only",
+                               option3: str = "Keep ref 2 only",
+                               option4: str = "Keep both") -> int:
     if user_interface == "CLI":
         print_msg(colorize(header, 'bold'))
         print_msg(colorize("Reference 1:", 'dim'))
         show_lines([ref1_text])
         print_msg(colorize("Reference 2:", 'dim'))
         show_lines([ref2_text])
-        return get_selection("Enter your choice (1 or 2): ", 2)
+        show_lines([
+            f"1: {option1}",
+            f"2: {option2}",
+            f"3: {option3}",
+            f"4: {option4}",
+        ])
+        return get_selection("Enter your choice (1-4): ", 4)
     elif user_interface == "GUI":
-        resp = merge_object.prompt_reference_comparison(header, ref1_text, ref2_text, option1, option2)
-        return 1 if str(resp).strip() == '1' else 2
+        resp = merge_object.prompt_reference_comparison(header, ref1_text, ref2_text,
+                                                       option1, option2, option3, option4)
+        s = str(resp).strip()
+        try:
+            n = int(s)
+            return n if 1 <= n <= 4 else 1
+        except Exception:
+            return 1
 
 
 def prompt_field_conflict(field_name: str, value1: str, value2: str, header: str | None = None) -> int:
@@ -116,10 +133,12 @@ def prompt_field_conflict(field_name: str, value1: str, value2: str, header: str
         show_lines([value1])
         print_msg(colorize("2. Value from reference 2:", 'dim'))
         show_lines([value2])
-        return get_selection("Choose which to keep (1 or 2): ", 2)
+        show_lines(["3. Manual input"])
+        return get_selection("Choose which to keep or manual (1, 2, or 3): ", 3)
     elif user_interface == "GUI":
         resp = merge_object.prompt_field_conflict(title, value1, value2)
-        return 1 if str(resp).strip() == '1' else 2
+        s = str(resp).strip()
+        return 1 if s == '1' else (2 if s == '2' else 3)
 
 
 def prompt_abbreviation_conflict(long1: str, long2: str, abbr: str) -> int:

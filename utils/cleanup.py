@@ -93,6 +93,27 @@ def lower_fields(reference: Reference):
         setattr(reference, field_type.lower(), data)
 
 
+def order_field_names(reference: Reference, field_order: list[str]) -> Reference:
+    def order_key(item: (str, str)):
+        # Use order from field_order.
+        # If field is not in field_order return the len(field_order).
+        # This means that all other fields will have the same value, so the original order will be kept.
+        return field_order.index(item[0]) if item[0] in field_order else len(field_order)
+
+    fields = copy(reference).get_fields()
+    # Remove internal/meta fields from ordering context.
+    for k in ["comment_above_reference", "entry_type", "cite_key"]:
+        if k in fields:
+            fields.pop(k)
+    sorted_fields = sorted(fields.items(), key=order_key)
+
+    # Every field in sorted_fields will be removed and added in the sorted order.
+    for field_type, data in sorted_fields:
+        delattr(reference, field_type)
+        setattr(reference, field_type, data)
+    return reference
+
+
 def change_field_enclosure(reference: Reference, start_enclosure: str, end_enclosure: str):
     for field_type, data in reference.get_fields().items():
         if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
@@ -168,6 +189,7 @@ def cleanup(bib_file: BibFile):
     quotation_marks_enclosure = config.get("change_enclosures_to_quotation_marks", False)
 
     fields = config.get("unnecessary_fields", [])
+    field_order = config.get("preferred_field_order", [])
 
     if not comments:
         remove_comments(bib_file)
@@ -176,7 +198,6 @@ def cleanup(bib_file: BibFile):
 
     for entry in bib_file.content:
         if isinstance(entry, Reference):
-            remove_fields(entry, fields)
             if doi and url:
                 raise ValueError("Config file has invalid preferences set, prefer either doi or url, not both.")
             elif doi or url:
@@ -193,5 +214,8 @@ def cleanup(bib_file: BibFile):
                 change_field_enclosure(entry, '{', '}')
             if quotation_marks_enclosure:
                 change_field_enclosure(entry, '"', '"')
+
+            remove_fields(entry, fields)
+            order_field_names(entry, field_order)
 
     return bib_file

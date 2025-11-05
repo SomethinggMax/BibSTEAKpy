@@ -10,11 +10,13 @@ from utils.merge import *
 import subprocess
 from merge_ui import Merge
 import asyncio
-from utils import json_loader
+from utils import json_loader, cleanup
 import interface_handler
 import re
-from objects import BibFile, Reference
+from objects import BibFile
 import sys
+from utils.tagging import tag_refs
+import socket
 
 files = {}
 selected_file = None
@@ -29,6 +31,7 @@ connected_users = 0
 PRIMARY_COLOR = "#CCE0D4"
 SECONDARY_COLOR = "#9AC1A9"
 SUCCESS_COLOR = "#5D9874"
+
 # WARNING_COLOR = "#FBBF24"
 # ERROR_COLOR = "#EF4444"
 
@@ -110,9 +113,8 @@ def populate_files():
                     ui.image("icons/maximize.png").classes("w-5 h-5 cursor-pointer").on("click", on_maximize_click)
                     ui.label("Maximize").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/graph.png").classes("w-5 h-5 cursor-pointer mt-1").on("click", on_graph_click)
-                    ui.label("Visualize\nGraph").classes("font-bold text-xs text-center whitespace-pre-line")
-
+                    ui.image("icons/clean.png").classes("w-5 h-5 cursor-pointer").on("click", on_cleanup_click)
+                    ui.label("Clean").classes("font-bold text-xs")
 
 def toggle_file_selection(filename: str, checked: bool):
     """
@@ -156,13 +158,17 @@ def populate_refs_for_file(filename: str):
     Populates the column for REFERENCES with the REFERENCES in 
     the file and the corresponding buttons
     """
+    tags_dict = json_loader.load_tags()
+    load_tag_colors = getattr(json_loader, 'load_tag_colors', lambda: {})
+    tag_colors = load_tag_colors() or {}
+
     refs_col.clear()
     with refs_col:
         with ui.row().classes("items-center justify-between w-full mb-5"):
             ui.label("References").classes("font-bold text-lg")
             with ui.row().classes("items-center gap-4"):
                 with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/tag.png").classes("w-6 h-6 cursor-pointer").on("click")
+                    ui.image("icons/tag.png").classes("w-6 h-6 cursor-pointer").on("click", on_tag_click)
                     ui.label("Tag").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/filter.png").classes("w-6 h-6 cursor-pointer").on("click", on_filter_click)
@@ -172,6 +178,8 @@ def populate_refs_for_file(filename: str):
                     ui.label("Select All").classes("font-bold text-xs")
 
         bib_file = files[filename]
+        tags_dict = json_loader.load_tags() or {}
+
         if not getattr(bib_file, 'content', None):
             ui.label("(no references found)").classes("text-sm italic text-gray-600")
             return
@@ -182,10 +190,17 @@ def populate_refs_for_file(filename: str):
             year = normalize_field(getattr(ref, 'year', None) or "N.D.")
             short_label = f"{author} ({year}): {title}"
 
+            ref_tags = [tag for tag, cite_keys in tags_dict.items() if getattr(ref, 'cite_key', None) in (cite_keys or [])]
+            if ref_tags:
+                with ui.row().classes("ml-8 gap-1"):
+                    for tag in sorted(ref_tags):
+                        color = tag_colors.get(tag, "#F187D0")  # default light gray
+                        ui.label(tag).classes("text-[10px] px-2 py-[2px] rounded-md").style(f"background-color: {color}; color: black;")
+
             with ui.row().classes("items-center w-full gap-2"):
                 checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(
                     f"accent-color: {SUCCESS_COLOR};")
-                checkbox.value = ref in selected_references
+                checkbox.value = getattr(ref, 'cite_key', None) in selected_references
                 btn_classes = "flex-1 text-left"
                 if ref is selected_ref:
                     btn_classes += " bg-gray-300"
@@ -197,10 +212,13 @@ def toggle_reference_selection(ref, checked: bool):
     """
     Toggles the selection for the REFERENCES in the REFERENCES column
     """
+    key = getattr(ref, 'cite_key', None)
+    if not key:
+        return 
     if checked:
-        selected_references.add(ref)
+        selected_references.add(key)
     else:
-        selected_references.discard(ref)
+        selected_references.discard(key)
 
 
 def toggle_select_all_references(filename: str):
@@ -216,7 +234,7 @@ def toggle_select_all_references(filename: str):
         all_selected_references = False
     else:
         # Select all
-        selected_references = set(refs)
+        selected_references = {getattr(r,'cite_key', None) for r in refs if getattr(r, 'cite_key', None)}
         all_selected_references = True
 
     populate_refs_for_file(filename)
@@ -386,68 +404,82 @@ def on_filter_click():
             ui.button("Apply", on_click=apply_sort, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
 
-
-def launch_graph_process(bib_path: str, k_regular: int):
-    python = sys.executable
-    graph_module = "graph"
-
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
-
-    code = (
-        "import sys, os; "
-        f"sys.path.insert(0, r'''{project_root}'''); "
-        "from utils.file_parser import parse_bib; "
-        f"from {graph_module} import generate_graph; "
-        f"bib = parse_bib(r'''{bib_path}'''); "
-        f"generate_graph(bib, {k_regular}); "
-    )
-
-    log_path = os.path.join(project_root, 'graph_launch.log')
-    try:
-        logf = open(log_path, 'w', encoding='utf-8')
-    except Exception:
-        logf = None
-
-    try:
-        subprocess.Popen([python, "-c", code],
-                        stdout=logf or None,
-                        stderr=logf or None,
-                        cwd=project_root)
-    except Exception as e:
-        ui.notify(f"Could not launch graph process: {e}", color="red")
-
-def on_graph_click():
-    if not selected_file:
-        ui.notify("Please select one file to visualize", color="red")
+def on_cleanup_click():
+    if not selected_files:
+        ui.notify("Please select at least one file to clean", color="red")
         return
-
     wd = json_loader.get_wd_path()
-    bib_path = os.path.join(wd, selected_file)
-    if not os.path.exists(bib_path):
-        ui.notify("Selected file could not be found", color="red")
+    count = 0
+    for filename in list(selected_files):
+        try:
+            path = os.path.join(wd, filename)
+            bib_file = parse_bib(path)
+            cleanup.cleanup(bib_file)
+            generate_bib(bib_file, path)
+            files[filename] = parse_bib(path)
+            count += 1
+        except Exception as e:
+            ui.notify(f"Cleanup failed for {filename}: {e}", color="red")
+    if count:
+        ui.notify(f"Cleanup done for {count} file(s)", color="green")
+        reload_after_edit()
+
+def on_tag_click():
+    if not selected_file:
+        ui.notify("Please select a file to tag references from", color="red")
+        return
+    
+    bib_file = files[selected_file]
+    ref_map = {r.cite_key: r for r in iter_references(bib_file)}
+    selected_refs = [ref_map[k] for k in selected_references if k in ref_map]
+    if not selected_refs:
+        ui.notify("Please select at least one reference (checkbox) to tag", color="red")
         return
 
-    with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-64"):
-        ui.label("Open Graph Visualization").classes("font-bold text-lg mb-2")
-        k_input = ui.input(label="Neighbours per hop (k)", value="5").props("type=number min=1 max=50 step=1").classes("w-full")
+    # tags_dict = json_loader.load_tags() or {}
+    load_tag_colors = getattr(json_loader, 'load_tag_colors', lambda: {})
+    dump_tag_colors = getattr(json_loader, 'dump_tag_colors', lambda d: None)
+    tag_colors = load_tag_colors() or {}
 
-        def launch():
+    with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-[340px]"):
+        ui.label("Add Tag").classes("font-bold text-lg mb-2")
+        tag_input = ui.input(label="Tag name").classes("w-full")
+        color_input = ui.input(label = "Tag color", value="#EC86F0").props("type=color").classes("w-full")
+
+        def on_tag_change(e):
+            name = (e.value or "").strip()
+            if name in tag_colors:
+                color_input.value = tag_colors[name]
+        tag_input.on("change", on_tag_change)
+        tag_input.on("input", on_tag_change)
+
+        def apply():
+            tag_name = (tag_input.value or "").strip()
+            if not tag_name:
+                ui.notify("Please enter a tag name", color="red")
+                return
+
             try:
-                k = int(float(k_input.value or "5"))
-            except Exception:
-                k = 5
-            k = max(1, min(50, k))
+                tag_refs(tag_name, selected_refs)  # this is the project’s tagging function 【】
+            except Exception as e:
+                ui.notify(f"Tagging failed: {e}", color="red")
+                return
 
-            launch_graph_process(bib_path, k)
+            v = (color_input.value or "").strip()
+            if v:
+                tag_colors[tag_name] = v
+                try:
+                    dump_tag_colors(tag_colors)
+                except Exception as e:
+                    ui.notify(f"Could not save tag color: {e}", color="orange")
+
             dialog.close()
-            ui.notify("Starting graph visualization", color="green")
-
-            ui.timer(1.5, lambda: ui.run_javascript('window.open("http://localhost:8090", "_blank")'), once=True)
+            ui.notify(f"Tagged {len(selected_refs)} reference(s) as '{tag_name}'", color="green")
+            populate_refs_for_file(selected_file)
 
         with ui.row().classes("justify-end gap-2 mt-4"):
             ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
-            ui.button("Open", on_click=launch, color=SECONDARY_COLOR).style("text-transform: none;")
-
+            ui.button("Apply", on_click=apply, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
 
 
@@ -545,8 +577,8 @@ def save_settings(directory_input, abs_strong_match_input, abs_strong_mismatch_i
     cfg["abstract_strong_mismatch"] = abs_strong_mismatch
     cfg["remove_newlines_in_fields"] = bool(remove_newlines_checkbox.value)
     cfg["convert_special_symbols_to_unicode"] = bool(convert_unicode_checkbox.value)
-    cfg["prefer_url"] = bool(prefer_url_checkbox.value)
-    cfg["prefer_doi"] = bool(prefer_doi_checkbox.value)
+    cfg["prefer_url_over_doi"] = bool(prefer_url_checkbox.value)
+    cfg["prefer_doi_over_url"] = bool(prefer_doi_checkbox.value)
     cfg["keep_comments"] = bool(keep_comments_checkbox.value)
     cfg["keep_comment_entries"] = bool(keep_comment_entries_checkbox.value)
     cfg["lowercase_entry_types"] = bool(lowercase_entry_types_checkbox.value)
@@ -594,10 +626,10 @@ def setup_page():
                 convert_unicode_checkbox.value = bool(cfg.get("convert_special_symbols_to_unicode", False))
 
                 prefer_url_checkbox = ui.checkbox("Prefer URL when merging conflicts")
-                prefer_url_checkbox.value = bool(cfg.get("prefer_url", False))
+                prefer_url_checkbox.value = bool(cfg.get("prefer_url_over_doi", False))
 
                 prefer_doi_checkbox = ui.checkbox("Prefer DOI when merging conflicts")
-                prefer_doi_checkbox.value = bool(cfg.get("prefer_doi", False))
+                prefer_doi_checkbox.value = bool(cfg.get("prefer_doi_over_url", False))
 
                 keep_comments_checkbox = ui.checkbox("Keep inline comments in .bib")
                 keep_comments_checkbox.value = bool(cfg.get("keep_comments", False))

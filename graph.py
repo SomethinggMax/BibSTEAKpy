@@ -113,8 +113,8 @@ def run_server(constructed_graph, base_nodes_titles = []):
         @ui.page('/')
         def page():
             app.add_static_files('/static', 'static')  
-            ui.html('<div id="graph" style="width:100%; height:100vh"></div>', sanitize=True)
-            ui.add_head_html('<script src="/static/graph.js"></script>', sanitize=True)
+            ui.html('<div id="graph" style="width:100%; height:100vh"></div>')
+            ui.add_head_html('<script src="/static/graph.js"></script>')
             ui.run_javascript(f'GraphWidget.init("#graph", {nodes_json}, {edges_json});')
 
         ui.run(port=8090, reload=False) 

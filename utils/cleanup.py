@@ -181,8 +181,8 @@ def cleanup(bib_file: BibFile):
     convert_special_symbols = config.get("convert_special_symbols_to_unicode", False)
     url = config.get("prefer_url_over_doi", False)
     doi = config.get("prefer_doi_over_url", False)
-    comments = config.get("keep_comments", True)
-    comment_entries = config.get("keep_comment_entries", True)
+    delete_comments = config.get("remove_comments", False)
+    delete_comment_entries = config.get("remove_comment_entries", False)
     lowercase_entry_types = config.get("lowercase_entry_types", False)
     lowercase_fields = config.get("lowercase_fields", False)
     braces_enclosure = config.get("change_enclosures_to_braces", False)
@@ -191,9 +191,9 @@ def cleanup(bib_file: BibFile):
     fields = config.get("unnecessary_fields", [])
     field_order = config.get("preferred_field_order", [])
 
-    if not comments:
+    if delete_comments:
         remove_comments(bib_file)
-    if not comment_entries:
+    if delete_comment_entries:
         remove_comment_entries(bib_file)
 
     for entry in bib_file.content:

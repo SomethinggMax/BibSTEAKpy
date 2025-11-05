@@ -69,7 +69,7 @@ def generate_graph(bib_file: BibFile, k_regular: int):
             
     try:
         stop_event.set()
-        threading.Thread(target=run_server(Graph, base_nodes_titles), daemon=True).start()
+        threading.Thread(target=run_server, args=(Graph, base_nodes_titles), daemon=True).start()
     except Exception as e:
         print("Unexpected exception: ", e)
         
@@ -113,8 +113,8 @@ def run_server(constructed_graph, base_nodes_titles = []):
         @ui.page('/')
         def page():
             app.add_static_files('/static', 'static')  
-            ui.html('<div id="graph" style="width:autodv; height:autodv"]></div>')
-            ui.add_head_html('<script src="/static/graph.js"></script>')
+            ui.html('<div id="graph" style="width:100%; height:100vh"></div>', sanitize=True)
+            ui.add_head_html('<script src="/static/graph.js"></script>', sanitize=True)
             ui.run_javascript(f'GraphWidget.init("#graph", {nodes_json}, {edges_json});')
 
         ui.run(port=8090, reload=False) 

@@ -31,6 +31,7 @@ CONFIG_FILE = os.path.join(json_loader_directory, "../jsons/config.json")
 TAGS_FILE = os.path.join(json_loader_directory, "../jsons/tags.json")
 ABBREVIATIONS_FILE = os.path.join(json_loader_directory, "../jsons/abbreviations.json")
 SYNONYMS_FILE = os.path.join(json_loader_directory, "../jsons/synonyms.json")
+TAG_COLORS_FILE = os.path.join(json_loader_directory, "./jsons/tag_colors.json")
 
 
 def _load_json(path):
@@ -46,6 +47,7 @@ def _load_json(path):
 
 
 def _dump_json(dictionary: dict, path, indent: int, ensure_ascii: bool):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as file:
         file.seek(0)  # move pointer to first position
         json.dump(dictionary, file, indent=indent, ensure_ascii=ensure_ascii)
@@ -64,9 +66,9 @@ def dump_config(dictionary: dict):
 
 
 def get_wd_path():
-    if not is_wd_path_set:
+    if not is_wd_path_set():
         raise Exception(f"working directory not set! Use cwd <absolute/path/to/directory> to set it")
-    return load_config().get("working_directory")
+    return load_config().get("working_directory") or ""
 
 
 def is_wd_path_set():
@@ -92,3 +94,9 @@ def dump_tags(dictionary: dict):
 
 def dump_synonyms(dictionary: dict):
     return _dump_json(dictionary, SYNONYMS_FILE, 4, False)
+
+def load_tag_colors():
+    return _load_json(TAG_COLORS_FILE)
+
+def dump_tag_colors(dictionary: dict):
+    return _dump_json(dictionary, TAG_COLORS_FILE, 2, True)

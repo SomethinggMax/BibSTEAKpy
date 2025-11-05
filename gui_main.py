@@ -10,6 +10,11 @@ from utils.merge import *
 import subprocess
 from merge_ui import Merge
 import asyncio
+from utils import json_loader
+import interface_handler
+import re
+from objects import BibFile, Reference
+import sys
 
 files = {}
 selected_file = None
@@ -27,6 +32,12 @@ SUCCESS_COLOR = "#5D9874"
 # WARNING_COLOR = "#FBBF24"
 # ERROR_COLOR = "#EF4444"
 
+def is_reference(entry) -> bool:
+    return hasattr(entry, 'cite_key') and hasattr(entry, 'entry_type')
+
+def iter_references(bib_file) -> list:
+    return [e for e in getattr(bib_file, 'content', []) if is_reference(e)]
+
 
 def load_all_files_from_storage():
     """
@@ -34,7 +45,13 @@ def load_all_files_from_storage():
     (the path is hard coded right now).
     """
     global files
-    wd = json_loader.get_wd_path()
+
+    try:
+        wd = json_loader.get_wd_path()
+    except Exception:
+        files = {}
+        return
+    
     os.makedirs(wd, exist_ok=True)
 
     loaded = {}
@@ -93,8 +110,8 @@ def populate_files():
                     ui.image("icons/maximize.png").classes("w-5 h-5 cursor-pointer").on("click", on_maximize_click)
                     ui.label("Maximize").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/batchReplace.png").classes("w-5 h-5 cursor-pointer mt-1").on("click")
-                    ui.label("Batch\nReplace").classes("font-bold text-xs text-center whitespace-pre-line")
+                    ui.image("icons/graph.png").classes("w-5 h-5 cursor-pointer mt-1").on("click", on_graph_click)
+                    ui.label("Visualize\nGraph").classes("font-bold text-xs text-center whitespace-pre-line")
 
 
 def toggle_file_selection(filename: str, checked: bool):
@@ -151,14 +168,15 @@ def populate_refs_for_file(filename: str):
                     ui.image("icons/filter.png").classes("w-6 h-6 cursor-pointer").on("click", on_filter_click)
                     ui.label("Filter").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click",
-                                                                                      lambda: toggle_select_all_references(
-                                                                                          filename))
+                    ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", lambda: toggle_select_all_references(filename))
                     ui.label("Select All").classes("font-bold text-xs")
 
         bib_file = files[filename]
+        if not getattr(bib_file, 'content', None):
+            ui.label("(no references found)").classes("text-sm italic text-gray-600")
+            return
 
-        for ref in [r for r in bib_file.content if isinstance(r, Reference)]:
+        for ref in iter_references(bib_file):
             author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
             title = normalize_field(getattr(ref, 'title', None) or "Untitled")
             year = normalize_field(getattr(ref, 'year', None) or "N.D.")
@@ -191,7 +209,7 @@ def toggle_select_all_references(filename: str):
     """
     global selected_references, all_selected_references
     bib_file = files[filename]
-    refs = [r for r in bib_file.content if isinstance(r, Reference)]
+    refs = iter_references(bib_file)
     if all_selected_references:
         # Deselect all
         selected_references.clear()
@@ -333,7 +351,7 @@ def on_filter_click():
         return
 
     bib_file = files[selected_file]
-    references = [r for r in bib_file.content if isinstance(r, Reference)]
+    references = iter_references(bib_file)
 
     num_selected = len(selected_references)
     total_refs = len(references)
@@ -369,15 +387,79 @@ def on_filter_click():
     dialog.open()
 
 
+def launch_graph_process(bib_path: str, k_regular: int):
+    python = sys.executable
+    graph_module = "graph"
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+
+    code = (
+        "import sys, os; "
+        f"sys.path.insert(0, r'''{project_root}'''); "
+        "from utils.file_parser import parse_bib; "
+        f"from {graph_module} import generate_graph; "
+        f"bib = parse_bib(r'''{bib_path}'''); "
+        f"generate_graph(bib, {k_regular}); "
+    )
+
+    log_path = os.path.join(project_root, 'graph_launch.log')
+    try:
+        logf = open(log_path, 'w', encoding='utf-8')
+    except Exception:
+        logf = None
+
+    try:
+        subprocess.Popen([python, "-c", code],
+                        stdout=logf or None,
+                        stderr=logf or None,
+                        cwd=project_root)
+    except Exception as e:
+        ui.notify(f"Could not launch graph process: {e}", color="red")
+
+def on_graph_click():
+    if not selected_file:
+        ui.notify("Please select one file to visualize", color="red")
+        return
+
+    wd = json_loader.get_wd_path()
+    bib_path = os.path.join(wd, selected_file)
+    if not os.path.exists(bib_path):
+        ui.notify("Selected file could not be found", color="red")
+        return
+
+    with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-64"):
+        ui.label("Open Graph Visualization").classes("font-bold text-lg mb-2")
+        k_input = ui.input(label="Neighbours per hop (k)", value="5").props("type=number min=1 max=50 step=1").classes("w-full")
+
+        def launch():
+            try:
+                k = int(float(k_input.value or "5"))
+            except Exception:
+                k = 5
+            k = max(1, min(50, k))
+
+            launch_graph_process(bib_path, k)
+            dialog.close()
+            ui.notify("Starting graph visualization", color="green")
+
+            ui.timer(1.5, lambda: ui.run_javascript('window.open("http://localhost:8090", "_blank")'), once=True)
+
+        with ui.row().classes("justify-end gap-2 mt-4"):
+            ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
+            ui.button("Open", on_click=launch, color=SECONDARY_COLOR).style("text-transform: none;")
+
+    dialog.open()
+
+
 def order_by_field(file: BibFile, field: str, descending=False):
-    references = [ref for ref in file.content if isinstance(ref, Reference)]
+    references = [ref for ref in getattr(file,'content', []) if is_reference(ref)]
 
     def get_field_safe(ref, field):
         value = getattr(ref, field, None)
         return value if value is not None else ""
 
     sorted_refs = sorted(references, key=lambda ref: get_field_safe(ref, field), reverse=descending)
-    remaining_entries = [e for e in file.content if not isinstance(e, Reference)]
+    remaining_entries = [e for e in getattr(file,'content',[]) if not is_reference(e)]
     file.content = remaining_entries + sorted_refs
 
 
@@ -404,7 +486,7 @@ def reload_after_edit():
         # if a reference is being edited, reload the bib content too
         if selected_ref:
             # matching by cite_key
-            new_refs = [r for r in files[selected_file].content if isinstance(r, Reference)]
+            new_refs = iter_references(files[selected_file])
             matched_ref = next((r for r in new_refs if r.cite_key == selected_ref.cite_key), None)
             if matched_ref:
                 selected_ref = matched_ref
@@ -433,21 +515,47 @@ def open_abbreviations_json():
         ui.notify(f"Could not open file: {e}", color="red")
 
 
-def save_settings(directory_input):
+def save_settings(directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
+                    convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox,
+                    keep_comments_checkbox, keep_comment_entries_checkbox, lowercase_entry_types_checkbox,
+                    lowercase_fields_checkbox, braces_checkbox, quotes_checkbox,):
     path = directory_input.value.strip()
     if not path:
         ui.notify("Please enter a valid path.", color="red")
         return
 
     os.makedirs(path, exist_ok=True)
-    config_path = "config.json"
-    try:
-        config_file = json.load(open(config_path)) if os.path.exists(config_path) else {}
-    except json.JSONDecodeError:
-        config_file = {}
-    config_file["working_directory"] = path
-    with open(config_path, "w") as f:
-        json.dump(config_file, f, indent=2)
+
+    cfg = json_loader.load_config() or {}
+
+    def parse_float(value, default):
+        try:
+            v = float(value)
+            return v
+        except Exception:
+            return default
+        
+    abs_strong_match = parse_float(abs_strong_match_input.value, cfg.get("abstract_strong_match", 0.9))
+    abs_strong_mismatch = parse_float(abs_strong_mismatch_input.value, cfg.get("abstract_strong_mismatch", 0.5))
+    abs_strong_match = max(0.0, min(1.0, abs_strong_match))
+    abs_strong_mismatch = max(0.0, min(1.0, abs_strong_mismatch))
+
+    cfg["working_directory"] = path
+    cfg["abstract_strong_match"] = abs_strong_match
+    cfg["abstract_strong_mismatch"] = abs_strong_mismatch
+    cfg["remove_newlines_in_fields"] = bool(remove_newlines_checkbox.value)
+    cfg["convert_special_symbols_to_unicode"] = bool(convert_unicode_checkbox.value)
+    cfg["prefer_url"] = bool(prefer_url_checkbox.value)
+    cfg["prefer_doi"] = bool(prefer_doi_checkbox.value)
+    cfg["keep_comments"] = bool(keep_comments_checkbox.value)
+    cfg["keep_comment_entries"] = bool(keep_comment_entries_checkbox.value)
+    cfg["lowercase_entry_types"] = bool(lowercase_entry_types_checkbox.value)
+    cfg["lowercase_fields"] = bool(lowercase_fields_checkbox.value)
+    cfg["change_enclosures_to_braces"] = bool(braces_checkbox.value)
+    cfg["change_enclosures_to_quotation_marks"] = bool(quotes_checkbox.value)
+    cfg["working_directory"] = path
+
+    json_loader.dump_config(cfg)
 
     ui.notify(f"Configuration saved! Directory: {path}", color="green")
     ui.timer(1.5, lambda: ui.run_javascript('window.location.href = "/"'))
@@ -455,6 +563,7 @@ def save_settings(directory_input):
 
 @ui.page("/setup")
 def setup_page():
+    cfg = json_loader.load_config()
     with ui.column().classes("items-center w-full"):
         ui.label("Setup").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(
             f"color: {SUCCESS_COLOR};")
@@ -470,33 +579,73 @@ def setup_page():
                         ui.image("icons/customize_rules.png").classes("w-7 h-7")
                         ui.button("Customize rules", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes(
                             "text-xs px-3 py-1 rounded-md").style("text-transform: none;")
-                with ui.column().classes("gap-5 ml-30"):
-                    ui.checkbox("Hide/unhide URL").classes("text-md font-semibold").style(
-                        f"accent-color: {SUCCESS_COLOR};")
-                    ui.checkbox("Hide/unhide DOI").classes("text-md font-semibold").style(
-                        f"accent-color: {SUCCESS_COLOR};")
 
-            ui.label("Merge Bib files").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(
-                f"border-color: {SECONDARY_COLOR};")
-            with ui.column().classes("gap-3 mt-3 ml-2"):
-                ui.checkbox("Utilize URL").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
-                ui.checkbox("Utilize DOI").classes("text-md font-semibold").style(f"accent-color: {SUCCESS_COLOR};")
+            ui.label("Merge thresholds").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("gap-4 mt-3 ml-2"):
+                abs_strong_match_input = ui.input(label="Abstract strong match threshold (0.0 - 1.0)", value=str(cfg.get("abstract_strong_match", 0.9)),).props('type=number step=0.01 min=0 max=1').classes("w-[320px]")
+                abs_strong_mismatch_input = ui.input(label="Abstract strong mismatch threshold (0.0 - 1.0)", value=str(cfg.get("abstract_strong_mismatch", 0.5)),).props('type=number step=0.01 min=0 max=1').classes("w-[320px]")
+
+            ui.label("Merge and parsing options").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full mt-4").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.column().classes("gap-2 mt-3 ml-2"):
+                remove_newlines_checkbox = ui.checkbox("Remove newlines in fields")
+                remove_newlines_checkbox.value = bool(cfg.get("remove_newlines_in_fields", False))
+
+                convert_unicode_checkbox = ui.checkbox("Convert special symbols to Unicode")
+                convert_unicode_checkbox.value = bool(cfg.get("convert_special_symbols_to_unicode", False))
+
+                prefer_url_checkbox = ui.checkbox("Prefer URL when merging conflicts")
+                prefer_url_checkbox.value = bool(cfg.get("prefer_url", False))
+
+                prefer_doi_checkbox = ui.checkbox("Prefer DOI when merging conflicts")
+                prefer_doi_checkbox.value = bool(cfg.get("prefer_doi", False))
+
+                keep_comments_checkbox = ui.checkbox("Keep inline comments in .bib")
+                keep_comments_checkbox.value = bool(cfg.get("keep_comments", False))
+
+                keep_comment_entries_checkbox = ui.checkbox("Keep @comment entries")
+                keep_comment_entries_checkbox.value = bool(cfg.get("keep_comment_entries", False))
+
+                lowercase_entry_types_checkbox = ui.checkbox("Lowercase entry types (e.g., @article)")
+                lowercase_entry_types_checkbox.value = bool(cfg.get("lowercase_entry_types", False))
+
+                lowercase_fields_checkbox = ui.checkbox("Lowercase field names (e.g., title, author)")
+                lowercase_fields_checkbox.value = bool(cfg.get("lowercase_fields", False))
+
+                braces_checkbox = ui.checkbox("Change enclosures to braces {...}")
+                braces_checkbox.value = bool(cfg.get("change_enclosures_to_braces", False))
+
+                quotes_checkbox = ui.checkbox('Change enclosures to quotation marks "..."')
+                quotes_checkbox.value = bool(cfg.get("change_enclosures_to_quotation_marks", False))
 
             ui.separator().classes("my-6")
             ui.label("Working Directory").classes("font-bold text-lg mb-2")
             directory_input = ui.input(label="Path to the working directory").classes("w-full")
+            directory_input.value = cfg.get("working_directory", "")
 
         with ui.row().classes("justify-end mt-6"):
-            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(directory_input)).classes(
-                "px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
+            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(
+                directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
+                convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox, keep_comments_checkbox,
+                keep_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
+                braces_checkbox, quotes_checkbox,
+            ),).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
 
 
 @ui.page('/')
 def main_page():
     global files_col, refs_col, bib_col, merge
 
-    wd = json_loader.get_wd_path()
+    cfg = json_loader.load_config()
+    wd = (cfg or {}).get("working_directory") or ""
     if not wd:
+        global files, selected_file, selected_ref, selected_files, all_selected_files, selected_references, all_selected_references
+        files = {}
+        selected_file = None
+        selected_ref = None
+        selected_files = set()
+        all_selected_files = False
+        selected_references = set()
+        all_selected_references = False
         ui.notify("No working directory found. Please configure it first.", color="orange")
         ui.run_javascript('window.location.href = "/setup"')
         return

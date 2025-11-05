@@ -13,11 +13,11 @@ class Token(Enum):
     EXTRA = 7
 
 
-def parse_string(data):
+def _parse_string(data):
     return data[1:-1]
 
 
-def add_field(fields, field_type, field_value):
+def _add_field(fields, field_type, field_value):
     """
     Adds new field, with given field type and value.
     Raises error if the field already exists and the contents are not the same.
@@ -92,7 +92,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                             token_type = Token.FIELD_KEY
                             continue
                         elif token_type == Token.VALUE and ref_type.lower() != "comment":
-                            add_field(fields, field_type, token.strip())
+                            _add_field(fields, field_type, token.strip())
                             token = ""
                             token_type = Token.FIELD_KEY
                             continue
@@ -132,11 +132,11 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                                     enclosure = Enclosure.QUOTATION_MARKS
                                 else:
                                     raise ValueError(f"Bib file contains a string with invalid enclosure: {token}")
-                                result.content.append(String(comment, key, parse_string(token), enclosure))
+                                result.content.append(String(comment, key, _parse_string(token), enclosure))
                             else:
                                 reference = Reference(comment, ref_type, key)
                                 if token.strip() != "":
-                                    add_field(fields, field_type, token.strip())
+                                    _add_field(fields, field_type, token.strip())
                                 for field, field_value in fields.items():
                                     setattr(reference, field, field_value)
                                 result.content.append(reference)

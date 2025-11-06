@@ -1,22 +1,16 @@
 from nicegui import ui, app
-import os
-import json
+import os, re, json, pprint, asyncio, threading, subprocess, interface_handler
+from merge_ui import Merge
+from objects import BibFile
+from utils import json_loader, cleanup, filtering, enrichment
+from utils.merge import *
 import utils.file_parser as file_parser
-import pprint
-from utils.abbreviations_exec import execute_abbreviations
 from utils.file_parser import parse_bib
 from utils.file_generator import generate_bib
-from utils.merge import *
-import subprocess
-from merge_ui import Merge
-import asyncio
-from utils import json_loader, cleanup
-import interface_handler
-import re
-from objects import BibFile
-import sys
-from utils.tagging import tag_refs
-import socket
+from utils.abbreviations_exec import execute_abbreviations
+from utils.tagging import tag_refs, untag_refs
+from history_manager import undo, redo
+
 
 files = {}
 selected_file = None
@@ -80,10 +74,20 @@ def populate_files():
         with ui.row().classes("items-center justify-between w-full mb-5"):
             # the header of the files column
             ui.label("Files").classes("font-bold text-lg")
-            # display of the select all button
-            with ui.column().classes("items-center gap-1"):
-                ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", toggle_select_all_files)
-                ui.label("Select All").classes("font-bold text-xs")
+            with ui.row().classes("items-center gap-4"):
+                with ui.column().classes("items-center gap-1"):
+                        ui.image("icons/undo.png").classes("w-6 h-6 cursor-pointer").on("click", on_undo_click)
+                        ui.label("Undo").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/redo.png").classes("w-6 h-6 cursor-pointer").on("click", on_redo_click)
+                    ui.label("Redo").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/search.png").classes("w-6 h-6 cursor-pointer").on("click", on_search_click)
+                    ui.label("Search").classes("font-bold text-xs")
+                # display of the select all button
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", toggle_select_all_files)
+                    ui.label("Select All").classes("font-bold text-xs")
 
         if not files:
             ui.label("(no .bib files found)")
@@ -115,6 +119,9 @@ def populate_files():
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/clean.png").classes("w-5 h-5 cursor-pointer").on("click", on_cleanup_click)
                     ui.label("Clean").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/enrichment.png").classes("w-5 h-5 cursor-pointer").on("click", on_enrich_click)
+                    ui.label("Enrich").classes("font-bold text-xs")
 
 def toggle_file_selection(filename: str, checked: bool):
     """
@@ -170,6 +177,9 @@ def populate_refs_for_file(filename: str):
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/tag.png").classes("w-6 h-6 cursor-pointer").on("click", on_tag_click)
                     ui.label("Tag").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/untag.png").classes("w-6 h-6 cursor-pointer").on("click", on_untag_click)
+                    ui.label("Untag").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/filter.png").classes("w-6 h-6 cursor-pointer").on("click", on_filter_click)
                     ui.label("Filter").classes("font-bold text-xs")
@@ -270,6 +280,8 @@ def on_file_click(filename: str):
     global selected_file, selected_ref
     selected_file = filename
     selected_ref = None
+    selected_references.clear()
+    all_selected_files = False
     populate_files()
     refs_col.clear()
     bib_col.clear()
@@ -433,10 +445,9 @@ def on_tag_click():
     ref_map = {r.cite_key: r for r in iter_references(bib_file)}
     selected_refs = [ref_map[k] for k in selected_references if k in ref_map]
     if not selected_refs:
-        ui.notify("Please select at least one reference (checkbox) to tag", color="red")
+        ui.notify("Please select at least one reference to tag", color="red")
         return
 
-    # tags_dict = json_loader.load_tags() or {}
     load_tag_colors = getattr(json_loader, 'load_tag_colors', lambda: {})
     dump_tag_colors = getattr(json_loader, 'dump_tag_colors', lambda d: None)
     tag_colors = load_tag_colors() or {}
@@ -460,7 +471,7 @@ def on_tag_click():
                 return
 
             try:
-                tag_refs(tag_name, selected_refs)  # this is the project’s tagging function 【】
+                tag_refs(tag_name, selected_refs)
             except Exception as e:
                 ui.notify(f"Tagging failed: {e}", color="red")
                 return
@@ -482,6 +493,240 @@ def on_tag_click():
             ui.button("Apply", on_click=apply, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
 
+def current_file():
+    if selected_file:
+        return selected_file
+    if len(selected_files) == 1:
+        return next(iter(selected_files))
+    return None 
+
+def on_untag_click():
+    file = current_file()
+    if not file:
+        ui.notify("Please select a file first, then select references to untag", color="red")
+        return
+    
+    bib_file = files.get(file)
+    if not bib_file:
+        ui.notify("Could not load the current file", color="red")
+        return
+    
+    tags = json_loader.load_tags() or {}
+    selected_tags = list(selected_references)
+
+    if selected_tags:
+        changed = False
+        for tag, cite_keys in list(tags.items()):
+            initial = set(cite_keys or [])
+            final = [k for k in initial if k not in selected_tags]
+            if len(final) != len(initial):
+                changed = True
+                if final:
+                    tags[tag] = final
+                else:
+                    tags.pop(tag, None)    
+        if changed:
+            json_loader.dump_tags(tags)
+            ui.notify(f"Removed tags from {len(selected_references)} selected reference(s)", color="green")
+            populate_refs_for_file(file)
+        else:
+            ui.notify("No tags found on the selected references", color="orange")
+        return
+
+    file_keys = {r.cite_key for r in iter_references(bib_file)}
+    tags_in_file = sorted([t for t, keys in tags.items() if any(k in file_keys for k in (keys or []))])
+    
+    with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-[360px]"):
+        ui.label("Remove tag from current file").classes("font-bold text-lg mb-2")
+        tag_input = ui.input(label="Tag name").classes("w-full")
+        if tags_in_file:
+            ui.label("Existing tags in this file: " + ", ".join(tags_in_file)).classes("text-xs text-gray-600 mt-1")
+        
+        def apply():
+            tag_name = (tag_input.value or "").strip()
+            if not tag_name:
+                ui.notify("Enter a tag name", color="red")
+                return
+            if tag_name not in tags:
+                ui.notify(f"Tag '{tag_name}' not found", color="orange")
+                dialog.close()
+                return
+            remaining = [k for k in tags.get(tag_name, []) if k not in file_keys]
+            if remaining:
+                tags[tag_name] = remaining
+            else:
+                tags.pop(tag_name, None)
+            json_loader.dump_tags(tags)
+            ui.notify(f"Removed tag '{tag_name}' from all references in {file}", color="green")
+            dialog.close()
+            populate_refs_for_file(file)
+        
+        with ui.row().classes("justify-end gap-2 mt-3"):
+            ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
+            ui.button("Remove", on_click=apply, color=SECONDARY_COLOR).style("text-transform: none;")
+    
+    dialog.open()
+
+
+def on_undo_click():
+    file = current_file()
+    if not file:
+        ui.notify("Please select one file first", color="red")
+        return
+    try: 
+        wd = json_loader.get_wd_path()
+        path = os.path.join(wd, selected_file)
+        bib = parse_bib(path)
+        undo(bib, 1)
+        files[selected_file] = parse_bib(path)
+        ui.notify("Undo successful", color="green")
+        populate_refs_for_file(selected_file)
+    except Exception as e:
+        ui.notify(f"Undo failed: {e}", color="red")
+
+def on_redo_click():
+    file = current_file()
+    if not file:
+        ui.notify("Please select one file first", color="red")
+        return
+    try: 
+        wd = json_loader.get_wd_path()
+        path = os.path.join(wd, selected_file)
+        bib = parse_bib(path)
+        redo(bib, 1)
+        files[selected_file] = parse_bib(path)
+        ui.notify("Undo successful", color="green")
+        populate_refs_for_file(selected_file)
+    except Exception as e:
+        ui.notify(f"Undo failed: {e}", color="red")
+
+def on_search_click():
+    with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-[380px]"):
+        ui.label("Search").classes("font-bold text-lg mb-2")
+        term_input = ui.input(label="Search term").classes("w-full")
+        def search():
+            term = (term_input.value or "").strip()
+            if not term:
+                ui.notify("Enter a search term", color="red")
+                return
+            dialog.close()
+
+            file = current_file()
+            if not file:
+                ui.notify("Select one file", color="orange")
+                return
+            bib_file = files.get(file)
+            if not bib_file:
+                ui.notify("Could not load the current file", color="red")
+                return
+
+            try:
+                matches = filtering.search(bib_file, term) 
+                if matches == -1 or not matches:
+                    ui.notify("No matches found", color="orange")
+                    return
+
+                refs_col.clear()
+                with refs_col:
+                    with ui.row().classes("items-center justify-between w-full mb-5"):
+                        ui.label(f"References (search: {term})").classes("font-bold text-lg")
+                    tags_dict = json_loader.load_tags() or {}
+                    tag_colors = json_loader.load_tag_colors() or {}
+                    for ref in matches:
+                        author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
+                        title = normalize_field(getattr(ref, 'title', None) or "Untitled")
+                        year = normalize_field(getattr(ref, 'year', None) or "N.D.")
+                        short_label = f"{author} ({year}): {title}"
+                        k = getattr(ref, 'cite_key', None)
+                        with ui.row().classes("items-center w-full gap-2"):
+                            checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
+                            checkbox.value = k in selected_references
+                            btn_color = SECONDARY_COLOR
+                            ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color=btn_color).classes("flex-1 text-left").style("text-transform: none;")
+                        if k and tags_dict:
+                            ref_tags = [t for t, keys in tags_dict.items() if k in (keys or [])]
+                            if ref_tags:
+                                with ui.row().classes("ml-8 gap-1"):
+                                    for t in sorted(ref_tags):
+                                        color = tag_colors.get(t, "#E5E7EB")
+                                        ui.label(t).classes("text-[10px] px-2 py-[2px] rounded-md").style(f"background-color: {color}; color: black;")
+                ui.notify(f"Found {len(matches)} match(es)", color="green")
+            except Exception as e:
+                ui.notify(f"Search failed: {e}", color="red")
+
+        with ui.row().classes("justify-end gap-2 mt-3"):
+            ui.button("Cancel", on_click=dialog.close, color=PRIMARY_COLOR).style("text-transform: none;")
+            ui.button("Search", on_click=search, color=SECONDARY_COLOR).style("text-transform: none;")
+    dialog.open()
+
+def ref_list(filename: str, refs: list):
+    refs_col.clear()
+    with refs_col:
+        with ui.row().classes("items-center justify-between w-full mb-5"):
+            ui.label(f"References with search term applied").classes("font-bold text-lg")
+    if not refs:
+        ui.label("(no references found)").classes("text-sm italic text-gray-600")
+        return
+    tags_dict = json_loader.load_tags() or {}
+    tag_colors = json_loader.load_tag_colors() or {}
+    for ref in refs:
+        author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
+        title = normalize_field(getattr(ref, 'title', None) or "Untitled")
+        year = normalize_field(getattr(ref, 'year', None) or "N.D.")
+        label = f"{author} ({year}): {title}"
+        k = getattr(ref, 'cite_key', None)
+        with ui.row().classes("items-center w-full gap-2"):
+            checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
+            checkbox.value = k in selected_references
+            btn_classes = "flex-1 text-left"
+        
+        if selected_ref and k and getattr(selected_ref, 'cite_key', None) == k:
+            btn_classes += " bg-gray-300"
+            ui.button(label, on_click=lambda e, r=ref: on_ref_click(r), color=SECONDARY_COLOR).classes(btn_classes).style("text-transform: none;")
+            if k and tags_dict:
+                ref_tags = [t for t, keys in tags_dict.items() if k in (keys or [])]
+                if ref_tags:
+                    with ui.row().classes("ml-8 gap-1"):
+                        for t in sorted(ref_tags):
+                            color = tag_colors.get(t, "#D88BD8")
+                            ui.label(t).classes("text-[10px] px-2 py-[2px] rounded-md").style(f"background-color: {color}; color: black;")
+
+def on_enrich_click():
+    if not selected_files:
+        ui.notify("Please select at least one file to enrich", color="red")
+        return
+    
+    progress = ui.dialog()
+    with progress, ui.card().classes("p-4 bg-white rounded shadow w-[260px] items-center"):
+        ui.label("Enrichment is being done").classes("font-bold mb-2")
+        ui.spinner(size="lg")
+        ui.label("This can take a while.").classes("text-xs text-gray-600")
+    progress.open()
+
+    def enrich():
+        try:
+            wd = json_loader.get_wd_path()
+            count = 0
+            for filename in list(selected_files):
+                try:
+                    path = os.path.join(wd, filename)
+                    bib = parse_bib(path)
+                    enrichment.sanitize_bib_file(bib)
+                    generate_bib(bib, path)
+                    files[filename] = parse_bib(path)
+                    populate_refs_for_file(filename)
+                    count += 1
+                except Exception as e:
+                    ui.notify(f"Enrichment failed for {filename}: {e}", color="red")
+            if count:
+                ui.notify(f"Enriched was succesful for {count} file(s)", color="green")
+            reload_after_edit()
+        except Exception as e:
+            ui.notify(f"Enrichment failed for {filename}: {e}", color="red")
+        finally:
+            progress.close()
+
+    threading.Thread(target=enrich, daemon=True).start()    
 
 def order_by_field(file: BibFile, field: str, descending=False):
     references = [ref for ref in getattr(file,'content', []) if is_reference(ref)]

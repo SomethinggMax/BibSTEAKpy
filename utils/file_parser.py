@@ -3,7 +3,7 @@ import utils.json_loader
 from objects import BibFile, Reference, String, Comment, Preamble, Enclosure
 
 
-class Token(Enum):
+class State(Enum):
     REF_TYPE = 1
     KEY = 2
     FIELD_KEY = 3
@@ -43,7 +43,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
         ignore_next = False
         remove_whitespace = False
         braces_level = 0
-        token_type = Token.EXTRA
+        token_type = State.EXTRA
         for line in file:
             for char in line:
                 if ignore_next:
@@ -52,60 +52,60 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                     continue
                 match char:
                     case "@":
-                        if token_type == Token.EXTRA:
+                        if token_type == State.EXTRA:
                             comment = token.strip()
                             token = ""
-                            token_type = Token.REF_TYPE
+                            token_type = State.REF_TYPE
                             continue
                     case "{":
-                        if token_type == Token.REF_TYPE:
+                        if token_type == State.REF_TYPE:
                             ref_type = token
                             token = ""
-                            token_type = Token.KEY
+                            token_type = State.KEY
                             if ref_type.lower() == "comment" or ref_type.lower() == "preamble":
-                                token_type = Token.VALUE
+                                token_type = State.VALUE
                             continue
-                        elif token_type == Token.VALUE:
-                            token_type = Token.BRACES_ENCLOSURE
+                        elif token_type == State.VALUE:
+                            token_type = State.BRACES_ENCLOSURE
                             braces_level += 1
-                        elif token_type == Token.BRACES_ENCLOSURE:
+                        elif token_type == State.BRACES_ENCLOSURE:
                             braces_level += 1
                     case "=":
-                        if token_type == Token.KEY:
+                        if token_type == State.KEY:
                             key = token.strip()
                             token = ""
-                            token_type = Token.VALUE
+                            token_type = State.VALUE
                             continue
-                        elif token_type == Token.FIELD_KEY:
+                        elif token_type == State.FIELD_KEY:
                             field_type = token.strip()
                             if " " and "\n" in field_type:
                                 unsupported_comment = field_type.split("\n")[0]
                                 raise ValueError(f"Parser does not support comments after field values: "
                                                  f"key: '{key}', comment: '{unsupported_comment}'")
                             token = ""
-                            token_type = Token.VALUE
+                            token_type = State.VALUE
                             continue
                     case ",":
-                        if token_type == Token.KEY:
+                        if token_type == State.KEY:
                             key = token.strip()
                             token = ""
-                            token_type = Token.FIELD_KEY
+                            token_type = State.FIELD_KEY
                             continue
-                        elif token_type == Token.VALUE and ref_type.lower() != "comment":
+                        elif token_type == State.VALUE and ref_type.lower() != "comment":
                             _add_field(fields, field_type, token.strip())
                             token = ""
-                            token_type = Token.FIELD_KEY
+                            token_type = State.FIELD_KEY
                             continue
                     case "\"":
-                        if token_type == Token.VALUE:
-                            token_type = Token.QUOTATION_MARKS_ENCLOSURE
-                        elif token_type == Token.QUOTATION_MARKS_ENCLOSURE:
-                            token_type = Token.VALUE
+                        if token_type == State.VALUE:
+                            token_type = State.QUOTATION_MARKS_ENCLOSURE
+                        elif token_type == State.QUOTATION_MARKS_ENCLOSURE:
+                            token_type = State.VALUE
                     case "\\":
-                        if token_type == Token.QUOTATION_MARKS_ENCLOSURE:
+                        if token_type == State.QUOTATION_MARKS_ENCLOSURE:
                             ignore_next = True
                     case "\n":
-                        if token_type == Token.VALUE or token_type == Token.QUOTATION_MARKS_ENCLOSURE or token_type == Token.BRACES_ENCLOSURE:
+                        if token_type == State.VALUE or token_type == State.QUOTATION_MARKS_ENCLOSURE or token_type == State.BRACES_ENCLOSURE:
                             if remove_newlines_in_fields:
                                 remove_whitespace = True
                                 continue
@@ -113,7 +113,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                         if remove_whitespace:
                             continue
                     case "}":
-                        if token_type == Token.FIELD_KEY or token_type == Token.VALUE:
+                        if token_type == State.FIELD_KEY or token_type == State.VALUE:
                             token = token.strip()
                             if ref_type.lower() == "comment":
                                 result.content.append(Comment(token))
@@ -141,14 +141,14 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                                     setattr(reference, field, field_value)
                                 result.content.append(reference)
                             token = ""
-                            token_type = Token.EXTRA
+                            token_type = State.EXTRA
                             fields = {}
                             comment = ""
                             continue
-                        elif token_type == Token.BRACES_ENCLOSURE:
+                        elif token_type == State.BRACES_ENCLOSURE:
                             braces_level -= 1
                             if braces_level == 0:
-                                token_type = Token.VALUE
+                                token_type = State.VALUE
                 if remove_whitespace:
                     remove_whitespace = False
                     token += " "

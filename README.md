@@ -1,18 +1,41 @@
-## How to use it
-Just do ```python CLI.py``` in the CMD or PowerShell to start the shell 
+# 🥩 BibSTEAKpy — Smart BibTeX Editor and Toolkit
 
-Then set up your working directory using the ```set_directory <absolte/path/to/wd>``` command and add the ABSOLUTE path to a directory on your computer. Later, we will add a GUI to select the path with the File Explorer.
+**BibSTEAK** Bib(La)TeX Streamlined Tool for Editing Academic Knowledge
 
-All the available commands can be seen by using the ```help``` command
+It helps researchers, students, and developers **keep bibliographies organized, consistent, and publication-ready**, whether you’re cleaning LaTeX exports, merging citation lists, or preparing a paper submission.
 
-Note that to see the changes, you can view the content of any file from your working directory directly into the CLI by using the ```view <filename.bib>``` command
-## Installation
-Linux: python3.12-venv needs installation
-Execute install_bibsteak.sh
+---
 
-## Uninstall
-rm -rf ~/.local/opt/BibSTEAKpy
-rm -f ~/.local/bin/bibsteak
-## Extra
-You can do ```pip install pyreadline3``` to enable custom CLI auto-completions with tab. For now, just do it globally instead of using a venv.
+## 🚀 Features
+
+| Category | Key Capabilities                                                                                       |
+|-----------|--------------------------------------------------------------------------------------------------------|
+| 📁 **File Management** | Load, view, and list one or multiple `.bib` files easily                                               |
+| 🧹 **Cleanup & Normalization** | Convert LaTeX sequences to Unicode, remove redundant braces, normalize whitespace                      |
+| 🧩 **Abbreviation Control** | Expand or collapse strings using a configurable abbreviation dictionary                                |
+| 🔍 **Search & Filter** | Search entries by keyword or filter by specific fields (author, year, tag, etc.)                       |
+| 🏷️ **Tagging & Synonyms** | Add tags, manage synonym lists for smarter searching                                                   |
+| 🪄 **Merge & Deduplicate** | Merge multiple `.bib` files while automatically detecting duplicates using title/author/DOI similarity |
+| 🌐 **Enrichment** | Fill in missing DOI/URL fields automatically via web lookup                                            |
+| 🕐 **History & Undo/Redo** | Full history per file — revert or restore any previous version                                         |
+| 🧠 **Configurable Logic** | JSON-based configuration for thresholds, ordering, abbreviations, and field priorities                 |
+| 📈 **Visualization** | Generate relationship graphs or entry networks for quick insights                                      |
+| 💪 **Cross-Platform** | Works on Windows, macOS, and Linux (Python 3.10–3.12)                                                  |
+
+---
+
+## 🧰 Installation
+
+### Requirements
+- Python **3.10 or newer**
+
+### Setup
+```bash
+git clone https://github.com/SomethinggMax/BibSTEAKpy.git
+cd BibSTEAKpy
+pip install -r requirements.txt
+```
+
+### Run
+python3 main.py
 

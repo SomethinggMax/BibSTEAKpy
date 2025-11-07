@@ -77,9 +77,9 @@ class Merge:
         pt = (prompt_text or '').strip()
         ctx_joined = '\n'.join(list(self._print_buf)[-20:])
 
-        if 'Choose which to keep (1 or 2)' in pt:
+        if 'Choose which to keep' in pt:
             req = self._make_prompt('field_conflict', pt)
-        elif pt.startswith('Enter your choice (1 or 2):'):
+        elif pt.startswith('Enter your choice'):
             if 'Choose where to merge or skip:' in ctx_joined or 'References seem to be similar' in ctx_joined:
                 req = self._make_prompt('dup_choice', pt)
             else:
@@ -165,33 +165,7 @@ class Merge:
             req['event'].set()
             self._current_prompt = None
             return
-
-        elif kind == 'abbr_choice':
-            header = req.get('text') or 'Abbreviation conflict'
-            opt1 = req.get('opt1') or 'Option 1'
-            opt2 = req.get('opt2') or 'Option 2'
-            ui.label(header).classes('font-bold text-lg mb-3')
-            with ui.row().classes('gap-4 w-full items-stretch'):
-                with ui.column().classes('flex-1 min-w-0'):
-                    ui.label('Option 1').classes('font-semibold mb-1')
-                    full_code_block(opt1)
-                with ui.column().classes('flex-1 min-w-0'):
-                    ui.label('Option 2').classes('font-semibold mb-1')
-                    full_code_block(opt2)
-                with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Choose 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-                    ui.button('Choose 2', on_click=lambda: close_with('2'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-
-        elif kind == 'abbr_rename':
-            title = req.get('text') or 'Rename abbreviation'
-            default = req.get('default') or ''
-            ui.label(title).classes('font-bold text-lg mb-3')
-            new_abbr = ui.input(label='New abbreviation').classes('w-full mt-2')
-            new_abbr.value = default
-            with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Cancel', on_click=lambda: close_with(''), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-                ui.button('Confirm', on_click=lambda: close_with(new_abbr.value or ''), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-
+        
         with self._prompt_dialog, ui.card().classes('p-4 bg-gray-100 rounded shadow w-[1200px]'):
             if kind == 'field_conflict':
                 header = req.get('text') or 'Resolve conflict'
@@ -211,10 +185,9 @@ class Merge:
                         ui.label('Value from reference 2').classes('font-semibold mb-1')
                         full_code_block(val2)
                 with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Keep 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes(
-                        'q-btn--no-uppercase')
-                    ui.button('Keep 2', on_click=lambda: close_with('2'), color=SECONDARY_COLOR).classes(
-                        'q-btn--no-uppercase')
+                    ui.button('Keep 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
+                    ui.button('Keep 2', on_click=lambda: close_with('2'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
+                    ui.button('Manual input', on_click=lambda: close_with('3'), color=PRIMARY_COLOR).classes('q-btn--no-uppercase')
 
             elif kind in ('ref_diff', 'dup_choice'):
 
@@ -223,6 +196,8 @@ class Merge:
                 body2 = req.get('ref2')
                 opt1_label = req.get('opt1_label', 'Merge references')
                 opt2_label = req.get('opt2_label', 'Keep both')
+                opt3_label = req.get('opt3_label')
+                opt4_label = req.get('opt4_label')
 
                 if body1 is None or body2 is None:
                     ref1 = next((l for l in reversed(ctx) if 'Reference 1 (from first file):' in l), None)
@@ -248,6 +223,10 @@ class Merge:
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button(opt1_label, on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
                     ui.button(opt2_label, on_click=lambda: close_with('2'), color=PRIMARY_COLOR).classes('q-btn--no-uppercase')
+                    if opt3_label:
+                        ui.button(opt3_label, on_click=lambda: close_with('3'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
+                    if opt4_label:
+                        ui.button(opt4_label, on_click=lambda: close_with('4'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
 
             elif kind == 'abbr_choice':
 
@@ -287,8 +266,8 @@ class Merge:
         req = self._make_prompt('toast', msg, level=level)
         self._prompt_q.put(req)
 
-    def prompt_reference_comparison(self, header: str, ref1_text: str, ref2_text: str, option1_label: str = 'Merge references', option2_label: str = 'Keep both'):
-        req = self._make_prompt('ref_diff', header, ref1=ref1_text, ref2=ref2_text, opt1_label=option1_label, opt2_label=option2_label)
+    def prompt_reference_comparison(self, header: str, ref1_text: str, ref2_text: str, option1_label: str = 'Merge references', option2_label: str = 'Keep both', option3_label: str | None = None, option4_label: str | None = None):
+        req = self._make_prompt('ref_diff', header, ref1=ref1_text, ref2=ref2_text, opt1_label=option1_label, opt2_label=option2_label, opt3_label=option3_label, opt4_label=option4_label)
         self._prompt_q.put(req)
         req['event'].wait()
         return req['response']

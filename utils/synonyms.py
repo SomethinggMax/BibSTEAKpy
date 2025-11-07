@@ -1,12 +1,8 @@
-import json
+from utils import json_loader
 
-def open_synonyms_file():
-    with open('synonyms.json', 'r', encoding='utf-8') as f:
-        synonyms = json.load(f)
-    return synonyms
 
 def replace_synonym(text: str) -> str | None:
-    synonyms = open_synonyms_file()
+    synonyms = json_loader.load_synonyms()
     text = text.strip().strip("{}")   # remove whitespace and curly braces if needed
     for key, values in synonyms.items():
         if text == key or text in values:
@@ -14,7 +10,7 @@ def replace_synonym(text: str) -> str | None:
     return None
 
 def add_synonyms(synonym_rules: dict) -> None:
-    synonym_list = open_synonyms_file()
+    synonym_list = json_loader.load_synonyms()
     for key in synonym_rules:
         syn_key = replace_synonym(key)
         if syn_key != None:
@@ -33,8 +29,7 @@ def add_synonyms(synonym_rules: dict) -> None:
                     synonym_list[key].append(value)
         else:
             synonym_list[key] = values
-    with open('synonyms.json', 'w', encoding='utf-8') as f:
-        json.dump(synonym_list, f, indent=4, ensure_ascii=False)
+    json_loader.dump_synonyms(synonym_list)
 
 if __name__ == "__main__":
     new_synonyms = {

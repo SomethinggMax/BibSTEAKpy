@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 import interface_handler
 from objects import BibFile, Reference, String
-from utils import batch_editor, json_loader
+from utils import batch_editor, json_loader, cleanup
 from difflib import SequenceMatcher
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -34,13 +34,6 @@ def _get_abstract_thresholds():
         weak = strong
     return strong, weak
 
-
-# Pretty printing / CLI formatting
-PREFERRED_FIELD_ORDER = [
-    'cite_key', 'author', 'title', 'year', 'journal', 'booktitle', 'publisher',
-    'volume', 'number', 'pages', 'doi', 'url', 'isbn', 'issn', 'abstract'
-]
-
 # URL domains considered relatively reliable for identity matching
 TRUSTED_URL_DOMAINS = {
     'doi.org', 'dx.doi.org', 'arxiv.org', 'dl.acm.org', 'ieeexplore.ieee.org',
@@ -58,7 +51,8 @@ def _stringify_field_value(value) -> str:
 
 
 def order_key(name: str):
-    return PREFERRED_FIELD_ORDER.index(name) if name in PREFERRED_FIELD_ORDER else len(PREFERRED_FIELD_ORDER), name
+    preferred_field_order = json_loader.load_config().get("preferred_field_order", [])
+    return preferred_field_order.index(name) if name in preferred_field_order else len(preferred_field_order), name
 
 
 def _ordered_field_names(ref: Reference) -> list:
@@ -268,6 +262,16 @@ def _choose_enclosure(v1, v2):
     return e1 or e2 or 'braces'
 
 
+def _ensure_braces(value) -> str:
+    s = '' if value is None else str(value)
+    s = s.strip()
+    if not s:
+        return s
+    if (len(s) >= 2) and ((s[0] == '{' and s[-1] == '}') or (s[0] == '"' and s[-1] == '"')):
+        return s
+    return '{' + s + '}'
+
+
 def normalize_field_for_compare(field: str, value) -> str:
     f = (field or '').lower()
     if f == 'author':
@@ -279,13 +283,28 @@ def normalize_field_for_compare(field: str, value) -> str:
     if f == 'year':
         return _normalize_year(value)
     if f == 'pages':
-        return _normalize_pages(value)
+        return _normalize_pages_for_compare(value)
     if f == 'doi':
         return _normalize_doi(value)
     if f == 'url':
         return _normalize_url(value)
     # Default: lowercased, trimmed, braces removed, whitespace normalized
     return _normalize_whitespace(str(value).replace('{', '').replace('}', '').lower()) if value is not None else ''
+
+
+def _normalize_pages_for_compare(value) -> str:
+    if value is None:
+        return ''
+    s = str(value).strip()
+    # Remove one level of enclosing braces/quotes if present
+    if len(s) >= 2 and ((s[0] == '{' and s[-1] == '}') or (s[0] == '"' and s[-1] == '"')):
+        s = s[1:-1].strip()
+    # Strip any remaining braces/quotes
+    s = s.replace('{', '').replace('}', '').replace('"', '')
+    # Normalize en/em dashes to hyphen and collapse runs/spaces to a single hyphen
+    s = s.replace('\u2013', '-').replace('\u2014', '-')
+    s = re.sub(r'\s*-+\s*', '-', s)
+    return s
 
 
 def _brace_stats(value: str) -> tuple:
@@ -302,11 +321,29 @@ def canonicalize_field_value(field: str, v1, v2):
         enc = _choose_enclosure(v1, v2)
         return _apply_enclosure(enc, y) if y else ''
     if f == 'pages':
-        # Prefer a canonical pages representation derived from either
-        base = v1 if _normalize_pages(v1) else v2
-        p = _normalize_pages(base)
+        # Prefer the representation with a single dash between ranges
+        def _inner(s):
+            return str(s or '')
+        def _has_single_dash(s: str) -> bool:
+            s2 = _inner(s)
+            # Normalize en/em dashes to '-' and collapse spaces around dashes
+            s2 = s2.replace('\u2013', '-').replace('\u2014', '-')
+            s2 = re.sub(r'\s*[-]+\s*', '-', s2)
+            return re.search(r'\d-\d', s2) is not None and '--' not in s2
         enc = _choose_enclosure(v1, v2)
-        return _apply_enclosure(enc, p) if p else ''
+        if _has_single_dash(v1):
+            inner = re.sub(r'^"|"$|^\{|\}$', '', _inner(v1)).strip()
+            inner = re.sub(r'\s*[-]+\s*', '-', inner)
+            return _apply_enclosure(enc, inner) if inner else ''
+        if _has_single_dash(v2):
+            inner = re.sub(r'^"|"$|^\{|\}$', '', _inner(v2)).strip()
+            inner = re.sub(r'\s*[-]+\s*', '-', inner)
+            return _apply_enclosure(enc, inner) if inner else ''
+        # Fallback: collapse any multi-dash to a single dash from whichever is present
+        base = _inner(v1) if _normalize_pages(v1) else _inner(v2)
+        inner = re.sub(r'^"|"$|^\{|\}$', '', base).strip()
+        inner = re.sub(r'\s*[-]+\s*', '-', inner)
+        return _apply_enclosure(enc, inner) if inner else ''
     if f == 'doi':
         d = _normalize_doi(v1) or _normalize_doi(v2)
         enc = _choose_enclosure(v1, v2)
@@ -362,26 +399,36 @@ def merge_reference(reference_1: Reference, reference_2: Reference) -> Reference
     for field_type, data in reference_1_fields.items():
         if field_type in reference_2_fields:
             other = reference_2_fields[field_type]
-            # Skip meta fields
-            if field_type in ("comment_above_reference", "entry_type"):
+            # Skip meta fields (never alter or wrap these)
+            if field_type in ("comment_above_reference", "entry_type", "cite_key"):
                 setattr(merged_reference, field_type, data)
                 continue
 
             # If equal after normalization, prefer a canonical/cleaner representation without prompting
             if normalize_field_for_compare(field_type, data) == normalize_field_for_compare(field_type, other):
                 chosen = canonicalize_field_value(field_type, data, other)
-                setattr(merged_reference, field_type, chosen)
+                setattr(merged_reference, field_type, _ensure_braces(chosen))
                 continue
 
             if data != other:
                 choice = _prompt_field_conflict_choice(field_type, data, other, reference_1, reference_2)
                 if choice == 2:
                     data = other
-        setattr(merged_reference, field_type, data)  # add field from reference 1 to merged reference
+                elif choice == 3:
+                    # Manual input
+                    prompt = f"Enter manual value for '{field_type}' (key '{reference_1.cite_key}'):"
+                    manual = interface_handler.prompt_text_input(prompt, _stringify_field_value(data))
+                    data = manual
+        # add field from reference 1 to merged reference (ensure braces after decision)
+        if field_type == 'cite_key':
+            setattr(merged_reference, field_type, data)
+        else:
+            setattr(merged_reference, field_type, _ensure_braces(data))
 
     for field_type, data in reference_2_fields.items():
         if field_type not in merged_reference.get_fields():
-            setattr(merged_reference, field_type, data)  # add field from reference 2 to merged reference
+            # add field from reference 2 to merged reference (ensure braces)
+            setattr(merged_reference, field_type, _ensure_braces(data))
 
     return merged_reference
 
@@ -426,8 +473,13 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
 
 
 def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
+    clean_before_merge = json_loader.load_config().get("clean_before_merge", False)
+    if clean_before_merge:
+        cleanup.cleanup(bib_file_1)
+        cleanup.cleanup(bib_file_2)
+
     # File name will be set when generating the file, this is just temporary.
-    merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
+    merged_bib_file = BibFile(bib_file_1.file_path + '+' + bib_file_2.file_path)
 
     merged_bib_file.content = bib_file_1.get_preambles()  # Add preambles from file 1.
 
@@ -491,10 +543,16 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                 best_key = key
                     target_key = best_key
                     other_ref = bib2_index[target_key]
-                    interface_handler.show_toast(
-                        f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm}).", level='success')
-                    merged_reference = merge_reference(entry, other_ref)
-                    merged_bib_file.content.append(merged_reference)
+                    # If fully equal (normalized), add only once without prompt
+                    if _references_equal_normalized(entry, other_ref):
+                        interface_handler.show_toast(
+                            f"Auto-dedup '{entry.cite_key}' and '{target_key}' (identical by DOI).", level='success')
+                        merged_bib_file.content.append(merge_reference(entry, other_ref))
+                    else:
+                        interface_handler.show_toast(
+                            f"Auto-merging '{entry.cite_key}' + '{target_key}' (by DOI: {doi_norm}).", level='success')
+                        merged_reference = merge_reference(entry, other_ref)
+                        merged_bib_file.content.append(merged_reference)
                     consumed_bib2_keys.add(target_key)
                     continue
 
@@ -525,21 +583,41 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                     if has_abs_1 and has_abs_2:
                         strong_thr, weak_thr = _get_abstract_thresholds()
                         if best_sim >= strong_thr:
-                            interface_handler.show_toast(f"Auto-merging '{entry.cite_key}' + '{target_key}' "
-                                                         f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f}).",
-                                                         level='success')
-                            merged_reference = merge_reference(entry, other_ref)
-                            merged_bib_file.content.append(merged_reference)
+                            if _references_equal_normalized(entry, other_ref):
+                                interface_handler.show_toast(
+                                    f"Auto-dedup '{entry.cite_key}' and '{target_key}' (identical).", level='success')
+                                merged_bib_file.content.append(merge_reference(entry, other_ref))
+                            else:
+                                interface_handler.show_toast(f"Auto-merging '{entry.cite_key}' + '{target_key}' "
+                                                             f"(by author+title; abstract sim {best_sim:.2f} >= strong {strong_thr:.2f}).",
+                                                             level='success')
+                                merged_reference = merge_reference(entry, other_ref)
+                                merged_bib_file.content.append(merged_reference)
                             consumed_bib2_keys.add(target_key)
                             continue
                         elif best_sim <= weak_thr:
-                            interface_handler.show_toast(
-                                f"Keeping both for '{entry.cite_key}' and '{target_key}' "
-                                f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f}).", level='info')
-                            merged_bib_file.content.append(entry)
-                            merged_bib_file.content.append(other_ref)
-                            consumed_bib2_keys.add(target_key)
+                            # If identical aside from benign differences (e.g., pages dash), dedup
+                            if _references_equal_normalized(entry, other_ref):
+                                interface_handler.show_toast(
+                                    f"Auto-dedup '{entry.cite_key}' and '{target_key}' (equal after normalization).", level='success')
+                                merged_bib_file.content.append(merge_reference(entry, other_ref))
+                                consumed_bib2_keys.add(target_key)
+                            else:
+                                interface_handler.show_toast(
+                                    f"Keeping both for '{entry.cite_key}' and '{target_key}' "
+                                    f"(by author+title; abstract sim {best_sim:.2f} <= weak {weak_thr:.2f}).", level='info')
+                                merged_bib_file.content.append(entry)
+                                merged_bib_file.content.append(other_ref)
+                                consumed_bib2_keys.add(target_key)
                             continue
+
+                    # If references are equal after normalization, dedup without prompt
+                    if _references_equal_normalized(entry, other_ref):
+                        interface_handler.show_toast(
+                            f"Auto-dedup '{entry.cite_key}' and '{target_key}' (equal after normalization).", level='success')
+                        merged_bib_file.content.append(merge_reference(entry, other_ref))
+                        consumed_bib2_keys.add(target_key)
+                        continue
 
                     # Otherwise, ask user
                     choice = _prompt_ref_merge_decision(entry, other_ref)
@@ -554,6 +632,18 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                         consumed_bib2_keys.add(target_key)
                         continue
                     elif choice == 2:
+                        # Keep only ref 1
+                        interface_handler.show_lines([f"Keeping only ref 1 for '{entry.cite_key}'."])
+                        merged_bib_file.content.append(entry)
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    elif choice == 3:
+                        # Keep only ref 2
+                        interface_handler.show_lines([f"Keeping only ref 2 for '{target_key}'."])
+                        merged_bib_file.content.append(other_ref)
+                        consumed_bib2_keys.add(target_key)
+                        continue
+                    elif choice == 4:
                         interface_handler.show_lines([f"Skipping merge for '{entry.cite_key}'. Keeping both entries."])
                         merged_bib_file.content.append(entry)
                         merged_bib_file.content.append(other_ref)
@@ -585,6 +675,13 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                                       f"please confirm merge. URL key: {url_key}"])
                         print_reference_comparison(entry, other_ref, width=110)
                         header = f"References share the same trusted URL; please confirm merge. URL key: {url_key}"
+                        # If fully equal (normalized), auto-dedup without prompt
+                        if _references_equal_normalized(entry, other_ref):
+                            interface_handler.show_toast(
+                                f"Auto-dedup '{entry.cite_key}' and '{target_key}' (identical by trusted URL).", level='success')
+                            merged_bib_file.content.append(merge_reference(entry, other_ref))
+                            consumed_bib2_keys.add(target_key)
+                            continue
                         if (getattr(interface_handler, 'user_interface', 'CLI') == 'GUI' and
                                 hasattr(interface_handler, 'prompt_reference_comparison')):
                             choice = interface_handler.prompt_reference_comparison(
@@ -592,7 +689,9 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                                 _render_reference_block(other_ref),
                                 header=header,
                                 option1="Merge references",
-                                option2="Keep both references"
+                                option2="Keep ref 1 only",
+                                option3="Keep ref 2 only",
+                                option4="Keep both references"
                             )
                         else:
                             interface_handler.show_lines([header])
@@ -600,9 +699,11 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                             interface_handler.show_lines([
                                 "Choose where to merge or skip:",
                                 "1: Merge references",
-                                "2: Keep both references"
+                                "2: Keep ref 1 only",
+                                "3: Keep ref 2 only",
+                                "4: Keep both references"
                             ])
-                            choice = interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+                            choice = interface_handler.get_selection("Enter your choice (1-4): ", 4)
 
                         if choice == 1:
                             interface_handler.show_lines([
@@ -614,8 +715,17 @@ def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
                             consumed_bib2_keys.add(target_key)
                             continue
                         elif choice == 2:
-                            interface_handler.show_lines([f"Skipping merge for '{entry.cite_key}'. "
-                                                          f"Keeping both entries."])
+                            interface_handler.show_lines([f"Keeping only ref 1 for '{entry.cite_key}'."])
+                            merged_bib_file.content.append(entry)
+                            consumed_bib2_keys.add(target_key)
+                            continue
+                        elif choice == 3:
+                            interface_handler.show_lines([f"Keeping only ref 2 for '{target_key}'."])
+                            merged_bib_file.content.append(other_ref)
+                            consumed_bib2_keys.add(target_key)
+                            continue
+                        elif choice == 4:
+                            interface_handler.show_lines([f"Keeping both entries for '{entry.cite_key}'."])
                             merged_bib_file.content.append(entry)
                             merged_bib_file.content.append(other_ref)
                             consumed_bib2_keys.add(target_key)
@@ -649,7 +759,9 @@ def _prompt_ref_merge_decision(ref1: Reference, ref2: Reference) -> int:
             ref2_text,
             header="Please compare the following references:",
             option1="Merge references",
-            option2="Keep both references"
+            option2="Keep ref 1 only",
+            option3="Keep ref 2 only",
+            option4="Keep both references"
         )
     else:
         interface_handler.show_lines(["Please compare the following references:"])
@@ -657,9 +769,11 @@ def _prompt_ref_merge_decision(ref1: Reference, ref2: Reference) -> int:
         interface_handler.show_lines([
             "Choose where to merge or skip:",
             "1: Merge references",
-            "2: Keep both references"
+            "2: Keep ref 1 only",
+            "3: Keep ref 2 only",
+            "4: Keep both references"
         ])
-        return interface_handler.get_selection("Enter your choice (1 or 2): ", 2)
+        return interface_handler.get_selection("Enter your choice (1-4): ", 4)
 
 
 def _prompt_field_conflict_choice(field_name: str, v1, v2, reference_1: Reference, reference_2: Reference) -> int:
@@ -683,4 +797,15 @@ def _prompt_field_conflict_choice(field_name: str, v1, v2, reference_1: Referenc
         setattr(temp1, field_name, v1)
         setattr(temp2, field_name, v2)
         print_reference_comparison(temp1, temp2, width=100)
-        return interface_handler.get_selection('Choose which to keep (1 or 2): ', 2)
+        return interface_handler.get_selection('Choose which to keep or manual (1, 2, or 3): ', 3)
+
+
+def _references_equal_normalized(ref1: Reference, ref2: Reference) -> bool:
+    names = set(_ordered_field_names(ref1)) | set(_ordered_field_names(ref2))
+    names.discard('cite_key')
+    for name in names:
+        v1 = getattr(ref1, name, None)
+        v2 = getattr(ref2, name, None)
+        if normalize_field_for_compare(name, v1) != normalize_field_for_compare(name, v2):
+            return False
+    return True

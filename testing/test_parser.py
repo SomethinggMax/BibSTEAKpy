@@ -47,6 +47,6 @@ def compare_parsing(original_path) -> bool:
 
 
 if __name__ == '__main__':
-    bib_examples_original_path = "bib_files/bibtests.bib"
+    bib_examples_original_path = "../bib_files/bibtests.bib"
     compare_parsing(bib_examples_original_path)
 

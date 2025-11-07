@@ -38,19 +38,14 @@ def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0
     responses: List[Dict[str, Any]] = []
     query = title + " " + author
     # Execute API queries
-    try:
-        cr = _search_crossref(session, query, timeout= timeout)
-        if cr and is_same_paper(title, author, cr):
-            responses.append(cr)
-    except Exception as e:
-        print(e)
 
-    try:
-        db = _search_dblp(session, query, timeout= timeout)
-        if db and is_same_paper(title, author, db):
-            responses.append(db)
-    except Exception as e:
-        print(e)
+    cr = _search_crossref(session, query, timeout= timeout)
+    if cr and is_same_paper(title, author, cr):
+        responses.append(cr)
+
+    db = _search_dblp(session, query, timeout= timeout)
+    if db and is_same_paper(title, author, db):
+        responses.append(db)
 
     try:
         dc = _search_datacite(session, query, timeout= timeout)

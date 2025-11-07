@@ -17,6 +17,7 @@ def convert_to_utf8(old_path, new_path, encoding):
         content = file.readlines()
     with open(new_path, 'w', encoding="utf-8") as file:
         file.writelines(content)
+    print(f"Converted file {old_path} to utf8.")
 
 
 def print_differences(from_file, to_file):

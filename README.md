@@ -9,6 +9,10 @@ Note that to see the changes, you can view the content of any file from your wor
 ## Installation
 Linux: python3.12-venv needs installation
 Execute install_bibsteak.sh
+
+## Uninstall
+rm -rf ~/.local/opt/BibSTEAKpy
+rm -f ~/.local/bin/bibsteak
 ## Extra
 You can do ```pip install pyreadline3``` to enable custom CLI auto-completions with tab. For now, just do it globally instead of using a venv.
 

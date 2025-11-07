@@ -1,26 +1,25 @@
 from objects import BibFile, Reference, String
-from utils import file_parser, file_generator
+from utils import file_parser, file_generator, cleanup
 
 
-def batch_replace(bib_file: BibFile, fields_to_edit: [str], old_string: str, new_string: str) -> BibFile:
+def batch_replace(bib_file: BibFile, fields_to_edit: list[str], old_string: str, new_string: str) -> BibFile:
     """
     Searches the references for occurrences of the old_string and replaces them with the new_string.
     Only searches the fields given in the fields_to_edit parameter, or all if empty.
     Also replaces the long_form of string definitions, does not replace string abbreviations.
     """
     for entry in bib_file.content:
-        #keep strings
+        # keep strings
         if type(entry) is String:
             entry.long_form = entry.long_form.replace(old_string, new_string)
-
 
         if type(entry) is Reference:
             fields = entry.get_fields()
             for field_type, data in fields.items():
-                #simply keep comments, entry types and citekeys
+                # simply keep comments, entry types and citekeys
                 if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                     continue
-                #we either look through all fields OR if the specific field type is found we also go ahead
+                # we either look through all fields OR if the specific field type is found we also go ahead
                 if fields_to_edit == [] or field_type in fields_to_edit:
                     if "#" not in data:
                         if "\"" in data or "{" in data:
@@ -86,20 +85,16 @@ def batch_rename_abbreviation(bib_file: BibFile, old_abbreviation: str, new_abbr
     return bib_file
 
 
-def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: String) -> BibFile:
+def batch_shorten_string(bib_file: BibFile, fields_to_edit: list[str], string: String) -> BibFile:
     """
-    Shortens all occurrences of the string long form and adds the String to the file if new.
+    Shortens all occurrences of the string long form.
+    Adds the String to the file if it is new and the long_form occurs in the file.
     :param bib_file: input BibFile object.
     :param fields_to_edit: the fields to check for occurrences of the long form.
     :param string: the String to shorten.
     :return: output BibFile object.
     """
-    existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
-    if string.abbreviation not in existing_string_dict:
-        bib_file.content.insert(0, string)
-    elif string.long_form != existing_string_dict[string.abbreviation]:
-        raise ValueError("Abbreviation is already in use with a different long form!")
-
+    found = False
     for entry in bib_file.content:
         if isinstance(entry, Reference):
             fields = entry.get_fields()
@@ -110,45 +105,51 @@ def batch_shorten_string(bib_file: BibFile, fields_to_edit: [str], string: Strin
                     number_of_occurrences = data.count(string.long_form)
                     if number_of_occurrences == 0:
                         continue
-
-                    def replace_string_and_return_count(old_string: str, new_string: str) -> int:
-                        updated_data = fields[field_type]
-                        count = updated_data.count(old_string)
-                        fields[field_type] = updated_data.replace(old_string, new_string)
-                        return count
-
+                    found = True
                     if data == "{" + string.long_form + "}" or data == "\"" + string.long_form + "\"":
                         fields[field_type] = string.abbreviation
-                        number_of_occurrences -= 1
                     else:
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "{" + string.long_form + "}", "# " + string.abbreviation + " #")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "\"" + string.long_form + "\"", "# " + string.abbreviation + " #")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "{" + string.long_form, "# " + string.abbreviation + " {")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            "\"" + string.long_form, "# " + string.abbreviation + " \"")
-                        number_of_occurrences -= replace_string_and_return_count(
-                            string.long_form + "}", "} # " + string.abbreviation)
-                        number_of_occurrences -= replace_string_and_return_count(
-                            string.long_form + "\"", "\" # " + string.abbreviation)
-                        if number_of_occurrences != 0:
-                            first_char = data[0]
-                            if first_char == "{":
-                                number_of_occurrences -= replace_string_and_return_count(
-                                    string.long_form, "} # " + string.abbreviation + " # {")
-                            elif first_char == "\"":
-                                number_of_occurrences -= replace_string_and_return_count(
-                                    string.long_form, "\" # " + string.abbreviation + " # \"")
-                            else:
-                                raise ValueError("Could not determine type of enclosure for field.")
-                    if number_of_occurrences != 0:
-                        raise ValueError("Could not find all occurrences of the long form! (probably a bug...)")
+                        updated_data = cleanup.remove_enclosure(fields[field_type])
+                        # Replace start of field.
+                        if updated_data.startswith(string.long_form):
+                            updated_data = string.abbreviation + " # \"" + updated_data[len(string.long_form):]
+                        else:
+                            updated_data = "\"" + updated_data
+                        # Replace end of field
+                        if updated_data.endswith(string.long_form):
+                            updated_data = updated_data[:-len(string.long_form)] + "\" # " + string.abbreviation
+                        else:
+                            updated_data = updated_data + "\""
+                        # Replace all occurrences in the middle.
+                        updated_data = updated_data.replace(string.long_form, "\" # " + string.abbreviation + " # \"")
+
+                        fields[field_type] = updated_data
+    if found:
+        existing_string_dict = {x.abbreviation: x.long_form for x in bib_file.get_strings()}
+        if string.abbreviation not in existing_string_dict:
+            bib_file.content.insert(0, string)
+        elif (string.long_form != existing_string_dict[string.abbreviation] and
+              existing_string_dict[string.abbreviation] != string.abbreviation):
+            raise ValueError("Abbreviation is already in use with a different long form!")
     return bib_file
 
 
-def batch_extend_strings(bib_file: BibFile, abbreviations: [str]) -> BibFile:
+def replace_string(bib_file: BibFile, old_long_form, new_long_form) -> BibFile:
+    """
+    Replaces the long form of the strings in the bib file with the new_long_form, if the long_form == old_long_form.
+    :param bib_file:
+    :param old_long_form:
+    :param new_long_form:
+    :return:
+    """
+    for entry in bib_file.content:
+        if isinstance(entry, String):
+            if entry.long_form == old_long_form:
+                entry.long_form = new_long_form
+    return bib_file
+
+
+def batch_extend_strings(bib_file: BibFile, abbreviations: list[str]) -> BibFile:
     """
     Extends all given abbreviations in the BibFile and removes the Strings from the BibFile.
     Gets the long_form from the String object in the BibFile.

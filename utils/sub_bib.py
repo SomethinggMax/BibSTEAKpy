@@ -1,9 +1,7 @@
-import json
-
 import utils.file_parser as file_parser
 import utils.file_generator as file_generator
-
 from objects import BibFile, Reference
+from utils import json_loader
 
 
 def filter_entry_types(file: BibFile, entry_types: list) -> BibFile:
@@ -11,7 +9,7 @@ def filter_entry_types(file: BibFile, entry_types: list) -> BibFile:
     Returns a grouped File object which contains References
     which have entry types in the entry_types list
     """
-    new_file = BibFile(file.file_name)
+    new_file = BibFile(file.file_path)
     for entry in file.content:
         if type(entry) is Reference:
             if entry.entry_type.lower() in entry_types:
@@ -30,15 +28,14 @@ def filter_tags(file: BibFile, tags: list) -> BibFile:
     :param tags: a list of tags
     :return: the output file
     """
-    with open('tags.json') as tags_data:
-        tags_dict = json.load(tags_data)
+    tags_dict = json_loader.load_tags()
 
     relevant_cite_keys = set()
     for tag, cite_keys in tags_dict.items():
         if tag in tags:
             relevant_cite_keys.update(cite_keys)
 
-    new_file = BibFile(file.file_name)
+    new_file = BibFile(file.file_path)
     for entry in file.content:
         if type(entry) is Reference:
             if entry.cite_key in relevant_cite_keys:

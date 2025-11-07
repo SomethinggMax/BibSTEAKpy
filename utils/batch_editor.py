@@ -196,6 +196,7 @@ def batch_extend_strings(bib_file: BibFile, abbreviations: list[str]) -> BibFile
 # JUST FOR TESTING
 if __name__ == "__main__":
     test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib")
+    batch_replace(test_file, [], "Princeton", "Prince")
     batch_extend_strings(test_file, ["pup"])
     batch_shorten_string(test_file, [], String("", "SF", "Science Fiction"))
     batch_rename_abbreviation(test_file, "cup", "camup")

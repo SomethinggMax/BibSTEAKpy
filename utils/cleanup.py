@@ -1,6 +1,6 @@
 from copy import copy
 from objects import BibFile, Reference, String, Comment
-from utils import json_loader
+from utils import json_loader, file_parser, file_generator
 
 
 def _convert_symbols(reference: Reference):
@@ -213,3 +213,10 @@ def cleanup(bib_file: BibFile):
             _order_field_names(entry, field_order)
 
     return bib_file
+
+
+# JUST FOR TESTING
+if __name__ == '__main__':
+    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib")
+    cleanup(test_file)
+    file_generator.generate_bib(test_file, "../bib_files/cleaned-examples.bib")

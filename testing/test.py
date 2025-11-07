@@ -97,13 +97,13 @@ def test_files(directory_path) -> bool:
             continue
         file_generator.generate_bib(bib_file, temp_file_name)
 
-        # Check if the contents are the same when the generated file is parsed again:
-        assert file_parser.parse_bib(temp_file_name).content == bib_file.content
-
         if is_different(path, temp_file_name, True, True, True):
             print(f"Difference between original and generated file: {path}")
             print_differences(path, temp_file_name)
             return False
+
+        # Check if the contents are the same when the generated file is parsed again:
+        assert file_parser.parse_bib(temp_file_name).content == bib_file.content
     if os.path.isfile(temp_file_name):
         os.remove(temp_file_name)
     return True

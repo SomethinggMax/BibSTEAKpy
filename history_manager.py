@@ -4,6 +4,8 @@
 # TODO: Integrate timestamps and comments
 # TODO: First File Change
 # TODO: Improve history visualisation
+# TODO: make it work without .bib
+# TODO: Redo/Undo Success messages
 
 import os, json
 import time

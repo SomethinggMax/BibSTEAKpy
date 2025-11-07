@@ -194,12 +194,12 @@ def cleanup(bib_file: BibFile):
 
     for entry in bib_file.content:
         if isinstance(entry, Reference):
-            if prefer_doi_over_url:
-                _clean_url_if_doi(entry)
             if lowercase_entry_types:
                 _lower_entry_type(entry)
             if lowercase_fields:
                 _lower_fields(entry)
+            if prefer_doi_over_url:
+                _clean_url_if_doi(entry)
             if braces_enclosure and quotation_marks_enclosure:
                 raise ValueError("Config file has invalid enclosures set, set only one to true.")
             if convert_special_symbols:

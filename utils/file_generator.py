@@ -4,7 +4,7 @@ from utils import json_loader
 MAXIMUM_FIELD_LENGTH = 100
 
 
-def get_maximum_alignment(bib_file: BibFile) -> int:
+def _get_maximum_alignment(bib_file: BibFile) -> int:
     """
     Gets the alignment position based on the longest length of string abbreviations and field_types.
     :param bib_file:
@@ -22,7 +22,7 @@ def get_maximum_alignment(bib_file: BibFile) -> int:
     return maximum
 
 
-def generate_field(field_type: str, align_fields_position: int, data: str, add_newlines: bool) -> str:
+def _generate_field(field_type: str, data: str, align_fields_position: int, add_newlines: bool) -> str:
     """
     Generates a str of a field based on parameters.
     """
@@ -59,7 +59,7 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=None, add_n
     :return:
     """
     if align_fields_position is None:
-        align_fields_position = get_maximum_alignment(bib_file)
+        align_fields_position = _get_maximum_alignment(bib_file)
     if add_newlines_in_fields is None:
         add_newlines_in_fields = json_loader.load_config().get("remove_newlines_in_fields", False)
 
@@ -89,7 +89,7 @@ def generate_bib(bib_file: BibFile, file_path, align_fields_position=None, add_n
                     for field_type, data in entry.get_fields().items():
                         if field_type == "comment_above_reference" or field_type == "entry_type" or field_type == "cite_key":
                             continue
-                        final_string += generate_field(field_type, align_fields_position, data, add_newlines_in_fields)
+                        final_string += _generate_field(field_type, data, align_fields_position, add_newlines_in_fields)
                     final_string += "}\n"
                 case _:
                     final_string += entry

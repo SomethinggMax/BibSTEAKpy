@@ -77,7 +77,7 @@ class API(object):
 
             # # initialise_history(bib_file)
             ordering.order_by_entry_type(bib_file, order)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             # # commit(bib_file)
 
         except Exception as e:

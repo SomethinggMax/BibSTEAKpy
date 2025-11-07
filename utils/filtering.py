@@ -7,21 +7,26 @@ def filterByFieldExistence(bibFile: BibFile, field):
     """
 
     relevant = [ref for ref in bibFile.get_references() if field in ref.get_fields().keys()]
+    if not relevant:
+        raise Exception(f"No references found with a field named '{field}'")
 
-    return -1 if not relevant else relevant
+    return relevant
 
 
 def filterByFieldValue(bibFile: BibFile, field, value):
     """
     returns a file with all the references with a certain value in a certain field
     """
-    
+    value = value.lower()
     relevant = []
     for ref in bibFile.get_references():
             if field in ref.get_fields().keys() and value in str.lower(ref.get_fields().get(field)):
                       relevant.append(ref)
+    
+    if not relevant:
+        raise Exception(f"No references found with a field named '{field}' with value '{value}'. Returning nothing...")
 
-    return -1 if not relevant else relevant
+    return relevant
 
 
 def search(bibFile: BibFile, searchterm):
@@ -42,4 +47,7 @@ def search(bibFile: BibFile, searchterm):
                 array.append(ref)
                 break
 
-    return -1 if not array else array
+    if not array:
+        raise Exception(f"No instances of '{searchterm}' found. Returning nothing...")
+
+    return array

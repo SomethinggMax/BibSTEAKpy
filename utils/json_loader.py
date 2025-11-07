@@ -31,7 +31,7 @@ CONFIG_FILE = os.path.join(json_loader_directory, "../jsons/config.json")
 TAGS_FILE = os.path.join(json_loader_directory, "../jsons/tags.json")
 ABBREVIATIONS_FILE = os.path.join(json_loader_directory, "../jsons/abbreviations.json")
 SYNONYMS_FILE = os.path.join(json_loader_directory, "../jsons/synonyms.json")
-TAG_COLORS_FILE = os.path.join(json_loader_directory, "./jsons/tag_colors.json")
+TAG_COLORS_FILE = os.path.join(json_loader_directory, "../jsons/tag_colors.json")
 
 
 def _load_json(path):

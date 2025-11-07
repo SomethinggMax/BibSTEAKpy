@@ -165,33 +165,7 @@ class Merge:
             req['event'].set()
             self._current_prompt = None
             return
-
-        elif kind == 'abbr_choice':
-            header = req.get('text') or 'Abbreviation conflict'
-            opt1 = req.get('opt1') or 'Option 1'
-            opt2 = req.get('opt2') or 'Option 2'
-            ui.label(header).classes('font-bold text-lg mb-3')
-            with ui.row().classes('gap-4 w-full items-stretch'):
-                with ui.column().classes('flex-1 min-w-0'):
-                    ui.label('Option 1').classes('font-semibold mb-1')
-                    full_code_block(opt1)
-                with ui.column().classes('flex-1 min-w-0'):
-                    ui.label('Option 2').classes('font-semibold mb-1')
-                    full_code_block(opt2)
-                with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Choose 1', on_click=lambda: close_with('1'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-                    ui.button('Choose 2', on_click=lambda: close_with('2'), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-
-        elif kind == 'abbr_rename':
-            title = req.get('text') or 'Rename abbreviation'
-            default = req.get('default') or ''
-            ui.label(title).classes('font-bold text-lg mb-3')
-            new_abbr = ui.input(label='New abbreviation').classes('w-full mt-2')
-            new_abbr.value = default
-            with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Cancel', on_click=lambda: close_with(''), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-                ui.button('Confirm', on_click=lambda: close_with(new_abbr.value or ''), color=SECONDARY_COLOR).classes('q-btn--no-uppercase')
-
+        
         with self._prompt_dialog, ui.card().classes('p-4 bg-gray-100 rounded shadow w-[1200px]'):
             if kind == 'field_conflict':
                 header = req.get('text') or 'Resolve conflict'

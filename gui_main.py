@@ -90,6 +90,9 @@ def populate_files():
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", toggle_select_all_files)
                     ui.label("Select All").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/settings.png").classes("w-6 h-6 cursor-pointer").on("click", on_settings_click)
+                    ui.label("Settings").classes("font-bold text-xs")    
 
         # display of the bar (now at the top so you don't have to go down through all the files)
         with files_col:
@@ -211,7 +214,7 @@ def populate_refs_for_file(filename: str):
             if ref_tags:
                 with ui.row().classes("ml-8 gap-1"):
                     for tag in sorted(ref_tags):
-                        color = tag_colors.get(tag, "#F187D0")  # default light gray
+                        color = tag_colors.get(tag, "#F187D0")
                         ui.label(tag).classes("text-[10px] px-2 py-[2px] rounded-md").style(f"background-color: {color}; color: black;")
 
             with ui.row().classes("items-center w-full gap-2"):
@@ -285,7 +288,6 @@ def on_file_click(filename: str):
     selected_file = filename
     selected_ref = None
     selected_references.clear()
-    all_selected_files = False
     populate_files()
     refs_col.clear()
     bib_col.clear()
@@ -746,7 +748,7 @@ def on_search_click():
             ui.button("Search", on_click=search, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
 
-def ref_list(filename: str, refs: list):
+def ref_list(refs: list):
     refs_col.clear()
     with refs_col:
         with ui.row().classes("items-center justify-between w-full mb-5"):
@@ -790,10 +792,14 @@ def on_enrich_click():
         ui.label("This can take a while.").classes("text-xs text-gray-600")
     progress.open()
 
+    done_enrichment = threading.Event()
+    result = {'count': 0, 'errors': []}
+
     def enrich():
         try:
             wd = json_loader.get_wd_path()
             count = 0
+            errors = []
             for filename in list(selected_files):
                 try:
                     path = os.path.join(wd, filename)
@@ -804,16 +810,36 @@ def on_enrich_click():
                     populate_refs_for_file(filename)
                     count += 1
                 except Exception as e:
-                    ui.notify(f"Enrichment failed for {filename}: {e}", color="red")
-            if count:
-                ui.notify(f"Enriched was succesful for {count} file(s)", color="green")
-            reload_after_edit()
+                    errors.append((filename, str(e)))
+            result['count'] = count
+            result['errors'] = errors
         except Exception as e:
-            ui.notify(f"Enrichment failed for {filename}: {e}", color="red")
+            result['errors'] = result.get('errors', []) + [("unknown", str(e))]
         finally:
-            progress.close()
+            done_enrichment.set()
+    threading.Thread(target=enrich, daemon=True).start()  
 
-    threading.Thread(target=enrich, daemon=True).start()    
+    def done():
+        if not done_enrichment.is_set():
+            return
+        try:
+            for fn, err in result.get('errors', []):
+                if fn == "unknown":
+                    ui.notify(f"Enrichment failed: {err}", color="red")
+                else:
+                    ui.notify(f"Enrichment failed for {fn}: {err}", color="red")
+            if result.get('count', 0):
+                ui.notify(f"Enrichment was successful for {result['count']} file(s)", color="green")
+            reload_after_edit()
+        finally:
+            try:
+                progress.close()
+            except Exception:
+                pass
+            done_enrichment.clear()
+
+    ui.timer(0.2, done)
+
 
 def order_by_field(file: BibFile, field: str, descending=False):
     references = [ref for ref in getattr(file,'content', []) if is_reference(ref)]
@@ -878,6 +904,25 @@ def open_abbreviations_json():
     except Exception as e:
         ui.notify(f"Could not open file: {e}", color="red")
 
+def open_synonyms_json():
+    file_path = os.path.abspath("jsons/synonyms.json")
+
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump({}, f, indent=2)
+
+    try:
+        if os.name == "nt":
+            os.startfile(file_path)
+        elif os.name == "posix":
+            subprocess.run(["xdg-open", file_path], check=False)
+        else:
+            ui.notify("Unsupported to open automatically", color="orange")
+            return
+        ui.notify("synonyms.json is being opened", color="green")
+    except Exception as e:
+        ui.notify(f"Could not open file: {e}", color="red")
+
 
 def save_settings(directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
                     convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox,
@@ -933,16 +978,17 @@ def setup_page():
             f"color: {SUCCESS_COLOR};")
 
         with ui.column().classes("w-[700px] mx-auto p-6 bg-gray-100 rounded-2xl shadow-lg"):
-            ui.label("Minimize or maximize").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(
-                f"border-color: {SECONDARY_COLOR};")
+            ui.label("Synonyms").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
             with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
-                with ui.column().classes("gap-3"):
-                    ui.checkbox("Abbreviate/expand").classes("text-md font-semibold").style(
-                        f"accent-color: {SUCCESS_COLOR};")
-                    with ui.row().classes("items-center gap-2 ml-6"):
-                        ui.image("icons/customize_rules.png").classes("w-7 h-7")
-                        ui.button("Customize rules", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes(
-                            "text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                with ui.row().classes("items-center gap-2 ml-6"):
+                    ui.image("icons/customize_rules.png").classes("w-7 h-7")
+                    ui.button("Customize Synonyms", color=SECONDARY_COLOR, on_click=open_synonyms_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                    
+            ui.label("Abbreviations").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
+                with ui.row().classes("items-center gap-2 ml-6"):
+                    ui.image("icons/customize_rules.png").classes("w-7 h-7")
+                    ui.button("Customize Abbreviations", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
 
             ui.label("Merge thresholds").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
             with ui.row().classes("gap-4 mt-3 ml-2"):
@@ -1028,9 +1074,81 @@ def main_page():
     interface_handler.user_interface = "GUI"
     interface_handler.set_merge_object(merge)
 
+def on_settings_click():
+    ui.run_javascript('window.location.href = "/settings"')
+
+@ui.page("/settings")
+def setup_page():
+    cfg = json_loader.load_config()
+    with ui.column().classes("items-center w-full"):
+        ui.label("Settings").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(
+            f"color: {SUCCESS_COLOR};")
+
+        with ui.column().classes("w-[700px] mx-auto p-6 bg-gray-100 rounded-2xl shadow-lg"):
+            ui.label("Synonyms").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
+                with ui.row().classes("items-center gap-2 ml-6"):
+                    ui.image("icons/customize_rules.png").classes("w-7 h-7")
+                    ui.button("Customize Synonyms", color=SECONDARY_COLOR, on_click=open_synonyms_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                    
+            ui.label("Abbreviations").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("justify-start items-start w-full mb-6 mt-3 gap-10"):
+                with ui.row().classes("items-center gap-2 ml-6"):
+                    ui.image("icons/customize_rules.png").classes("w-7 h-7")
+                    ui.button("Customize Abbreviations", color=SECONDARY_COLOR, on_click=open_abbreviations_json).classes("text-xs px-3 py-1 rounded-md").style("text-transform: none;")
+                    
+            ui.label("Merge thresholds").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.row().classes("gap-4 mt-3 ml-2"):
+                abs_strong_match_input = ui.input(label="Abstract strong match threshold (0.0 - 1.0)", value=str(cfg.get("abstract_strong_match", 0.9)),).props('type=number step=0.01 min=0 max=1').classes("w-[320px]")
+                abs_strong_mismatch_input = ui.input(label="Abstract strong mismatch threshold (0.0 - 1.0)", value=str(cfg.get("abstract_strong_mismatch", 0.5)),).props('type=number step=0.01 min=0 max=1').classes("w-[320px]")
+
+            ui.label("Merge and parsing options").classes("font-bold text-lg mb-1 border-b-2 pb-1 w-full mt-4").style(f"border-color: {SECONDARY_COLOR};")
+            with ui.column().classes("gap-2 mt-3 ml-2"):
+                remove_newlines_checkbox = ui.checkbox("Remove newlines in fields")
+                remove_newlines_checkbox.value = bool(cfg.get("remove_newlines_in_fields", False))
+
+                convert_unicode_checkbox = ui.checkbox("Convert special symbols to Unicode")
+                convert_unicode_checkbox.value = bool(cfg.get("convert_special_symbols_to_unicode", False))
+
+                prefer_url_checkbox = ui.checkbox("Prefer URL when merging conflicts")
+                prefer_url_checkbox.value = bool(cfg.get("prefer_url_over_doi", False))
+
+                prefer_doi_checkbox = ui.checkbox("Prefer DOI when merging conflicts")
+                prefer_doi_checkbox.value = bool(cfg.get("prefer_doi_over_url", False))
+
+                keep_comments_checkbox = ui.checkbox("Keep inline comments in .bib")
+                keep_comments_checkbox.value = bool(cfg.get("keep_comments", False))
+
+                keep_comment_entries_checkbox = ui.checkbox("Keep @comment entries")
+                keep_comment_entries_checkbox.value = bool(cfg.get("keep_comment_entries", False))
+
+                lowercase_entry_types_checkbox = ui.checkbox("Lowercase entry types (e.g., @article)")
+                lowercase_entry_types_checkbox.value = bool(cfg.get("lowercase_entry_types", False))
+
+                lowercase_fields_checkbox = ui.checkbox("Lowercase field names (e.g., title, author)")
+                lowercase_fields_checkbox.value = bool(cfg.get("lowercase_fields", False))
+
+                braces_checkbox = ui.checkbox("Change enclosures to braces {...}")
+                braces_checkbox.value = bool(cfg.get("change_enclosures_to_braces", False))
+
+                quotes_checkbox = ui.checkbox('Change enclosures to quotation marks "..."')
+                quotes_checkbox.value = bool(cfg.get("change_enclosures_to_quotation_marks", False))
+
+            ui.separator().classes("my-6")
+            ui.label("Working Directory").classes("font-bold text-lg mb-2")
+            directory_input = ui.input(label="Path to the working directory").classes("w-full")
+            directory_input.value = cfg.get("working_directory", "")
+
+        with ui.row().classes("justify-end mt-6"):
+            ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(
+                directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
+                convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox, keep_comments_checkbox,
+                keep_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
+                braces_checkbox, quotes_checkbox,
+            ),).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
 
 @app.on_connect
-async def _on_connect(client):
+async def on_connect(client):
     await ui.context.client.connected()
     global connected_users
     connected_users += 1
@@ -1038,7 +1156,7 @@ async def _on_connect(client):
 
 
 @app.on_disconnect
-async def _on_disconnect(client):
+async def on_disconnect(client):
     global connected_users
     connected_users -= 1
     print(f'Client disconnected. Total: {connected_users}')

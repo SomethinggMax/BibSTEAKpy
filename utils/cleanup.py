@@ -46,17 +46,14 @@ def _convert_symbols(reference: Reference):
         setattr(reference, field_type, data)  # Actually update the field.
 
 
-def _clean_url_and_doi(reference: Reference, use_url, use_doi) -> Reference:
+def _clean_url_if_doi(reference: Reference) -> Reference:
     fields = reference.get_fields()
     url_field = fields.get("url")
     doi_field = fields.get("doi")
 
     # Only delete when both fields exist.
     if url_field and doi_field:
-        if not use_url:
-            delattr(reference, "url")
-        if not use_doi:
-            delattr(reference, "doi")
+        delattr(reference, "url")
     return reference
 
 
@@ -179,8 +176,7 @@ def cleanup(bib_file: BibFile):
 
     # Load values from config (or default values).
     convert_special_symbols = config.get("convert_special_symbols_to_unicode", False)
-    url = config.get("prefer_url_over_doi", False)
-    doi = config.get("prefer_doi_over_url", False)
+    prefer_doi_over_url = config.get("prefer_doi_over_url", False)
     delete_comments = config.get("remove_comments", False)
     delete_comment_entries = config.get("remove_comment_entries", False)
     lowercase_entry_types = config.get("lowercase_entry_types", False)
@@ -198,10 +194,8 @@ def cleanup(bib_file: BibFile):
 
     for entry in bib_file.content:
         if isinstance(entry, Reference):
-            if doi and url:
-                raise ValueError("Config file has invalid preferences set, prefer either doi or url, not both.")
-            elif doi or url:
-                _clean_url_and_doi(entry, url, doi)
+            if prefer_doi_over_url:
+                _clean_url_if_doi(entry)
             if lowercase_entry_types:
                 _lower_entry_type(entry)
             if lowercase_fields:

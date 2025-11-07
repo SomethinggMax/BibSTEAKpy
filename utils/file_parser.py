@@ -49,13 +49,13 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
         current_state = State.EXTRA
         for line in file:
             for char in line:
-                if ignore_next: # In case of escape sequences.
+                if ignore_next:  # In case of escape sequences.
                     ignore_next = False
                     token += char
                     continue
                 match char:
                     case "@":
-                        if current_state == State.EXTRA: # Start of a new entry
+                        if current_state == State.EXTRA:  # Start of a new entry
                             comment = token.strip()
                             token = ""
                             current_state = State.ENTRY_TYPE
@@ -64,22 +64,22 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                         if current_state == State.ENTRY_TYPE:
                             entry_type = token
                             token = ""
-                            current_state = State.KEY # For references and strings.
+                            current_state = State.KEY  # For references and strings.
                             if entry_type.lower() == "comment" or entry_type.lower() == "preamble":
-                                current_state = State.VALUE # Preambles and comments don't have keys.
+                                current_state = State.VALUE  # Preambles and comments don't have keys.
                             continue
-                        elif current_state == State.VALUE: # Start of an enclosure.
+                        elif current_state == State.VALUE:  # Start of an enclosure.
                             current_state = State.BRACES_ENCLOSURE
                             braces_level += 1
-                        elif current_state == State.BRACES_ENCLOSURE: # Enclosure inside enclosure.
+                        elif current_state == State.BRACES_ENCLOSURE:  # Enclosure inside enclosure.
                             braces_level += 1
                     case "=":
-                        if current_state == State.KEY: # Start of the long_form inside a string.
+                        if current_state == State.KEY:  # Start of the long_form inside a string.
                             key = token.strip()
                             token = ""
                             current_state = State.VALUE
                             continue
-                        elif current_state == State.FIELD_KEY: # Start of the field_value
+                        elif current_state == State.FIELD_KEY:  # Start of the field_value
                             field_type = token.strip()
                             if " " and "\n" in field_type:
                                 unsupported_comment = field_type.split("\n")[0]
@@ -89,23 +89,23 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                             current_state = State.VALUE
                             continue
                     case ",":
-                        if current_state == State.KEY: # Start of fields inside reference.
+                        if current_state == State.KEY:  # Start of fields inside reference.
                             key = token.strip()
                             token = ""
                             current_state = State.FIELD_KEY
                             continue
-                        elif current_state == State.VALUE and entry_type.lower() != "comment": # End of the field value.
+                        elif current_state == State.VALUE and entry_type.lower() != "comment":  # End of the field value.
                             _add_field(fields, field_type, token.strip())
                             token = ""
                             current_state = State.FIELD_KEY
                             continue
                     case "\"":
-                        if current_state == State.VALUE: # Start of enclosure.
+                        if current_state == State.VALUE:  # Start of enclosure.
                             current_state = State.QUOTATION_MARKS_ENCLOSURE
-                        elif current_state == State.QUOTATION_MARKS_ENCLOSURE: # End of enclosure.
+                        elif current_state == State.QUOTATION_MARKS_ENCLOSURE:  # End of enclosure.
                             current_state = State.VALUE
                     case "\\":
-                        if current_state == State.QUOTATION_MARKS_ENCLOSURE: # Escape sequence.
+                        if current_state == State.QUOTATION_MARKS_ENCLOSURE:  # Escape sequence.
                             ignore_next = True
                     case "\n":
                         if current_state == State.VALUE or current_state == State.QUOTATION_MARKS_ENCLOSURE or current_state == State.BRACES_ENCLOSURE:
@@ -116,7 +116,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                         if remove_whitespace:
                             continue
                     case "}":
-                        if current_state == State.FIELD_KEY or current_state == State.VALUE: # End of reference.
+                        if current_state == State.FIELD_KEY or current_state == State.VALUE:  # End of reference.
                             # Can also come at the state of VALUE because the last comma is optional.
                             token = token.strip()
                             if entry_type.lower() == "comment":
@@ -139,7 +139,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                                 result.content.append(String(comment, key, _parse_string(token), enclosure))
                             else:
                                 reference = Reference(comment, entry_type, key)
-                                if token.strip() != "": # Since a comma in the last field is optional.
+                                if token.strip() != "":  # Since a comma in the last field is optional.
                                     _add_field(fields, field_type, token.strip())
                                 for field, field_value in fields.items():
                                     setattr(reference, field, field_value)
@@ -155,7 +155,7 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                                 current_state = State.VALUE
                 if remove_whitespace:
                     remove_whitespace = False
-                    token += " " # Add a single space to replace all the removed whitespace.
+                    token += " "  # Add a single space to replace all the removed whitespace.
                 token += char
     result.content.append(token.strip())
     return result

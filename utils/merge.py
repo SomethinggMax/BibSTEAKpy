@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 import interface_handler
 from objects import BibFile, Reference, String
-from utils import batch_editor, json_loader, cleanup
+from utils import batch_editor, json_loader, cleanup, file_parser, file_generator
 from difflib import SequenceMatcher
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -809,3 +809,12 @@ def _references_equal_normalized(ref1: Reference, ref2: Reference) -> bool:
         if normalize_field_for_compare(name, v1) != normalize_field_for_compare(name, v2):
             return False
     return True
+
+
+# JUST FOR TESTING
+if __name__ == '__main__':
+    test = file_parser.parse_bib("../bib_files/bibtests.bib")
+    merge_test = file_parser.parse_bib("../bib_files/bib-merge-test.bib")
+    merge_result = "../bib_files/merge-result.bib"
+    result = merge_files(merge_test, test)
+    file_generator.generate_bib(result, merge_result)

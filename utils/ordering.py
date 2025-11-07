@@ -1,5 +1,6 @@
 from enum import Enum
 from objects import BibFile, Reference
+from utils import file_parser, file_generator
 
 
 class GroupingType(Enum):
@@ -37,3 +38,10 @@ def references_to_entry_type_dict(references: [Reference]):
             reference_array.append(reference)
 
     return entry_type_dict
+
+
+# JUST FOR TESTING
+if __name__ == '__main__':
+    test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib")
+    order_by_entry_type(test_file, GroupingType.ZTOA)
+    file_generator.generate_bib(test_file, "../bib_files/bib-examples-grouped.bib")

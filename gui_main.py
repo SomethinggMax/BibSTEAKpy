@@ -925,7 +925,7 @@ def open_synonyms_json():
 
 
 def save_settings(directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
-                    convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox,
+                    convert_unicode_checkbox, prefer_doi_checkbox,
                     keep_comments_checkbox, keep_comment_entries_checkbox, lowercase_entry_types_checkbox,
                     lowercase_fields_checkbox, braces_checkbox, quotes_checkbox,):
     path = directory_input.value.strip()
@@ -954,7 +954,6 @@ def save_settings(directory_input, abs_strong_match_input, abs_strong_mismatch_i
     cfg["abstract_strong_mismatch"] = abs_strong_mismatch
     cfg["remove_newlines_in_fields"] = bool(remove_newlines_checkbox.value)
     cfg["convert_special_symbols_to_unicode"] = bool(convert_unicode_checkbox.value)
-    cfg["prefer_url_over_doi"] = bool(prefer_url_checkbox.value)
     cfg["prefer_doi_over_url"] = bool(prefer_doi_checkbox.value)
     cfg["keep_comments"] = bool(keep_comments_checkbox.value)
     cfg["keep_comment_entries"] = bool(keep_comment_entries_checkbox.value)
@@ -1003,17 +1002,14 @@ def setup_page():
                 convert_unicode_checkbox = ui.checkbox("Convert special symbols to Unicode")
                 convert_unicode_checkbox.value = bool(cfg.get("convert_special_symbols_to_unicode", False))
 
-                prefer_url_checkbox = ui.checkbox("Prefer URL when merging conflicts")
-                prefer_url_checkbox.value = bool(cfg.get("prefer_url_over_doi", False))
-
-                prefer_doi_checkbox = ui.checkbox("Prefer DOI when merging conflicts")
+                prefer_doi_checkbox = ui.checkbox("Prefer DOI over URL")
                 prefer_doi_checkbox.value = bool(cfg.get("prefer_doi_over_url", False))
 
-                keep_comments_checkbox = ui.checkbox("Keep inline comments in .bib")
-                keep_comments_checkbox.value = bool(cfg.get("keep_comments", False))
+                remove_comments_checkbox = ui.checkbox("Remove comments above strings and references in .bib files")
+                remove_comments_checkbox.value = bool(cfg.get("remove_comments", False))
 
-                keep_comment_entries_checkbox = ui.checkbox("Keep @comment entries")
-                keep_comment_entries_checkbox.value = bool(cfg.get("keep_comment_entries", False))
+                remove_comment_entries_checkbox = ui.checkbox("Remove @comment entries")
+                remove_comment_entries_checkbox.value = bool(cfg.get("remove_comment_entries", False))
 
                 lowercase_entry_types_checkbox = ui.checkbox("Lowercase entry types (e.g., @article)")
                 lowercase_entry_types_checkbox.value = bool(cfg.get("lowercase_entry_types", False))
@@ -1035,8 +1031,8 @@ def setup_page():
         with ui.row().classes("justify-end mt-6"):
             ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(
                 directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
-                convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox, keep_comments_checkbox,
-                keep_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
+                convert_unicode_checkbox, prefer_doi_checkbox, remove_comments_checkbox,
+                remove_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
                 braces_checkbox, quotes_checkbox,
             ),).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
 
@@ -1078,7 +1074,7 @@ def on_settings_click():
     ui.run_javascript('window.location.href = "/settings"')
 
 @ui.page("/settings")
-def setup_page():
+def settings_page():
     cfg = json_loader.load_config()
     with ui.column().classes("items-center w-full"):
         ui.label("Settings").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(
@@ -1110,17 +1106,14 @@ def setup_page():
                 convert_unicode_checkbox = ui.checkbox("Convert special symbols to Unicode")
                 convert_unicode_checkbox.value = bool(cfg.get("convert_special_symbols_to_unicode", False))
 
-                prefer_url_checkbox = ui.checkbox("Prefer URL when merging conflicts")
-                prefer_url_checkbox.value = bool(cfg.get("prefer_url_over_doi", False))
-
-                prefer_doi_checkbox = ui.checkbox("Prefer DOI when merging conflicts")
+                prefer_doi_checkbox = ui.checkbox("Prefer DOI over URL")
                 prefer_doi_checkbox.value = bool(cfg.get("prefer_doi_over_url", False))
 
-                keep_comments_checkbox = ui.checkbox("Keep inline comments in .bib")
-                keep_comments_checkbox.value = bool(cfg.get("keep_comments", False))
+                remove_comments_checkbox = ui.checkbox("Remove comments above strings and references in .bib files")
+                remove_comments_checkbox.value = bool(cfg.get("remove_comments", False))
 
-                keep_comment_entries_checkbox = ui.checkbox("Keep @comment entries")
-                keep_comment_entries_checkbox.value = bool(cfg.get("keep_comment_entries", False))
+                remove_comment_entries_checkbox = ui.checkbox("Remove @comment entries")
+                remove_comment_entries_checkbox.value = bool(cfg.get("remove_comment_entries", False))
 
                 lowercase_entry_types_checkbox = ui.checkbox("Lowercase entry types (e.g., @article)")
                 lowercase_entry_types_checkbox.value = bool(cfg.get("lowercase_entry_types", False))
@@ -1142,8 +1135,8 @@ def setup_page():
         with ui.row().classes("justify-end mt-6"):
             ui.button("Save", color=SUCCESS_COLOR, on_click=lambda: save_settings(
                 directory_input, abs_strong_match_input, abs_strong_mismatch_input, remove_newlines_checkbox,
-                convert_unicode_checkbox, prefer_url_checkbox, prefer_doi_checkbox, keep_comments_checkbox,
-                keep_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
+                convert_unicode_checkbox, prefer_doi_checkbox, remove_comments_checkbox,
+                remove_comment_entries_checkbox, lowercase_entry_types_checkbox, lowercase_fields_checkbox,
                 braces_checkbox, quotes_checkbox,
             ),).classes("px-6 py-2 rounded-lg font-semibold").style("text-transform: none;")
 

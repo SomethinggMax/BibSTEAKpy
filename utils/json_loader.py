@@ -10,7 +10,6 @@ CONFIG_TEMPLATE = {
     "clean_before_merge": True,
     "remove_newlines_in_fields": False,
     "convert_special_symbols_to_unicode": True,
-    "prefer_url_over_doi": False,
     "prefer_doi_over_url": True,
     "remove_comments": False,
     "remove_comment_entries": False,

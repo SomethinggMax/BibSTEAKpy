@@ -8,8 +8,9 @@ import utils.file_parser as file_parser
 from utils.file_parser import parse_bib
 from utils.file_generator import generate_bib
 from utils.abbreviations_exec import execute_abbreviations
-from utils.tagging import tag_refs, untag_refs
+from utils.tagging import tag_refs
 from history_manager import undo, redo
+
 
 
 files = {}
@@ -21,13 +22,17 @@ selected_references: set = set()
 all_selected_references: bool = False
 merge = None
 connected_users = 0
+search_active = False
+search_results = []
+search_term = None
+
 
 PRIMARY_COLOR = "#CCE0D4"
 SECONDARY_COLOR = "#9AC1A9"
 SUCCESS_COLOR = "#5D9874"
+SELECTED_COLOR = "#588F6D"
 
-# WARNING_COLOR = "#FBBF24"
-# ERROR_COLOR = "#EF4444"
+
 
 def is_reference(entry) -> bool:
     return hasattr(entry, 'cite_key') and hasattr(entry, 'entry_type')
@@ -71,7 +76,7 @@ def populate_files():
     """
     files_col.clear()
     with files_col:
-        with ui.row().classes("items-center justify-between w-full mb-5"):
+        with ui.row().classes("items-center justify-between w-full mb-2"):
             # the header of the files column
             ui.label("Files").classes("font-bold text-lg")
             with ui.row().classes("items-center gap-4"):
@@ -81,32 +86,14 @@ def populate_files():
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/redo.png").classes("w-6 h-6 cursor-pointer").on("click", on_redo_click)
                     ui.label("Redo").classes("font-bold text-xs")
-                with ui.column().classes("items-center gap-1"):
-                    ui.image("icons/search.png").classes("w-6 h-6 cursor-pointer").on("click", on_search_click)
-                    ui.label("Search").classes("font-bold text-xs")
                 # display of the select all button
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/select.png").classes("w-6 h-6 cursor-pointer").on("click", toggle_select_all_files)
                     ui.label("Select All").classes("font-bold text-xs")
 
-        if not files:
-            ui.label("(no .bib files found)")
-
-        # display of selection choice (using checkboxes)
-        for filename in files:
-            with ui.row().classes("items-center w-full gap-2"):
-                checkbox = ui.checkbox(on_change=lambda e, fn=filename: toggle_file_selection(fn, e.value))
-                checkbox.value = filename in selected_files
-
-                btn_classes = "flex-1 text-left"
-                if filename == selected_file:
-                    btn_classes += " bg-gray-300"
-                ui.button(filename, on_click=lambda e, fn=filename: on_file_click(fn), color=SECONDARY_COLOR).classes(
-                    btn_classes).style("text-transform: none;")
-
-        # display of the bar at the bottom
+        # display of the bar (now at the top so you don't have to go down through all the files)
         with files_col:
-            with ui.row().classes("items-center justify-between p-5 bg-gray-200 rounded-lg shadow-inner w-full mt-10"):
+            with ui.row().classes("items-center justify-between p-5 bg-gray-200 rounded-lg shadow-inner w-full mb-5"):
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/merge.png").classes("w-5 h-5 cursor-pointer").on("click", on_merge_click)
                     ui.label("Merge").classes("font-bold text-xs")
@@ -122,6 +109,20 @@ def populate_files():
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/enrichment.png").classes("w-5 h-5 cursor-pointer").on("click", on_enrich_click)
                     ui.label("Enrich").classes("font-bold text-xs")
+
+        if not files:
+            ui.label("(no .bib files found)")
+
+        # display of selection choice (using checkboxes)
+        for filename in files:
+            with ui.row().classes("items-center w-full gap-2"):
+                checkbox = ui.checkbox(on_change=lambda e, fn=filename: toggle_file_selection(fn, e.value))
+                checkbox.value = filename in selected_files
+
+                btn_color = SELECTED_COLOR if filename == selected_file else SECONDARY_COLOR
+                ui.button(filename,on_click=lambda e, fn=filename: on_file_click(fn),color=btn_color).classes("flex-1 text-left").style("text-transform: none;")
+
+        
 
 def toggle_file_selection(filename: str, checked: bool):
     """
@@ -175,11 +176,17 @@ def populate_refs_for_file(filename: str):
             ui.label("References").classes("font-bold text-lg")
             with ui.row().classes("items-center gap-4"):
                 with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/search.png").classes("w-6 h-6 cursor-pointer").on("click", on_search_click)
+                    ui.label("Search").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
                     ui.image("icons/tag.png").classes("w-6 h-6 cursor-pointer").on("click", on_tag_click)
                     ui.label("Tag").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/untag.png").classes("w-6 h-6 cursor-pointer").on("click", on_untag_click)
                     ui.label("Untag").classes("font-bold text-xs")
+                with ui.column().classes("items-center gap-1"):
+                    ui.image("icons/sorting.png").classes("w-7 h-7 cursor-pointer").on("click", on_sort_click)
+                    ui.label("Sort").classes("font-bold text-xs")
                 with ui.column().classes("items-center gap-1"):
                     ui.image("icons/filter.png").classes("w-6 h-6 cursor-pointer").on("click", on_filter_click)
                     ui.label("Filter").classes("font-bold text-xs")
@@ -198,7 +205,7 @@ def populate_refs_for_file(filename: str):
             author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
             title = normalize_field(getattr(ref, 'title', None) or "Untitled")
             year = normalize_field(getattr(ref, 'year', None) or "N.D.")
-            short_label = f"{author} ({year}): {title}"
+            label = f"{author} ({year}): {title}"
 
             ref_tags = [tag for tag, cite_keys in tags_dict.items() if getattr(ref, 'cite_key', None) in (cite_keys or [])]
             if ref_tags:
@@ -211,12 +218,8 @@ def populate_refs_for_file(filename: str):
                 checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(
                     f"accent-color: {SUCCESS_COLOR};")
                 checkbox.value = getattr(ref, 'cite_key', None) in selected_references
-                btn_classes = "flex-1 text-left"
-                if ref is selected_ref:
-                    btn_classes += " bg-gray-300"
-                ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color=SECONDARY_COLOR).classes(
-                    btn_classes).style("text-transform: none;")
-
+                btn_color = SELECTED_COLOR if ref is selected_ref else SECONDARY_COLOR
+                ui.button(label,on_click=lambda e, r=ref: on_ref_click(r),color=btn_color).classes("flex-1 text-left").style("text-transform: none;")
 
 def toggle_reference_selection(ref, checked: bool):
     """
@@ -277,7 +280,8 @@ def on_file_click(filename: str):
     Toggles the display of the REFERENCE column with 
     the references from the file that was clicked
     """
-    global selected_file, selected_ref
+    global selected_file, selected_ref, search_active
+    search_active = False
     selected_file = filename
     selected_ref = None
     selected_references.clear()
@@ -293,10 +297,14 @@ def on_ref_click(ref: dict):
     Toggles the display of the BIB column with the bib content 
     from the reference from the file that was clicked
     """
-    global selected_ref
+    global selected_ref, search_active
     selected_ref = ref
-    populate_refs_for_file(selected_file)
-    populate_bib_for_ref(ref)
+    if search_active:
+        populate_bib_for_ref(ref)
+        show_search_results(search_results, search_term)
+    else:
+        populate_refs_for_file(selected_file)
+        populate_bib_for_ref(ref)
 
 
 def on_minimize_click():
@@ -375,7 +383,7 @@ def choose_merge_name(name, merged_bib, selected_files_list, dialog):
     reload_after_edit()
 
 
-def on_filter_click():
+def on_sort_click():
     if not selected_file:
         ui.notify("Please select a file first", color="red")
         return
@@ -387,7 +395,7 @@ def on_filter_click():
     total_refs = len(references)
 
     if 0 < num_selected < total_refs:
-        ui.notify("Some references are selected, but filter will apply to all references in the file", color="orange")
+        ui.notify("Some references are selected, but sort will apply to all references in the file", color="orange")
 
     with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-64"):
         ui.label("Sort References").classes("font-bold text-lg mb-2")
@@ -415,6 +423,64 @@ def on_filter_click():
 
             ui.button("Apply", on_click=apply_sort, color=SECONDARY_COLOR).style("text-transform: none;")
     dialog.open()
+
+
+async def on_filter_click():
+    if not selected_file:
+        ui.notify("Please select a file first", color="red")
+        return
+
+    bib_file = files[selected_file]
+
+    with ui.dialog() as mode_dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-80"):
+        ui.label("Select Filter Mode").classes("font-bold text-lg mb-4")
+        mode = ui.radio(
+            options={"exists": "Has Field", "value": "Field Contains Value"},
+            value="exists"
+        )
+        with ui.row().classes("justify-end gap-2 mt-4"):
+            ui.button("Cancel", on_click=mode_dialog.close, color=PRIMARY_COLOR)
+            ui.button("Next", on_click=lambda e: mode_dialog.submit(mode.value), color=SECONDARY_COLOR)
+
+    selected_mode = await mode_dialog
+    if selected_mode is None:
+        return
+
+    with ui.dialog() as field_dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-80"):
+        ui.label("Filter References").classes("font-bold text-lg mb-4")
+        field_input = ui.input(label="Field name(e.g., author, journal, doi)").classes("w-full mb-2")
+        value_input = None
+        if selected_mode == "value":
+            value_input = ui.input(label="Field Value").classes("w-full mb-2")
+
+        def apply_action():
+            field = (field_input.value or "").strip()
+            if not field:
+                ui.notify("Enter a field name", color="red")
+                return
+            if selected_mode == "exists":
+                refs = filtering.filterByFieldExistence(bib_file, field)
+                desc = f"has field '{field}'"
+            else:
+                value = (value_input.value or "").strip()
+                if not value:
+                    ui.notify("Enter a field value", color="red")
+                    return
+                refs = filtering.filterByFieldValue(bib_file, field, value)
+                desc = f"{field} contains '{value}'"
+            field_dialog.close()
+
+            global search_active, search_results, search_term
+            search_active = True
+            search_results = refs
+            search_term = desc
+            show_search_results(refs, search_term)
+
+        with ui.row().classes("justify-end gap-2 mt-4"):
+            ui.button("Cancel", on_click=field_dialog.close, color=PRIMARY_COLOR)
+            ui.button("Apply", on_click=apply_action, color=SECONDARY_COLOR)
+    await field_dialog
+
 
 def on_cleanup_click():
     if not selected_files:
@@ -455,7 +521,16 @@ def on_tag_click():
     with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-[340px]"):
         ui.label("Add Tag").classes("font-bold text-lg mb-2")
         tag_input = ui.input(label="Tag name").classes("w-full")
-        color_input = ui.input(label = "Tag color", value="#EC86F0").props("type=color").classes("w-full")
+
+        with ui.row().classes("items-center gap-2"):
+            color_input = ui.color_input(label="Tag Color",value="#EC86F0",on_change=lambda e: color_swatch.style(f"width:24px; height:24px; border-radius:4px; "f"background-color:{e.value}; display:inline-block; margin-left:8px;"))
+            color_swatch = ui.label().style("width:24px; height:24px; border-radius:4px; background-color:#EC86F0; display:inline-block; margin-left:8px;")
+
+        def on_color_change(_):
+            color_swatch.style(f"width:24px; height:24px; border-radius:4px; background-color:{color_input.value}; display:inline-block; margin-left:8px;")
+
+        color_input.on("input", on_color_change)
+        color_input.on("change", on_color_change)
 
         def on_tag_change(e):
             name = (e.value or "").strip()
@@ -600,6 +675,38 @@ def on_redo_click():
     except Exception as e:
         ui.notify(f"Undo failed: {e}", color="red")
 
+def show_search_results(ref_list, term=None):
+    refs_col.clear()
+    with refs_col:
+        header = f"References (search: {term})"
+        with ui.row().classes("items-center justify-between w-full mb-5"):
+            ui.label(header).classes("font-bold text-lg")
+        tags_dict = json_loader.load_tags() or {}
+        tag_colors = json_loader.load_tag_colors() or {}
+        for ref in ref_list:
+            k = getattr(ref, 'cite_key', None)
+
+            ref_tags = [t for t, keys in tags_dict.items() if k in (keys or [])]
+            
+            if ref_tags:
+                with ui.row().classes("ml-8 gap-1 mb-1"):
+                    for t in sorted(ref_tags):
+                        color = tag_colors.get(t, "#E5E7EB")
+                        ui.label(t).classes("text-[10px] px-2 py-[2px] rounded-md").style(
+                            f"background-color: {color}; color: black;"
+                        )
+            author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
+            title = normalize_field(getattr(ref, 'title', None) or "Untitled")
+            year = normalize_field(getattr(ref, 'year', None) or "N.D.")
+            label = f"{author} ({year}): {title}"
+            
+            btn_color = SELECTED_COLOR if ref is selected_ref else SECONDARY_COLOR
+            with ui.row().classes("items-center w-full gap-2"):
+                checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
+                checkbox.value = k in selected_references
+                ui.button(label, on_click=lambda e, r=ref: on_ref_click(r), color=btn_color).classes("flex-1 text-left").style("text-transform: none;")
+
+
 def on_search_click():
     with ui.dialog() as dialog, ui.card().classes("p-4 bg-gray-100 rounded shadow w-[380px]"):
         ui.label("Search").classes("font-bold text-lg mb-2")
@@ -619,37 +726,17 @@ def on_search_click():
             if not bib_file:
                 ui.notify("Could not load the current file", color="red")
                 return
-
             try:
                 matches = filtering.search(bib_file, term) 
                 if matches == -1 or not matches:
                     ui.notify("No matches found", color="orange")
                     return
-
-                refs_col.clear()
-                with refs_col:
-                    with ui.row().classes("items-center justify-between w-full mb-5"):
-                        ui.label(f"References (search: {term})").classes("font-bold text-lg")
-                    tags_dict = json_loader.load_tags() or {}
-                    tag_colors = json_loader.load_tag_colors() or {}
-                    for ref in matches:
-                        author = normalize_field(getattr(ref, 'author', None) or "Unknown Author")
-                        title = normalize_field(getattr(ref, 'title', None) or "Untitled")
-                        year = normalize_field(getattr(ref, 'year', None) or "N.D.")
-                        short_label = f"{author} ({year}): {title}"
-                        k = getattr(ref, 'cite_key', None)
-                        with ui.row().classes("items-center w-full gap-2"):
-                            checkbox = ui.checkbox(on_change=lambda e, r=ref: toggle_reference_selection(r, e.value)).style(f"accent-color: {SUCCESS_COLOR};")
-                            checkbox.value = k in selected_references
-                            btn_color = SECONDARY_COLOR
-                            ui.button(short_label, on_click=lambda e, r=ref: on_ref_click(r), color=btn_color).classes("flex-1 text-left").style("text-transform: none;")
-                        if k and tags_dict:
-                            ref_tags = [t for t, keys in tags_dict.items() if k in (keys or [])]
-                            if ref_tags:
-                                with ui.row().classes("ml-8 gap-1"):
-                                    for t in sorted(ref_tags):
-                                        color = tag_colors.get(t, "#E5E7EB")
-                                        ui.label(t).classes("text-[10px] px-2 py-[2px] rounded-md").style(f"background-color: {color}; color: black;")
+                
+                global search_active, search_results, search_term
+                search_active = True
+                search_results = matches
+                search_term = term
+                show_search_results(matches, search_term)
                 ui.notify(f"Found {len(matches)} match(es)", color="green")
             except Exception as e:
                 ui.notify(f"Search failed: {e}", color="red")
@@ -773,7 +860,7 @@ def reload_after_edit():
 
 
 def open_abbreviations_json():
-    file_path = os.path.abspath("abbreviations.json")
+    file_path = os.path.abspath("jsons/abbreviations.json")
 
     if not os.path.exists(file_path):
         with open(file_path, "w") as f:
@@ -911,11 +998,14 @@ def setup_page():
 @ui.page('/')
 def main_page():
     global files_col, refs_col, bib_col, merge
-
+    global selected_file, selected_ref
+    selected_file = None
+    selected_ref = None
+    
     cfg = json_loader.load_config()
     wd = (cfg or {}).get("working_directory") or ""
     if not wd:
-        global files, selected_file, selected_ref, selected_files, all_selected_files, selected_references, all_selected_references
+        global files, selected_files, all_selected_files, selected_references, all_selected_references
         files = {}
         selected_file = None
         selected_ref = None

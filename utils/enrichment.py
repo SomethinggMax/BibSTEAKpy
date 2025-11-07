@@ -8,7 +8,7 @@ from utils.file_parser import *
 
 
 def sanitize_bib_file(bib_file: BibFile):
-    if checkInternet():
+    if check_internet():
         for entry in bib_file.content:
             lookup = None
             if type(entry) is Reference:
@@ -27,16 +27,16 @@ def sanitize_bib_file(bib_file: BibFile):
                 if lookup:
                     for k, v in lookup.items():
                         if not k in fields:
-                            fields[k] = v
+                            fields[k] = f"\"{v}\""
         return bib_file
     else:
         print(f"\033[31m No internet connection found, please connect to the internet and try again! \033[0m")
         return bib_file
 
 
-def checkInternet() -> bool:
-    return (lambda a: True if 0 == a.system('ping 8.8.8.8 -n 3 -l 32 -w 3 > clear') else False)(__import__('os'))
-
+def check_internet() -> bool:
+    # return (lambda a: True if 0 == a.system('ping 8.8.8.8 > clear') else False)(__import__('os'))
+    return True
 
 def lookup_bibtex_fields_by_title(title: str, author: str, timeout: float = 10.0) -> Dict[str, Any] | None:
     # Make session for api friendliness

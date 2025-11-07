@@ -1078,7 +1078,7 @@ def on_settings_click():
     ui.run_javascript('window.location.href = "/settings"')
 
 @ui.page("/settings")
-def setup_page():
+def settings_page():
     cfg = json_loader.load_config()
     with ui.column().classes("items-center w-full"):
         ui.label("Settings").classes("text-4xl font-bold mb-4 mt-6 self-start ml-[400px]").style(

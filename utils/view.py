@@ -14,7 +14,7 @@ GREY = "\033[030m"
 def print_bibfile_pretty(bibfileobj: BibFile):
     for entry in bibfileobj.content:
         if type(entry) == String:
-            print(f"{YELLOW}{var_w_space("@String", 16)}{GREEN}{var_w_space(entry.abbreviation, 8)}{WHITE}{entry.long_form}{(c_space(entry.long_form,10) + '%' + entry.comment_above_string) if entry.comment_above_string else ''}")
+            print(f"{YELLOW}{var_w_space('@String', 16)}{GREEN}{var_w_space(entry.abbreviation, 8)}{WHITE}{entry.long_form}{(c_space(entry.long_form, 10) + '%' + entry.comment_above_string) if entry.comment_above_string else ''}")
         elif type(entry) == Reference:
             print_ref_pretty(entry)
         elif type(entry) == Comment:
@@ -32,13 +32,13 @@ def print_refarray_short(refarray: list[Reference]):
     Prints a shortform of the ref array
     For each ref it will print [reftype, citekey, title, author, year]
     """
-    print(f"{BLUE}{var_w_space("ENTRY TYPE", 15)}{GREEN}{var_w_space("CITE KEY", 20)}{WHITE}{var_w_space("TITLE", 30)}{var_w_space("AUTHOR", 30)}YEAR")
-    print(f"{BLUE}{15*"."} {GREEN}{20*"."} {WHITE}{30*"."} {30*"."} {4*"."}")
+    print(f"{BLUE}{var_w_space('ENTRY TYPE', 15)}{GREEN}{var_w_space('CITE KEY', 20)}{WHITE}{var_w_space('TITLE', 30)}{var_w_space('AUTHOR', 30)}YEAR")
+    print(f"{BLUE}{15 * '.'} {GREEN}{20 * '.'} {WHITE}{30 * '.'} {30 * '.'} {4 * '.'}")
 
     for entry in refarray:
         #since title, author and year could be none, they get added dynamically
         fields = [entry.get_fields().get("title"), entry.get_fields().get("author"), entry.get_fields().get("year")]
-        str = f"{BLUE}{var_w_space("@" + entry.entry_type, 15)}{GREEN}{var_w_space(entry.cite_key, 20)}{WHITE}"
+        str = f"{BLUE}{var_w_space('@' + entry.entry_type, 15)}{GREEN}{var_w_space(entry.cite_key, 20)}{WHITE}"
         for field in fields:
             if field != None:
                 #CLEANING INPUT (yes this is needlessly long)
@@ -65,7 +65,7 @@ def print_refarray_short(refarray: list[Reference]):
             
 def print_ref_pretty(ref: Reference):
     print("")
-    print(f"{BLUE}{var_w_space("@"+ref.entry_type, 16)}{GREEN}{ref.cite_key}{WHITE}")
+    print(f"{BLUE}{var_w_space('@' + ref.entry_type, 16)}{GREEN}{ref.cite_key}{WHITE}")
     for field in ref.get_fields():
         val = ref.get_fields().get(field)
         if field == "comment_above_reference":

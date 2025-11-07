@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 import interface_handler
 from objects import BibFile, Reference, String
-from utils import batch_editor, json_loader
+from utils import batch_editor, json_loader, cleanup
 from difflib import SequenceMatcher
 
 NON_ALNUM_RE = re.compile(r'[^a-z0-9]+')
@@ -34,13 +34,6 @@ def _get_abstract_thresholds():
         weak = strong
     return strong, weak
 
-
-# Pretty printing / CLI formatting
-PREFERRED_FIELD_ORDER = [
-    'cite_key', 'author', 'title', 'year', 'journal', 'booktitle', 'publisher',
-    'volume', 'number', 'pages', 'doi', 'url', 'isbn', 'issn', 'abstract'
-]
-
 # URL domains considered relatively reliable for identity matching
 TRUSTED_URL_DOMAINS = {
     'doi.org', 'dx.doi.org', 'arxiv.org', 'dl.acm.org', 'ieeexplore.ieee.org',
@@ -58,7 +51,8 @@ def _stringify_field_value(value) -> str:
 
 
 def order_key(name: str):
-    return PREFERRED_FIELD_ORDER.index(name) if name in PREFERRED_FIELD_ORDER else len(PREFERRED_FIELD_ORDER), name
+    preferred_field_order = json_loader.load_config().get("preferred_field_order", [])
+    return preferred_field_order.index(name) if name in preferred_field_order else len(preferred_field_order), name
 
 
 def _ordered_field_names(ref: Reference) -> list:
@@ -479,8 +473,13 @@ def merge_strings(bib_file_1: BibFile, bib_file_2: BibFile) -> (BibFile, BibFile
 
 
 def merge_files(bib_file_1: BibFile, bib_file_2: BibFile) -> BibFile:
+    clean_before_merge = json_loader.load_config().get("clean_before_merge", False)
+    if clean_before_merge:
+        cleanup.cleanup(bib_file_1)
+        cleanup.cleanup(bib_file_2)
+
     # File name will be set when generating the file, this is just temporary.
-    merged_bib_file = BibFile(bib_file_1.file_name + '+' + bib_file_2.file_name)
+    merged_bib_file = BibFile(bib_file_1.file_path + '+' + bib_file_2.file_path)
 
     merged_bib_file.content = bib_file_1.get_preambles()  # Add preambles from file 1.
 

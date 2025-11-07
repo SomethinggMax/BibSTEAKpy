@@ -3,13 +3,13 @@ from enum import Enum
 
 class BibFile(object):
     def __init__(self, file_name):
-        self.file_name = file_name
+        self.file_path = file_name
         self.content = list()
 
     def __eq__(self, other):
         if not isinstance(other, BibFile):
             return NotImplemented
-        return self.file_name == other.file_name and self.content == other.content
+        return self.file_path == other.file_path and self.content == other.content
 
     def get_cite_keys(self):
         cite_keys = []
@@ -46,7 +46,7 @@ class BibFile(object):
                 and not isinstance(entry, Preamble)]
 
     def __str__(self):
-        return f"[File: {self.file_name} - content: {self.content}]"
+        return f"[File: {self.file_path} - content: {self.content}]"
 
     def __repr__(self):
         return self.__str__()

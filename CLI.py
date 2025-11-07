@@ -64,7 +64,7 @@ COMMANDS = {
         ("list", "Lists all the bib files in the current working directory"),
         ("pwd", "Prints the current working directory"),
         (
-            "view <filename> [-abb]",
+            "view <filename> [-sf]",
             "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)",
         ),
         # ("del <filename>", "Deletes a file"),
@@ -123,12 +123,12 @@ COMMANDS = {
         ),
         ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
         (
-            "search <filename> <searchterm>",
-            "Displays references with a certain searchterm",
+            "search <filename> <searchterm> [-sf]",
+            "Displays references with a certain searchterm (OPTIONAL: short form)",
         ),
         (
-            "filter <filename> <field> [value=None]",
-            "Displays references with a certain field (OPTIONAL: a value in that field)",
+            "filter <filename> <field> [value] [-sf]",
+            "Displays references with a certain field (OPTIONAL: a value for that field) (OPTIONAL: short form)",
         ),
         (
             "enr <filename>",
@@ -161,30 +161,30 @@ def print_in_yellow(arg):
     
 def print_error_msg(e: Exception, msg):
     ERROR_SIGN = ">|"
-    def print_err(red_txt: str, yellow_txt:str):
-        if red_txt == ERROR_SIGN:
-            print(f"{BLUE}{red_txt} {WHITE}{yellow_txt}")
-        else:
-            print(f"{RED}{red_txt} {YELLOW}{yellow_txt}")
+    def print_err1(red_txt: str, yellow_txt:str):
+        print(f"{RED}{red_txt} {YELLOW}{yellow_txt}")
+    
+    def print_err2(txt):
+        print(f"{BLUE}{ERROR_SIGN} {WHITE}{txt}")
 
     error_type = e.__class__.__name__
     match error_type:
         case "JSONDecodeError":
-            print_err("JSON Decode Error:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check {CYAN}'{msg}'{WHITE} manually")
+            print_err1("JSON Decode Error:", f"{e}")
+            print_err2(f"Perhaps check {CYAN}'{msg}'{WHITE} manually")
         case "ValueError" | "IndexError":
-            print_err("Argument Error:", f"{e}")
-            print_err(ERROR_SIGN,f"Invoke the command as follows: {GREEN}{msg}")
+            print_err1("Argument Error:", f"{e}")
+            print_err2(f"Invoke the command as follows: {GREEN}{msg}")
         case "FileNotFoundError":
-            print_err("FileNotFound:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check your spelling of {CYAN}'{msg.filename}'")
+            print_err1("FileNotFound:", f"{e}")
+            print_err2(f"Perhaps check your spelling of {CYAN}'{msg.filename}'")
         case "PermissionError":
-            print_err("Permission Error:", f"{e}")
-            print_err(ERROR_SIGN, f"Perhaps check your permissions on {CYAN}'{msg.filename}'{WHITE} manually")
+            print_err1("Permission Error:", f"{e}")
+            print_err2(f"Perhaps check your permissions on {CYAN}'{msg.filename}'{WHITE} manually")
         case "Exception":
-            print_err("Unexpected error:",f"{msg}")
+            print_err1("Unexpected error:",f"{msg}")
         case _:
-            print_err(f"{error_type}:", f"{msg}")
+            print_err1(f"{error_type}:", f"{msg}")
 
 
 def completer(text, state):
@@ -494,70 +494,65 @@ class CLI(cmd.Cmd):
 
             bibfileobj = path_to_bibfileobj(filename)
 
-            if len(arguments) > 1 and arguments[1] == "-abb":
+            if len(arguments) > 1:
+                if arguments[1] == "-sf":
                     view.print_bibfile_short(bibfileobj)
+                else:
+                    raise ValueError("Invalid flag!")
             else:
                 view.print_bibfile_pretty(bibfileobj)
 
         except (ValueError, IndexError) as e:
-            print_error_msg(e, "view <filename> [-abb]")
+            print_error_msg(e, "view <filename> [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
     def do_filter(self, args):
         try:
-            args_split = parse_args(args)
+            arguments = parse_args(args)
 
             # get bibfileobj
-            filename = args_split[0]
+            filename = arguments[0]
             bibfileobj = path_to_bibfileobj(filename)
+            field = arguments[1]
 
-            field = args_split[1]
-
-            if len(args_split) == 3:
-                value = args_split[2].lower()
-                array = filtering.filterByFieldValue(bibfileobj, field, value)
-
-                if array == -1:
-                    print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'{YELLOW} with value {CYAN}'{value}'"
-                    )
-                    return
-                self.do_view_array(array)
-            else:
-                array = filtering.filterByFieldExistence(bibfileobj, field)
-                if array == -1:
-                    print_in_yellow(
-                        f"No references found with a field named {CYAN}'{field}'"
-                    )
-                    return
-                self.do_view_array(array)
+            match len(arguments):
+                case 2:
+                    array = filtering.filterByFieldExistence(bibfileobj, field)
+                    view.print_refarray_pretty(array)
+                case 3:
+                    if arguments[2] == "-sf":
+                        array = filtering.filterByFieldExistence(bibfileobj, field)
+                        view.print_refarray_short(array)
+                    else:
+                        value = arguments[2]
+                        array = filtering.filterByFieldValue(bibfileobj, field, value)
+                        view.print_refarray_pretty(array)
+                case 4:
+                    value = arguments[2]
+                    array = filtering.filterByFieldValue(bibfileobj, field, value)
+                    view.print_refarray_short(array)
         except (ValueError, IndexError) as e:
-            print_error_msg(e, "filter <filename> <field> [value=None]")
+            print_error_msg(e, "filter <filename> <field> [value] [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
     def do_search(self, args):
         try:
-            filename, searchterm = parse_args(args)
+            arguments = parse_args(args)
+            filename, searchterm = arguments[0], arguments[1]
             bibfileobj = path_to_bibfileobj(filename)
 
             array = filtering.search(bibfileobj, searchterm)
-            if array == -1:
-                print_in_yellow(
-                    f"No instances of {CYAN}'{searchterm}'{YELLOW} found in {CYAN}'{filename}'"
-                )
-                return
-
-            self.do_view_array(array)
+            
+            if len(arguments) > 2 and arguments[2] == "-sf":
+                view.print_refarray_short(array)
+            else:
+                view.print_refarray_pretty(array)
         except (IndexError, ValueError) as e:
-            print_error_msg(e, "search <filename> <searchterm>")
+            print_error_msg(e, "search <filename> <searchterm> [-sf]")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
-
-    def do_view_array(self, args):
-        for item in args:
-            print(f"{YELLOW}|>  {RESET}", item, end="\n\n")
 
     def do_br(self, args):
         try:
@@ -581,7 +576,7 @@ class CLI(cmd.Cmd):
             bib_file = batch_editor.batch_replace(
                 bib_file, fields, old_string, new_string
             )
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Batch replace has been done successfully!")
@@ -610,7 +605,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             ordering.order_by_entry_type(bib_file, order)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green(
@@ -632,7 +627,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Expanding abbreviations has been done successfully!")
@@ -652,7 +647,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             abbreviations_exec.execute_abbreviations(bib_file, True, 1000)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Collapsing abbreviations has been done successfully!")
@@ -817,7 +812,7 @@ class CLI(cmd.Cmd):
 
             initialise_history(bib_file)
             cleanup.cleanup(bib_file)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Cleanup has been done successfully!")
@@ -1102,7 +1097,7 @@ class CLI(cmd.Cmd):
             bib_file = path_to_bibfileobj(filename)
             initialise_history(bib_file)
             enrichment.sanitize_bib_file(bib_file)
-            file_generator.generate_bib(bib_file, bib_file.file_name)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             commit(bib_file)
 
             print_in_green("Enrichment has been done successfully!")

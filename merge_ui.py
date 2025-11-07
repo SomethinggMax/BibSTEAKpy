@@ -178,10 +178,10 @@ class Merge:
 
                 ui.label(header).classes('font-bold text-lg mb-3')
                 with ui.row().classes('gap-4 w-full items-stretch'):
-                    with ui.column().classes('flex-1 min-w-0'):
+                    with ui.column().classes('flex-1 min-w-90'):
                         ui.label('Value from reference 1').classes('font-semibold mb-1')
                         full_code_block(val1)
-                    with ui.column().classes('flex-1 min-w-0'):
+                    with ui.column().classes('flex-1 min-w-90'):
                         ui.label('Value from reference 2').classes('font-semibold mb-1')
                         full_code_block(val2)
                 with ui.row().classes('justify-end gap-2 mt-4'):

@@ -53,27 +53,27 @@ WHITE = "\033[37m"
 COMMANDS = {
     f"{MAGENTA}BASE COMMANDS{RESET}": [
         ("help", "Display the current menu"),
-        ("quit", "Close the BibSteak CLI"),
+        ("quit", "Close the BibSteak CLI")
     ],
     f"{MAGENTA}FILE MANAGEMENT{RESET}": [
         (
             "load <absolute/path/to/file>",
-            "Load a particular file into the working directory",
+            "Load a particular file into the working directory"
         ),
         ("cwd <absolute/path/to/directory>", "Changes/Adds the working directory"),
         ("list", "Lists all the bib files in the current working directory"),
         ("pwd", "Prints the current working directory"),
         (
             "view <filename> [-sf]",
-            "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)",
-        ),
+            "View the content of a certain .bib file in your current working directory (OPTIONAL: short form)"
+        )
         # ("del <filename>", "Deletes a file"),
     ],
 
     f"{MAGENTA}DISPLAYING{RESET}": [
          ("abb", "Display the abbreviations legend"),
          ("tag -ls", "Displays all added tags"),
-         ("config", "Displays the configurations"),
+         ("config", "Displays the configurations")
          
     ],
     # f"{MAGENTA}CONFIGS{RESET}": [
@@ -84,70 +84,34 @@ COMMANDS = {
     f"{MAGENTA}FUNCTIONAL COMMANDS{RESET}": [
         ("exp <filename>", "Expand all abbreviations in the file"),
         ("col <filename>", "Collapse all abbreviations in the file"),
-        (
-            "br <filename> <old term> <new term> [fieldslist]",
-            "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)",
-        ),
+        ("br <filename> <old term> <new term> [fieldslist]", "Replace all occurrences in given fields (OPTIONAL: a list of fields in which to search)"),
         ("clean <filename>", "Cleans file according to rules in config"),
-        (
-            "ord <filename> [reverse=False]",
-            "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)",
-        ),
-        (
-            "sub -e <filename> <new filename> <entrytypes list>",
-            "Creates a sub .bib file with only specified entry types",
-        ),
-        (
-            "sub -t <filename> <new filename> <tags list>",
-            "Creates a sub .bib file with only references with specified tags",
-        ),
-        (
-            "tag <tag> <query>",
-            "Adds a tag to all the references that return from a query. A query can either be a filter or search command",
-        ),
-        (
-            "untag <tag> <query>",
-            "Untags all references that return from a query. A query can either be a filter or search command",
-        ),
-        (
-            "untag <tag> <citekey list>",
-            "Untags all references that are passed in the list of citekeys",
-        ),
-        (
-            "mer <filename1> <filename2> <new_filename>",
-            "Merge the references from two bib files into one file",
-        ),
-        (
-            "mer -all <new_filename>",
-            "Merge all bib files in the current working directory",
-        ),
+        ("ord <filename> [reverse=False]", "Orders the bibfile by reference type (OPTIONAL: True/False reverse sorting from Z to A)"),
+        ("sub -e <filename> <new filename> <entrytypes list>", "Creates a sub .bib file with only specified entry types"),
+        ("sub -t <filename> <new filename> <tags list>", "Creates a sub .bib file with only references with specified tags"),
+        ("tag <tag> <query>", "Adds a tag to all the references that return from a query. A query can either be a filter or search command"),
+        ("untag <tag> <query>", "Untags all references that return from a query. A query can either be a filter or search command"),
+        ("untag <tag> <citekey list>", "Untags all references that are passed in the list of citekeys."),
+        ("mer <filename1> <filename2> <new_filename>", "Merge the references from two bib files into one file"),
+        ("mer -all <new_filename>", "Merge all bib files in the current working directory"),
         ("graph [k_regular=2]", "Generates a directed K-regular graph of a bib file"),
-        (
-            "search <filename> <searchterm> [-sf]",
-            "Displays references with a certain searchterm (OPTIONAL: short form)",
-        ),
-        (
-            "filter <filename> <field> [value] [-sf]",
-            "Displays references with a certain field (OPTIONAL: a value for that field) (OPTIONAL: short form)",
-        ),
-        (
-            "enr <filename>",
-            "Enriches a bibfiles empty DOI and URL fields by getting information from the web",
-        ),
+        ("search <filename> <searchterm> [-sf]", "Displays references with a certain searchterm (OPTIONAL: short form)"),
+        ("filter <filename> <field> [value] [-sf]", "Displays references with a certain field (OPTIONAL: a value for that field) (OPTIONAL: short form)"),
+        ("enr <filename>","Enriches a bibfiles empty DOI and URL fields by getting information from the web"),
     ],
     f"{MAGENTA}VERSION CONTROL COMMANDS{RESET}": [
         ("undo <filename>", "Undo one step - Jump to the preceeding commmit"),
         ("redo <filename>", "Redo one step - Jump to the suceeding commmit"),
         (
             "checkout <filename> <commit_hash>",
-            "Checkout to a historic version of the file",
+            "Checkout to a historic version of the file"
         ),
-        ("h_del <filename>", "Delete all the history logs for a file"),
+        ("del <filename>", "Delete all the history logs for a file"),
         ("history <filename>", "Show the historic commit graph"),
         (
             "comment <filename> <commit_hash> <comment>",
-            "Add a comment to a specific commit",
-        ),
+            "Add a comment to a specific commit"
+        )
     ],
 }
 
@@ -434,16 +398,16 @@ class CLI(cmd.Cmd):
         return
 
     def do_help(self, arg):
-        for category, commands in COMMANDS.items():
+        for category, items in COMMANDS.items():
             print(f"\n{MAGENTA}{category}{RESET}")
-            ordered_commands = sorted(commands, key=lambda command: len(command[1]))
-            for command in ordered_commands:
-                print(
-                    f"{BLUE}> {RESET}",
-                    command[0],
-                    (50 - len(command[0])) * " ",
-                    f"{GREEN}{command[1]}",
-                )
+            # Preserve declared order and compute a safe padding width
+            try:
+                col_width = max(len(name) for name, _ in items) + 2
+            except ValueError:
+                col_width = 52  # fallback if list is empty
+            for name, desc in items:
+                padding = " " * max(1, col_width - len(name))
+                print(f"{BLUE}> {RESET} {name}{padding}{GREEN}{desc}")
 
     def do_abb(self, arg):
         try:

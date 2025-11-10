@@ -139,8 +139,13 @@ def parse_bib(file_path, remove_newlines_in_fields=None) -> BibFile:
                                 result.content.append(String(comment, key, _parse_string(token), enclosure))
                             else:
                                 reference = Reference(comment, entry_type, key)
-                                if token.strip() != "":  # Since a comma in the last field is optional.
-                                    _add_field(fields, field_type, token.strip())
+                                token = token.strip()
+                                if token != "":
+                                    if current_state == State.VALUE:  # Since a comma in the last field is optional.
+                                        _add_field(fields, field_type, token)
+                                    else:
+                                        raise ValueError(f"Parser does not support comments after final field value: "
+                                                         f"key: '{key}', comment: '{token}'")
                                 for field, field_value in fields.items():
                                     setattr(reference, field, field_value)
                                 result.content.append(reference)

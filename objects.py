@@ -129,19 +129,6 @@ class GraphNode(object):
         self.year = "N/A"
 
 
-# We will explore these child objects in the future if 
-# we have to distinguish between bib entries
-
-class BibTexReference(Reference):
-    def __init__(self):
-        super().__init__()
-
-
-class BibLaTexReference(Reference):
-    def __init__(self):
-        super().__init__()
-
-
 # JUST FOR TESTING PURPOSES
 if __name__ == "__main__":
     random_file = BibFile("random_file.bib")

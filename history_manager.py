@@ -67,7 +67,6 @@ def initialise_history(bibfile: BibFile):
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     os.makedirs(hist_dir_path, exist_ok=True)
     
-    
     # Ensure that there is a tracker file
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
     if not os.path.isfile(tracker_file_path):
@@ -78,15 +77,21 @@ def initialise_history(bibfile: BibFile):
     tracker = get_json_object(tracker_file_path)
     has_file = any(os.path.isfile(os.path.join(hist_dir_path, name)) and name != "tracker.json" for name in os.listdir(hist_dir_path))
     
+    print(file_path)
+    
     if not has_file:
+        print("here")
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             commit_name = f"{token_hex(16)}"
             tracker["timestamp"][commit_name] = timestamp_local()
-            
             tracker["current_parent"] = commit_name
             tracker["timestamp"][commit_name] = timestamp_local()
             commit_file_path = os.path.join(hist_dir_path, commit_name)
-            file_generator.generate_bib(bibfile, commit_file_path)
+            
+            # The first saving of the file is "as it is" - It doesn't go through the parser
+            with open(file_path, "r", encoding="utf-8") as src, open(commit_file_path, "w", encoding="utf-8") as dst:
+                for line in src:
+                    dst.write(line)
             
             tracker["BOTTOM"] = commit_name
             tracker["TOP"] = commit_name
@@ -100,24 +105,15 @@ def commit(bibfile: BibFile):
     file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
-    # Ensure there exists a history and hist_filename directory structure
-    os.makedirs("history", exist_ok=True)
+    # The initialise_history() should ensure these
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
-    os.makedirs(hist_dir_path, exist_ok=True)
-    
-    # Ensure that there is a tracker file
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
-    if not os.path.isfile(tracker_file_path):
-        with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
-            json.dump(DEFAULT_JSON, tracker_file, ensure_ascii=False, indent=2)
-    
-    # Do commit
     tracker = get_json_object(tracker_file_path)
     
     last_commit_path = os.path.join(hist_dir_path, tracker["current_parent"])
     if not same_commit(file_parser.parse_bib(last_commit_path), bibfile):
-        if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
-            print_in_yellow("Branching!") #TODO: REMOVE OR CLEARER MESSAGE
+        # if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
+        #     print_in_yellow("Branching!")
       
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             commit_name = f"{token_hex(16)}"

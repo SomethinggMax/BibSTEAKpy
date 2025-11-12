@@ -52,3 +52,6 @@ if __name__ == "__main__":
     test_file = file_parser.parse_bib("../bib_files/biblatex-examples.bib")
     article_file = filter_entry_types(test_file, ["article", "collection"])
     file_generator.generate_bib(article_file, "../bib_files/article+collection-examples.bib")
+
+    tagged_sub_file = filter_tags(test_file, ["Computer Science", "Virtual memory and storage"])
+    file_generator.generate_bib(tagged_sub_file, "../bib_files/tagged-examples.bib")

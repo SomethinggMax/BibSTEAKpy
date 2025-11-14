@@ -195,6 +195,7 @@ def check_extension(filename):
                 f"The file name must have a .bib extension or no extension at all."
             )
         return filename
+    
     except ValueError as e:
         print_error_msg(e,e)
     except Exception as e:
@@ -870,41 +871,39 @@ class CLI(cmd.Cmd):
                 raise ValueError("no filename given!")
             elif len(argument_list) == 1:
                 filename = args
-                step = 1
-            elif len(argument_list) == 2:
-                filename = argument_list[0]
-                step = int(argument_list[1])
-            # TODO: handle else case (filename and step will not be initialised)
+            else:
+                print_in_yellow("Too many arguments!")
 
             bib_file = path_to_bibfileobj(filename)
-            undo(bib_file, step)
+            undo(bib_file)
+            print_in_green("Undo done successfully!")
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, "undo <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
 
+
     def do_redo(self, args):
         try:
             argument_list = parse_args(args)
 
             if len(argument_list) < 1:
-                raise ValueError("no filename given!")
+                raise ValueError("No filename given!")
             elif len(argument_list) == 1:
                 filename = args
-                step = 1
-            elif len(argument_list) == 2:
-                filename = argument_list[0]
-                step = int(argument_list[1])
-            # TODO: handle else case (filename and step will not be initialised)
+            else:
+                print_in_yellow("Too many arguments!")
 
             bib_file = path_to_bibfileobj(filename)
-            redo(bib_file, step)
-
+            redo(bib_file)
+            print_in_green("Redo done successfully!")
+            
         except (ValueError, IndexError) as e:
             print_error_msg(e, "redo <filename>")
         except (FileNotFoundError, PermissionError, Exception) as e:
             print_error_msg(e, e)
+
 
     def do_checkout(self, args):
         try:
@@ -913,33 +912,25 @@ class CLI(cmd.Cmd):
                 filename = argument_list[0]
                 commit_hash = argument_list[1]
             else:
-                print("Not enough arguments!")
+                print_in_yellow("Not enough arguments!")
                 return
             
-            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename + ".bib")):
+            # Check if file exists in wd
+            filename = check_extension(filename)
+            if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
                 print_in_yellow(f"{filename} doesn't exist in {json_loader.get_wd_path()}")
                 return
             
-            hist_dir_path = os.path.join("history", f"hist_{filename}.bib")
-            print(hist_dir_path)
-            checkout_path = os.path.join(hist_dir_path, commit_hash)
-            
-            # if not os.path.isfile(checkout_path):
-            #     print_in_yellow(f"Commit hash for file {filename} is not valid")
-            #     return
-                
-
-            # if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
-            #     raise FileNotFoundError(None, None, filename)
-
-            # if not os.path.isfile(checkout_path):
-            #     raise OSError(
-            #         f"Commit hash for file {CYAN}'{filename}'{YELLOW} is not valid"
-            #     )
+            # Check if commit hash exists
+            hist_dir_path = os.path.join("history", f"hist_{filename}")
+            commit_path = os.path.join(hist_dir_path, commit_hash)
+            if not os.path.isfile(commit_path):
+                print_in_yellow(f"Invalid Commit Hash")
+                return
 
             bib_file = path_to_bibfileobj(filename)
             checkout(bib_file, commit_hash)
-            print_in_green(f"Checkout done successfully to commit {CYAN}{commit_hash}")
+            print_in_green(f"Checkout done successfully to commit {CYAN}{commit_hash}{RESET}")
 
         except ValueError as e:
                 print(f"Argument error: {e}")
@@ -962,30 +953,23 @@ class CLI(cmd.Cmd):
                 print_in_yellow("Not enough arguments!")
                 return
             
+            # Check if file exists in wd
+            filename = check_extension(filename)
             if not os.path.isfile(os.path.join(json_loader.get_wd_path(), filename)):
                 print_in_yellow(f"{filename} doesn't exist in {json_loader.get_wd_path()}")
                 return
             
+            # Check if commit hash exists
             hist_dir_path = os.path.join("history", f"hist_{filename}")
-            checkout_path = os.path.join(hist_dir_path, commit_hash)
-            
-            if not os.path.isfile(checkout_path):
-                print_in_yellow(f"Commit hash for file {filename} is not valid")
+            commit_path = os.path.join(hist_dir_path, commit_hash)
+            if not os.path.isfile(commit_path):
+                print_in_yellow(f"Invalid Commit Hash")
                 return
                 
             bib_file = path_to_bibfileobj(filename)
             comment(bib_file, commit_hash, checkout_comment)
             print_in_green(f"Commenting done successfuly")
             
-        except ValueError as e:
-                print(f"Argument error: {e}")
-                return None
-        except FileNotFoundError as e:
-                print(f"File error: {e.filename} not found.")
-                return None
-        except Exception as e:
-                print(f"Unexpected error: {e}")
-                return None
         except (ValueError, IndexError) as e:
             print_error_msg(e, "checkout <filename> <commit_hash>")
         except (FileNotFoundError, PermissionError, Exception) as e:

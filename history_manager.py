@@ -1,12 +1,3 @@
-
-# TODO: Make sure hashes do not collide [DONE]
-# TODO: Integrate timestamps and comments [DONE]
-# TODO: First File Change [DONE]
-# TODO: Improve history visualisation [KINDA DONE]
-# TODO: make it work without .bib [DONE]
-# TODO: Better handle exceptions in the CLI and success/failure messages throw errors from history functions
-# TODO: History should work with .bib extensions in the file names and without it
-
 import os, json
 import time
 import json
@@ -51,6 +42,7 @@ def generate_hash(tracker):
 def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
     return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
+
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -157,7 +149,7 @@ def undo(bibfile: BibFile):
     
     if not os.path.isdir(hist_dir_path):
         print_in_yellow("There is no history to undo - please commit a change first!")
-        return 
+        return False
     
     tracker = get_json_object(tracker_file_path)
     
@@ -175,6 +167,9 @@ def undo(bibfile: BibFile):
             
     else:
         print_in_yellow("Reached the bottom of the history! - Cannot undo anymore")
+        return False
+    
+    return True
     
 
 def redo(bibfile: BibFile):
@@ -185,7 +180,7 @@ def redo(bibfile: BibFile):
     
     if not os.path.isdir(hist_dir_path):
         print_in_yellow("There is no history to redo - please commit a change first!")
-        return 
+        return False
     
     tracker = get_json_object(tracker_file_path)
     
@@ -205,6 +200,9 @@ def redo(bibfile: BibFile):
             tracker_file.close()
     else:
         print_in_yellow("Reached the top of the history! - Cannot redo anymore")
+        return False
+    
+    return True
 
 
 def checkout(bibfile: BibFile, commit_hash: str):

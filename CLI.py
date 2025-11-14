@@ -875,8 +875,8 @@ class CLI(cmd.Cmd):
                 print_in_yellow("Too many arguments!")
 
             bib_file = path_to_bibfileobj(filename)
-            undo(bib_file)
-            print_in_green("Undo done successfully!")
+            success = undo(bib_file)
+            if success: print_in_green("Undo done successfully!")
 
         except (ValueError, IndexError) as e:
             print_error_msg(e, "undo <filename>")
@@ -896,8 +896,8 @@ class CLI(cmd.Cmd):
                 print_in_yellow("Too many arguments!")
 
             bib_file = path_to_bibfileobj(filename)
-            redo(bib_file)
-            print_in_green("Redo done successfully!")
+            success = redo(bib_file)
+            if success: print_in_green("Redo done successfully!")
             
         except (ValueError, IndexError) as e:
             print_error_msg(e, "redo <filename>")
@@ -1095,7 +1095,6 @@ class CLI(cmd.Cmd):
         return self.filename_completions(text)
 
     # Add similar methods for other commands that take filenames as arguments
-
 
 if __name__ == "__main__":
     readline.set_completer(completer)

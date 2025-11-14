@@ -2,7 +2,7 @@
 import utils
 import os
 from utils.ordering import GroupingType
-from utils import file_parser, file_generator, ordering, order_by_field, filtering
+from utils import file_parser, file_generator, ordering, order_by_field, filtering, abbreviations_exec
 
 
 
@@ -62,7 +62,7 @@ class API(object):
             print(f"Unexpected error: {e}")
             return None
         
-    def gr(self, filename, order=False):
+    def ord(self, filename, order=False):
         """
         Groups the entries in the file by entry_type.
 
@@ -79,28 +79,6 @@ class API(object):
             ordering.order_by_entry_type(bib_file, order)
             file_generator.generate_bib(bib_file, bib_file.file_path)
             # # commit(bib_file)
-
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-        
-    def ord(self, filename, field, descending=False):
-        """
-        Orders the entries in a file based on a specified field.
-
-        Args:
-            filename: The name of the target file.
-            field: The field used as a key for sorting
-            descending: If True the sorting will be done in descending order
-        """
-        try:
-            path = os.path.join(self.wd_path, filename)
-            file = file_parser.parse_bib(path)
-            
-            # initialise_history(file)
-            order_by_field.order_by_field(file, field, descending)
-            file_generator.generate_bib(file, path)
-            # commit(file)
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -128,6 +106,22 @@ class API(object):
                 return False
             else:
                 return True
+            
+        except IndexError as e:
+            print(f"Index error! Specify two arguments: <filename> <searchterm>")
+        except FileNotFoundError as e:
+            print(f"File {filename} not found! Check your spelling.")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            
+    def exp(self, filename):
+        
+        try:
+            path = os.path.join(self.wd_path, filename)
+            bib_file = utils.file_parser.parse_bib(path)
+
+            abbreviations_exec.execute_abbreviations(bib_file, False, 1000)
+            file_generator.generate_bib(bib_file, bib_file.file_path)
             
         except IndexError as e:
             print(f"Index error! Specify two arguments: <filename> <searchterm>")

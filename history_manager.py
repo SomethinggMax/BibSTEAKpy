@@ -1,10 +1,3 @@
-
-# TODO: Make sure hashes do not collide
-# TODO: Better handle exceptions in the CLI and success/failure messages
-# TODO: Integrate timestamps and comments
-# TODO: First File Change
-# TODO: Improve history visualisation
-
 import os, json
 import time
 import json
@@ -28,17 +21,28 @@ DEFAULT_JSON = {"parent_to_childs": {},
                 "TOP": "None", 
                 "current_parent": "None", 
                 "timestamp": {},
-                "comments": {}
+                "comments": {},
+                "generated_hashes": []
                 }
 
 class Node(object):
     def __init__(self, name):
         self.name = name
         self.children = []
+        
+def generate_hash(tracker):
+    """
+    Ensures that hashes do not collide
+    """
+    while True:
+        commit_name = f"{token_hex(16)}"
+        if commit_name not in tracker["generated_hashes"]:
+            return commit_name
 
 def timestamp_local():
     # local time, timezone-aware; safe for filenames (no colons)
     return datetime.now().astimezone().strftime("%H.%M.%S %d-%m-%Y")
+
 
 def print_in_yellow(arg):
     print(f"{YELLOW}{arg}{RESET}")
@@ -65,7 +69,6 @@ def initialise_history(bibfile: BibFile):
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
     os.makedirs(hist_dir_path, exist_ok=True)
     
-    
     # Ensure that there is a tracker file
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
     if not os.path.isfile(tracker_file_path):
@@ -76,15 +79,21 @@ def initialise_history(bibfile: BibFile):
     tracker = get_json_object(tracker_file_path)
     has_file = any(os.path.isfile(os.path.join(hist_dir_path, name)) and name != "tracker.json" for name in os.listdir(hist_dir_path))
     
+    print(file_path)
+    
     if not has_file:
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
-            commit_name = f"{token_hex(16)}"
+            commit_name = generate_hash(tracker)
+            tracker["generated_hashes"].append(commit_name)
             tracker["timestamp"][commit_name] = timestamp_local()
-            
             tracker["current_parent"] = commit_name
             tracker["timestamp"][commit_name] = timestamp_local()
             commit_file_path = os.path.join(hist_dir_path, commit_name)
-            file_generator.generate_bib(bibfile, commit_file_path)
+            
+            # The first saving of the file is "as it is" - It doesn't go through the parser
+            with open(file_path, "r", encoding="utf-8") as src, open(commit_file_path, "w", encoding="utf-8") as dst:
+                for line in src:
+                    dst.write(line)
             
             tracker["BOTTOM"] = commit_name
             tracker["TOP"] = commit_name
@@ -98,27 +107,19 @@ def commit(bibfile: BibFile):
     file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     
-    # Ensure there exists a history and hist_filename directory structure
-    os.makedirs("history", exist_ok=True)
+    # The initialise_history() should ensure these
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
-    os.makedirs(hist_dir_path, exist_ok=True)
-    
-    # Ensure that there is a tracker file
     tracker_file_path = os.path.join(hist_dir_path, "tracker.json")
-    if not os.path.isfile(tracker_file_path):
-        with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
-            json.dump(DEFAULT_JSON, tracker_file, ensure_ascii=False, indent=2)
-    
-    # Do commit
     tracker = get_json_object(tracker_file_path)
     
     last_commit_path = os.path.join(hist_dir_path, tracker["current_parent"])
     if not same_commit(file_parser.parse_bib(last_commit_path), bibfile):
-        if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
-            print_in_yellow("Branching!") #TODO: REMOVE OR CLEARER MESSAGE
+        # if tracker["current_parent"] != tracker["TOP"]: # Tip of the branch
+        #     print_in_yellow("Branching!")
       
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
-            commit_name = f"{token_hex(16)}"
+            commit_name = generate_hash(tracker)
+            tracker["generated_hashes"].append(commit_name)
             tracker["timestamp"][commit_name] = timestamp_local()
             
             parent = tracker.get("current_parent", "__root__")  
@@ -140,7 +141,7 @@ def commit(bibfile: BibFile):
         print_in_yellow("No changes detected relative to last commit.")
         
 
-def undo(bibfile: BibFile, step=1):
+def undo(bibfile: BibFile):
     file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
@@ -148,7 +149,7 @@ def undo(bibfile: BibFile, step=1):
     
     if not os.path.isdir(hist_dir_path):
         print_in_yellow("There is no history to undo - please commit a change first!")
-        return 
+        return False
     
     tracker = get_json_object(tracker_file_path)
     
@@ -166,9 +167,12 @@ def undo(bibfile: BibFile, step=1):
             
     else:
         print_in_yellow("Reached the bottom of the history! - Cannot undo anymore")
+        return False
+    
+    return True
     
 
-def redo(bibfile: BibFile, step=1):
+def redo(bibfile: BibFile):
     file_path = bibfile.file_path
     file_name = file_path.split("\\")[-1]
     hist_dir_path = os.path.join("history", f"hist_{file_name}")
@@ -176,7 +180,7 @@ def redo(bibfile: BibFile, step=1):
     
     if not os.path.isdir(hist_dir_path):
         print_in_yellow("There is no history to redo - please commit a change first!")
-        return 
+        return False
     
     tracker = get_json_object(tracker_file_path)
     
@@ -196,6 +200,9 @@ def redo(bibfile: BibFile, step=1):
             tracker_file.close()
     else:
         print_in_yellow("Reached the top of the history! - Cannot redo anymore")
+        return False
+    
+    return True
 
 
 def checkout(bibfile: BibFile, commit_hash: str):
@@ -240,17 +247,22 @@ def history(bibfile: BibFile):
         with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
             json.dump(DEFAULT_JSON, tracker_file, ensure_ascii=False, indent=2)
     
-    # Do commit
     tracker = get_json_object(tracker_file_path)
-    parent_root = tracker["BOTTOM"]
-    current_parent = tracker["current_parent"]
-    adj_list = tracker["parent_to_childs"]
-    tree = Node(parent_root)
-    build_graph(tree, adj_list)
-    print("")
-    print_graph(tree, indent=0, parent=True, current_parent=current_parent)
-    print_table(tracker)
     
+    if len(tracker['parent_to_childs']) != 0:
+        # Do commit
+        tracker = get_json_object(tracker_file_path)
+        parent_root = tracker["BOTTOM"]
+        current_parent = tracker["current_parent"]
+        adj_list = tracker["parent_to_childs"]
+        tree = Node(parent_root)
+        build_graph(tree, adj_list)
+        print("")
+        print_graph(tree, level=0, root=True, current_parent=current_parent)
+        print_table(tracker)
+    else:
+        print_in_yellow("No history to show!")
+        
     
 def print_table(tracker):
     full_list = []
@@ -274,6 +286,23 @@ def print_table(tracker):
     
     # TODO: If comment, display comment column as well
     
+    if len(tracker["comments"]) != 0:
+        print("\n")
+        print(f"{len('| COMMIT HASH -> COMMENT |') * '-'}")
+        print("| COMMIT HASH -> COMMENT |")
+        print(f"{len('| COMMIT HASH -> COMMENT |') * '-'}")
+        for hash in tracker["comments"]:
+            print(f"{hash}: {tracker['comments'][hash]}")
+            
+        print("")
+            
+
+    
+    # with open(tracker_file_path, "w", encoding="utf-8") as tracker_file:
+    #     tracker["comments"][commit_hash] = comment
+    #     json_str= json.dumps(tracker, indent=2)
+    #     tracker_file.write(json_str)
+    
     
     
 def build_graph(parent, adj_list):
@@ -285,21 +314,25 @@ def build_graph(parent, adj_list):
         build_graph(child, adj_list) 
         
         
-def print_graph(tree, indent, parent=False, current_parent="None"):
+def print_graph(tree, level, root, current_parent="None", ):
     offset = 5
-    visited = []
+    
     if tree.name == current_parent:
         display_name = f"{MAGENTA}{tree.name}{RESET}"
     else:
         display_name = f"{WHITE}{tree.name}{RESET}"
         
-    if parent == False:
-        print(f"{MAGENTA}{(indent-1) * offset * ' '}|{1 * (offset-1) * '-'}| {RESET}{display_name}")
+    if root:
+        print(f"{display_name}")
+        root = False
     else:
-         print(f"{MAGENTA}| {display_name}{RESET}")
-               
-    for child in tree.children:
-        print_graph(child, indent + 1, parent=False, current_parent=current_parent)
+        print(f"{MAGENTA}{(level-1) * (offset+2) * ' '}|{1 * (offset-1) * '-'}> {RESET}{display_name}")
+        
+        
+    total = len(tree.children)
+    for index, value in enumerate(tree.children):
+        print_graph(value, level + 1, root, current_parent=current_parent)
+        
         
         
 def same_commit(bib_file1: BibFile, bib_file2: BibFile):
